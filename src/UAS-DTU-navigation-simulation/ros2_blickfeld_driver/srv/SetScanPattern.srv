@@ -1,0 +1,16 @@
+float32 fov_horizontal # in deg
+float32 fov_vertical # in deg
+float32 angle_spacing # in deg
+uint16 scanlines_up
+uint16 scanlines_down
+string frame_mode
+string COMBINE_UP_DOWN = "COMBINE_UP_DOWN"
+string ONLY_UP = "ONLY_UP"
+string ONLY_DOWN = "ONLY_DOWN"
+string SEPARATE = "SEPARATE"
+string pulse_type
+string EQUI_HORIZONTAL_ANGLE = "EQUI_HORIZONTAL_ANGLE"
+string INTERLEAVE = "INTERLEAVE"
+---
+bool success
+string message

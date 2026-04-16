@@ -1,0 +1,113 @@
+<launch>
+  <arg name="host" default="" description="ip of scanner" />
+  <arg name="lidar_frame_id" default="lidar" description="frame to give to this lidar sensors point cloud output" />
+  <arg name="node_name" default="bf_lidar" description="Name of this node." />
+  <arg name="remap" default="true"
+       description="Remap this node's input/output topics to commonly used ones. 'false' leads to canonical names."/>
+  <arg name="rviz" default="false" description="set to true if you want to have default visualisation" />
+
+  <!-- point cloud data publishing options -->
+  <arg name="publish_ambient_light" default="false"
+    description="Set to true if ambient light should be published for each point" />
+  <arg name="publish_explicit_range" default="false"
+    description="Set to true if (ToF/polar) range should be published explicitly for each point" />
+  <arg name="publish_intensities" default="false"
+    description="Set to true if intensities should be published for each point" />
+  <arg name="publish_no_return_points" default="false"
+    description="Set to true if points without a return should be published with given range" />
+  <arg name="publish_point_id" default="false"
+    description="Publish 'scanline_id', 'scanline_point_index' (= the point's number in the scanline) and 'point_id' (= frame-global point ID)" />
+  <arg name="publish_point_time_offset" default="false"
+    description="Set to true if each point should carry time offset [ns] to frame start" />
+  <arg name="no_return_point_range" default="1.0"
+    description="The range in which points without a return should be published at" />
+  <arg name="returns_publishing_options" default="strongest"
+    description="different options to publish the returns: strongest, closest, farthest, all" />
+
+  <!-- image publishing options-->
+  <arg name="projection_type" default="angle_preserving"
+    description="different options project images: angle_preserving, scanline_preserving" />
+  <arg name="publish_ambient_image" default="false"
+    description="Set to true if an ambient image should be published" />
+  <arg name="publish_intensity_image" default="false"
+    description="Set to true if an intensity image should be published" />
+  <arg name="publish_range_image" default="false"
+    description="Set to true if a range image should be published" />
+
+  <!-- imu publishing options-->
+  <arg name="imu_acceleration_unit" default="g"
+    description="different imu acceleration units: g, meters_per_second_squared" />
+  <arg name="publish_imu" default="false"
+    description="set to true if IMU bursts are needed to be published" />
+  <arg name="publish_imu_static_tf_at_start" default="false"
+    description="set to true if IMU data is needed to be published with static tf only once at start" />
+
+  <!-- common publishing options-->
+  <arg name="use_lidar_timestamp" default="true"
+    description="set to true if the timestamp in the ros point cloud message should be generated from the timestamp in the bf_lidar frame" />
+
+  <!-- on device algorithms -->
+  <arg name="use_background_subtraction" default="false" description="Enables on-device background subtraction. Default: false"/>
+  <arg name="use_neighbor_filter" default="false" description="Enables on-device neighbor filter. Default: false"/>
+
+  <!-- on device algorithm parameters -->
+  <arg name="background_subtraction_exponential_decay_rate" default="0.005"
+    description="Controls how fast objects switch between foreground and background. Exponential decay factor. Default: 0.005"/>
+  <arg name="background_subtraction_num_initialization_frames" default="10"
+    description="Number of frames to initialize the background with. Default: 10"/>
+
+  <!-- output topics --> 
+  <arg name="ambient_image_out" default="$(var node_name)/ambient_image_out" description="Topic to publish the ambient image on." />
+  <arg name="diagnostic_out" default="$(var node_name)/diagnostic" description="Topic to publish the diagnostic status." />
+  <arg name="imu_out" default="$(var node_name)/imu" description="Topic to publish the IMU data on." />
+  <arg name="intensity_image_out" default="$(var node_name)/intensity_image_out" description="Topic to publish the intensity image on." />
+  <arg name="point_cloud_out" default="$(var node_name)/points_raw" description="Topic to publish the point cloud on." />
+  <arg name="range_image_out" default="$(var node_name)/range_image_out" description="Topic to publish the range image on." />
+
+  <!-- Services -->  
+  <arg name="set_scan_pattern_service" default="$(var node_name)/set_scan_pattern" description="Start service to set a new scan pattern" />
+  <arg name="publish_imu_static_tf_service" default="$(var node_name)/publish_imu_static_tf" description="Start service to publish imu static as tf transform" />
+
+  <arg name="rvizconf" default="$(find-pkg-share blickfeld_driver)/config/blickfeld_scanner.rviz"/>
+
+  <node pkg="blickfeld_driver" exec="blickfeld_driver_node" name="$(var node_name)" output="screen">
+    <param name="host" value="$(var host)" />
+    <param name="lidar_frame_id" value="$(var lidar_frame_id)" />
+
+    <param name="publish_ambient_light" value="$(var publish_ambient_light)" />
+    <param name="publish_explicit_range" value="$(var publish_explicit_range)" />
+    <param name="publish_intensities" value="$(var publish_intensities)" />
+    <param name="publish_no_return_points" value="$(var publish_no_return_points)" />
+    <param name="publish_point_id" value="$(var publish_point_id)" />
+    <param name="publish_point_time_offset" value="$(var publish_point_time_offset)" />
+    <param name="no_return_point_range" value="$(var no_return_point_range)" />
+    <param name="returns_publishing_options" value="$(var returns_publishing_options)" />
+
+    <param name="projection_type" value="$(var projection_type)" />
+    <param name="publish_ambient_image" value="$(var publish_ambient_image)" />
+    <param name="publish_intensity_image" value="$(var publish_intensity_image)" />
+    <param name="publish_range_image" value="$(var publish_range_image)" />
+
+    <param name="imu_acceleration_unit" value="$(var imu_acceleration_unit)" />
+    <param name="publish_imu" value="$(var publish_imu)" />
+    <param name="publish_imu_static_tf_at_start" value="$(var publish_imu_static_tf_at_start)" />
+
+    <param name="use_lidar_timestamp" value="$(var use_lidar_timestamp)" />
+
+    <param name="use_background_subtraction" value="$(var use_background_subtraction)" />
+    <param name="use_neighbor_filter" value="$(var use_neighbor_filter)" />
+    <param name="background_subtraction_exponential_decay_rate" value="$(var background_subtraction_exponential_decay_rate)" />
+    <param name="background_subtraction_num_initialization_frames" value="$(var background_subtraction_num_initialization_frames)" />
+
+    <remap if="$(var remap)" from="~/ambient_image_out" to="$(var ambient_image_out)" />
+    <remap if="$(var remap)" from="~/diagnostic_out" to="$(var diagnostic_out)" />
+    <remap if="$(var remap)" from="~/imu_out" to="$(var imu_out)" />
+    <remap if="$(var remap)" from="~/intensity_image_out" to="$(var intensity_image_out)" />
+    <remap if="$(var remap)" from="~/point_cloud_out" to="$(var point_cloud_out)" />
+    <remap if="$(var remap)" from="~/range_image_out" to="$(var range_image_out)" />
+    <remap if="$(var remap)" from="~/set_scan_pattern_service" to="$(var set_scan_pattern_service)" />
+    <remap if="$(var remap)" from="~/publish_imu_static_tf_service" to="$(var publish_imu_static_tf_service)" />
+  </node>
+  
+  <node if="$(var rviz)" pkg="rviz2" exec="rviz2" name="rviz" args=" -d  $(var rvizconf)" />
+</launch>

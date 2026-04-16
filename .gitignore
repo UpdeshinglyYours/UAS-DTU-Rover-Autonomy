@@ -1,0 +1,38 @@
+build/
+install/
+log/
+src/librealsense/
+src/realsense-ros/
+src/pointcloud_to_laserscan/
+
+# ROS2
+build/
+install/
+log/
+
+# External repos (VERY IMPORTANT)
+#src/UAS-DTU-navigation-simulation/
+src/librealsense/
+src/realsense-rosi/
+src/pointcloud_to_laserscan/
+
+# Logs & bags
+*.log
+*.tlog
+*.bag
+*.db3
+*.tlog.raw
+# Maps (optional - include only if needed)
+*.pgm
+*.yaml
+
+# Generated files
+*.pdf
+*.gv
+
+# Python
+__pycache__/
+*.pyc
+
+# IDE
+.vscode/
