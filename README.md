@@ -1,6 +1,8 @@
+WORKING FR FR:
+
+
 (lidar frame p working h)
 
-WORKING FR FR:
 -
 (rosbag pehle ofc :))
 
@@ -34,9 +36,9 @@ rviz2 pe /map kjwdbvcuigew
 
 
 
+
 (base link frame p working h)
 
-KUCH TOH HORA H
 
 -
 
