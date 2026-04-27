@@ -1,0 +1,40 @@
+[0.599s] Invoking command in '/home/abhimanyu/nav2_ws/src/lirovo': PYTHONPATH=/home/abhimanyu/nav2_ws/src/lirovo/build/lirovo/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/abhimanyu/nav2_ws/src/lirovo/install/lirovo/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base build/lirovo build --build-base /home/abhimanyu/nav2_ws/src/lirovo/build/lirovo/build install --record /home/abhimanyu/nav2_ws/src/lirovo/build/lirovo/install.log --single-version-externally-managed install_data
+[0.756s] running egg_info
+[0.757s] creating build/lirovo/lirovo.egg-info
+[0.757s] writing build/lirovo/lirovo.egg-info/PKG-INFO
+[0.757s] writing dependency_links to build/lirovo/lirovo.egg-info/dependency_links.txt
+[0.757s] writing entry points to build/lirovo/lirovo.egg-info/entry_points.txt
+[0.757s] writing requirements to build/lirovo/lirovo.egg-info/requires.txt
+[0.757s] writing top-level names to build/lirovo/lirovo.egg-info/top_level.txt
+[0.757s] writing manifest file 'build/lirovo/lirovo.egg-info/SOURCES.txt'
+[0.758s] reading manifest file 'build/lirovo/lirovo.egg-info/SOURCES.txt'
+[0.759s] writing manifest file 'build/lirovo/lirovo.egg-info/SOURCES.txt'
+[0.759s] running build
+[0.759s] running build_py
+[0.759s] creating /home/abhimanyu/nav2_ws/src/lirovo/build/lirovo/build
+[0.759s] creating /home/abhimanyu/nav2_ws/src/lirovo/build/lirovo/build/lib
+[0.760s] creating /home/abhimanyu/nav2_ws/src/lirovo/build/lirovo/build/lib/lirovo
+[0.760s] copying lirovo/__init__.py -> /home/abhimanyu/nav2_ws/src/lirovo/build/lirovo/build/lib/lirovo
+[0.760s] running install
+[0.760s] running install_lib
+[0.760s] creating /home/abhimanyu/nav2_ws/src/lirovo/install/lirovo/lib/python3.10/site-packages/lirovo
+[0.760s] copying /home/abhimanyu/nav2_ws/src/lirovo/build/lirovo/build/lib/lirovo/__init__.py -> /home/abhimanyu/nav2_ws/src/lirovo/install/lirovo/lib/python3.10/site-packages/lirovo
+[0.760s] byte-compiling /home/abhimanyu/nav2_ws/src/lirovo/install/lirovo/lib/python3.10/site-packages/lirovo/__init__.py to __init__.cpython-310.pyc
+[0.760s] running install_data
+[0.760s] creating /home/abhimanyu/nav2_ws/src/lirovo/install/lirovo/share/ament_index
+[0.760s] creating /home/abhimanyu/nav2_ws/src/lirovo/install/lirovo/share/ament_index/resource_index
+[0.761s] creating /home/abhimanyu/nav2_ws/src/lirovo/install/lirovo/share/ament_index/resource_index/packages
+[0.761s] copying resource/lirovo -> /home/abhimanyu/nav2_ws/src/lirovo/install/lirovo/share/ament_index/resource_index/packages
+[0.761s] copying package.xml -> /home/abhimanyu/nav2_ws/src/lirovo/install/lirovo/share/lirovo
+[0.761s] creating /home/abhimanyu/nav2_ws/src/lirovo/install/lirovo/share/lirovo/config
+[0.761s] copying config/nav2_params.yaml -> /home/abhimanyu/nav2_ws/src/lirovo/install/lirovo/share/lirovo/config
+[0.761s] copying config/slam_params.yaml -> /home/abhimanyu/nav2_ws/src/lirovo/install/lirovo/share/lirovo/config
+[0.761s] creating /home/abhimanyu/nav2_ws/src/lirovo/install/lirovo/share/lirovo/launch
+[0.762s] copying launch/lirovo.launch.py -> /home/abhimanyu/nav2_ws/src/lirovo/install/lirovo/share/lirovo/launch
+[0.762s] copying launch/mavros_bridge.py -> /home/abhimanyu/nav2_ws/src/lirovo/install/lirovo/share/lirovo/launch
+[0.762s] running install_egg_info
+[0.763s] Copying build/lirovo/lirovo.egg-info to /home/abhimanyu/nav2_ws/src/lirovo/install/lirovo/lib/python3.10/site-packages/lirovo-0.0.0-py3.10.egg-info
+[0.763s] running install_scripts
+[0.777s] Installing mavros_bridge script to /home/abhimanyu/nav2_ws/src/lirovo/install/lirovo/lib/lirovo
+[0.777s] writing list of installed files to '/home/abhimanyu/nav2_ws/src/lirovo/build/lirovo/install.log'
+[0.802s] Invoked command in '/home/abhimanyu/nav2_ws/src/lirovo' returned '0': PYTHONPATH=/home/abhimanyu/nav2_ws/src/lirovo/build/lirovo/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/abhimanyu/nav2_ws/src/lirovo/install/lirovo/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base build/lirovo build --build-base /home/abhimanyu/nav2_ws/src/lirovo/build/lirovo/build install --record /home/abhimanyu/nav2_ws/src/lirovo/build/lirovo/install.log --single-version-externally-managed install_data

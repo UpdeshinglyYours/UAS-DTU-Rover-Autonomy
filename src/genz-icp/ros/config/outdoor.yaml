@@ -1,0 +1,26 @@
+# publish_odom_tf: false #true
+max_range: 25.0 #35.0       
+min_range: 0.5
+voxel_size: 0.5 #0.5     
+desired_num_voxelized_points: 4500 #4500
+planarity_threshold: 0.2 #0.2
+max_points_per_voxel: 3
+initial_threshold: 2.0
+min_motion_th: 0.9 #0.1
+max_num_iterations: 200 #100
+convergence_criterion: 0.00001 #0.0001
+
+
+# topic: (set in launch file or command line)
+# deskew: false
+# max_range: 100.0
+# min_range: 0.5
+# voxel_size: 0.4
+# desired_num_voxelized_points: 3000
+# planarity_threshold: 0.1
+# max_points_per_voxel: 3
+# initial_threshold: 2.0
+# min_motion_th: 0.01
+# max_num_iterations: 200
+# convergence_criterion: 0.0001
+

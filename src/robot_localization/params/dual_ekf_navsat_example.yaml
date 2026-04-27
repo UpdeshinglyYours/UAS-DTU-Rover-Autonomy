@@ -1,0 +1,82 @@
+ekf_filter_node_odom:
+  ros__parameters:
+
+    frequency: 30.0
+    sensor_timeout: 0.1
+    two_d_mode: true
+    publish_tf: true
+
+    map_frame: map
+    odom_frame: odom
+    base_link_frame: base_link
+    world_frame: odom
+
+    odom0: /genz/odometry_cov
+    odom0_config: [true, true, false,
+                   false, false, true,
+                   true, false, false,
+                   false, false, true,
+                   false, false, false]
+    odom0_differential: false
+    odom0_relative: false
+
+    imu0: /mavros/imu/data
+    imu0_config: [false, false, false,
+                  false, false, true,
+                  false, false, false,
+                  true, true, true,
+                  false, false, false]
+    imu0_differential: false
+    imu0_queue_size: 10
+    imu0_remove_gravitational_acceleration: true
+
+ekf_filter_node_map:
+  ros__parameters:
+
+    frequency: 10.0
+    sensor_timeout: 1.0
+    two_d_mode: true
+    publish_tf: true
+
+    map_frame: map
+    odom_frame: odom
+    base_link_frame: base_link
+    world_frame: map
+
+    odom0: /odometry/gps
+    odom0_config: [true, true, false,
+                   false, false, true,
+                   false, false, false,
+                   false, false, false,
+                   false, false, false]
+    odom0_differential: false
+    odom0_queue_size: 5
+
+    imu0: /mavros/imu/data
+    imu0_config: [false, false, false,
+                  false, false, true,
+                  false, false, false,
+                  true, true, true,
+                  false, false, false]
+    imu0_differential: false
+    imu0_queue_size: 10
+    imu0_remove_gravitational_acceleration: true
+
+navsat_transform_node:
+  ros__parameters:
+
+    frequency: 10.0
+    delay: 0.0
+
+    magnetic_declination_radians: 0.0
+    yaw_offset: 0.0
+    zero_altitude: true
+    publish_filtered_gps: true
+    use_odometry_yaw: true
+    broadcast_utm_transform: false
+
+    gps_topic: /mavros/global_position/raw/fix
+    odometry_topic: /mavros/local_position/odom_cov
+    imu0: /mavros/imu/data
+    yaw_source: 1
+

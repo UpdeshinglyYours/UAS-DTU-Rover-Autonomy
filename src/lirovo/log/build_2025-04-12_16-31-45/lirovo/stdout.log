@@ -1,0 +1,38 @@
+running egg_info
+creating build/lirovo/lirovo.egg-info
+writing build/lirovo/lirovo.egg-info/PKG-INFO
+writing dependency_links to build/lirovo/lirovo.egg-info/dependency_links.txt
+writing entry points to build/lirovo/lirovo.egg-info/entry_points.txt
+writing requirements to build/lirovo/lirovo.egg-info/requires.txt
+writing top-level names to build/lirovo/lirovo.egg-info/top_level.txt
+writing manifest file 'build/lirovo/lirovo.egg-info/SOURCES.txt'
+reading manifest file 'build/lirovo/lirovo.egg-info/SOURCES.txt'
+writing manifest file 'build/lirovo/lirovo.egg-info/SOURCES.txt'
+running build
+running build_py
+creating /home/abhimanyu/nav2_ws/src/lirovo/build/lirovo/build
+creating /home/abhimanyu/nav2_ws/src/lirovo/build/lirovo/build/lib
+creating /home/abhimanyu/nav2_ws/src/lirovo/build/lirovo/build/lib/lirovo
+copying lirovo/__init__.py -> /home/abhimanyu/nav2_ws/src/lirovo/build/lirovo/build/lib/lirovo
+running install
+running install_lib
+creating /home/abhimanyu/nav2_ws/src/lirovo/install/lirovo/lib/python3.10/site-packages/lirovo
+copying /home/abhimanyu/nav2_ws/src/lirovo/build/lirovo/build/lib/lirovo/__init__.py -> /home/abhimanyu/nav2_ws/src/lirovo/install/lirovo/lib/python3.10/site-packages/lirovo
+byte-compiling /home/abhimanyu/nav2_ws/src/lirovo/install/lirovo/lib/python3.10/site-packages/lirovo/__init__.py to __init__.cpython-310.pyc
+running install_data
+creating /home/abhimanyu/nav2_ws/src/lirovo/install/lirovo/share/ament_index
+creating /home/abhimanyu/nav2_ws/src/lirovo/install/lirovo/share/ament_index/resource_index
+creating /home/abhimanyu/nav2_ws/src/lirovo/install/lirovo/share/ament_index/resource_index/packages
+copying resource/lirovo -> /home/abhimanyu/nav2_ws/src/lirovo/install/lirovo/share/ament_index/resource_index/packages
+copying package.xml -> /home/abhimanyu/nav2_ws/src/lirovo/install/lirovo/share/lirovo
+creating /home/abhimanyu/nav2_ws/src/lirovo/install/lirovo/share/lirovo/config
+copying config/nav2_params.yaml -> /home/abhimanyu/nav2_ws/src/lirovo/install/lirovo/share/lirovo/config
+copying config/slam_params.yaml -> /home/abhimanyu/nav2_ws/src/lirovo/install/lirovo/share/lirovo/config
+creating /home/abhimanyu/nav2_ws/src/lirovo/install/lirovo/share/lirovo/launch
+copying launch/lirovo.launch.py -> /home/abhimanyu/nav2_ws/src/lirovo/install/lirovo/share/lirovo/launch
+copying launch/mavros_bridge.py -> /home/abhimanyu/nav2_ws/src/lirovo/install/lirovo/share/lirovo/launch
+running install_egg_info
+Copying build/lirovo/lirovo.egg-info to /home/abhimanyu/nav2_ws/src/lirovo/install/lirovo/lib/python3.10/site-packages/lirovo-0.0.0-py3.10.egg-info
+running install_scripts
+Installing mavros_bridge script to /home/abhimanyu/nav2_ws/src/lirovo/install/lirovo/lib/lirovo
+writing list of installed files to '/home/abhimanyu/nav2_ws/src/lirovo/build/lirovo/install.log'

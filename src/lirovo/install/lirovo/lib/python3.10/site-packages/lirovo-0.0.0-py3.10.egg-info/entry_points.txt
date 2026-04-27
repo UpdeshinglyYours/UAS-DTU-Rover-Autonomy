@@ -1,0 +1,3 @@
+[console_scripts]
+mavros_bridge = launch.mavros_bridge:main
+

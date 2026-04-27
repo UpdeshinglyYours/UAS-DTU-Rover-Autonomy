@@ -1,0 +1,58 @@
+ekf_filter_node:
+  ros__parameters:
+    use_sim_time: false #false
+    frequency: 30.0
+    sensor_timeout: 0.1
+    two_d_mode: true
+
+    map_frame: map
+    odom_frame: odom
+    base_link_frame: base_link
+    # world_frame: odom
+
+    # First odometry source
+    odom0: /genz/odometry
+    odom0_config: [true, true, false,
+                   false, false, false,
+                   true, true, false, #true, false, false, 
+                   false, false, true,
+                   false, false, false]
+    odom0_differential: false
+    odom0_queue_size: 10
+
+    # --- Second Source: VINS-Fusion ---
+    # Good for: Smooth continuous motion and rapid velocity changes
+    odom1: /vins_estimator/odometry # Double check if your topic is /vins_fusion/odometry
+    odom1_config: [true,  true,  false, # x, y, z
+                    true, true, true,  # roll, pitch, yaw
+                    true,  true,  true, # vx, vy, vz (VINS gives good Y velocity)
+                    false, false, false,  # v_roll, v_pitch, v_yaw
+                    false, false, false] # ax, ay, az
+    odom1_differential: false
+    # CRITICAL: VINS usually starts at (0,0) wherever it was initialized. 
+    # 'relative: true' ensures it doesn't "jump" the robot if it starts mid-bag.
+    odom1_relative: true 
+    odom1_queue_size: 10
+
+   # #Second odometry source
+    odom2: /mavros/local_position/odom
+    odom2_config: [true, true, false,
+                    false, false, true,
+                    true, false, false,
+                    false, false, true,
+                    false, false, false]
+    odom2_differential: false
+    odom2_queue_size: 10
+
+    # odom3: /synced_imu
+    # odom3_config: [true, true, false,
+    #                 false, false, true,
+    #                 true, false, false,
+    #                 false, false, true,
+    #                 false, false, false]
+    # odom3_differential: false
+    # odom3_queue_size: 10
+
+    publish_tf: False
+    print_diagnostics: true
+    debug: false

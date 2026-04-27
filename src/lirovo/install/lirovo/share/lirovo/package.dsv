@@ -1,0 +1,6 @@
+source;share/lirovo/hook/pythonpath.ps1
+source;share/lirovo/hook/pythonpath.dsv
+source;share/lirovo/hook/pythonpath.sh
+source;share/lirovo/hook/ament_prefix_path.ps1
+source;share/lirovo/hook/ament_prefix_path.dsv
+source;share/lirovo/hook/ament_prefix_path.sh
