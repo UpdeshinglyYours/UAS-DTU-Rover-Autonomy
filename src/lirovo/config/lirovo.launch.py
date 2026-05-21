@@ -35,23 +35,23 @@ def generate_launch_description():
 
     return LaunchDescription([
     
-        SetParameter(name='use_sim_time', value=False), #extra addition, meine kiya 
-        
-        Node(
-            package='tf2_ros',
-            executable='static_transform_publisher',
-            arguments=['0', '0', '0.5', '0', '0', '0', 'base_footprint', 'lidar'],
-            parameters=[{'use_sim_time': False}], #False
-            name='static_tf_lidar'
-        ),
+        SetParameter(name='use_sim_time', value=True), #extra addition, meine kiya 
         Node(
             package='tf2_ros',
             executable='static_transform_publisher',
             arguments=['0', '0', '0', '1.5708', '0', '0', 'base_footprint', 'base_link'],
-            parameters=[{'use_sim_time': False}], #False
+            parameters=[{'use_sim_time': False}], #True
             # name='static_tf_lidar' both same name??
             name = 'static_tf_basefootprint'
         ),
+        Node(
+            package='tf2_ros',
+            executable='static_transform_publisher',
+            arguments=['0', '0', '0.5', '0', '0', '0', 'base_link', 'lidar'],
+            parameters=[{'use_sim_time': True}], #True
+            name='static_tf_lidar'
+        ),
+
         # Node(
         #     package='lirovo',
         #     executable='pointcloud_processor',
@@ -64,7 +64,7 @@ def generate_launch_description():
             executable='pointcloud_to_laserscan_node',
             name='pointcloud_to_laserscan',
             parameters=[{
-                'target_frame': 'base_footprint',
+                'target_frame': 'base_link',
                 'transform_tolerance': 0.05, #0.5,
                 'min_height': 0.2 , #-0.3,
                 'max_height': 1.0 , #1.0,
@@ -77,7 +77,7 @@ def generate_launch_description():
                 'use_inf': True,
                 'inf_epsilon': 1.0,
                 'queue_size': 50,
-                'use_sim_time':False, #False,
+                'use_sim_time':True, #True,
             }],
             remappings=[
                 ('cloud_in', '/bf_lidar/point_cloud_out'),
@@ -105,7 +105,7 @@ def generate_launch_description():
             launch_arguments={
                 # 'topic': '/bf_lidar/point_cloud_out', # <--- REPLACE WITH YOUR BAG'S PC2 TOPIC
                 # 'publish_odom_tf': 'False',            # Let EKF handle the TF
-                'use_sim_time': 'False'
+                'use_sim_time': 'True'
             }.items()
         ),
         #vins
@@ -165,10 +165,10 @@ def generate_launch_description():
             # We separate the YAML and the explicit dictionary
             parameters=[
                 slam_params_path, 
-                {'use_sim_time':False} # This MUST be a separate dictionary entry
+                {'use_sim_time':True} # This MUST be a separate dictionary entry
             ],
             # HARD OVERRIDE: Force it at the command line level
-            arguments=['--ros-args', '-p', 'use_sim_time:=false'] 
+            arguments=['--ros-args', '-p', 'use_sim_time:=true'] 
         ),
     ]
     ),
