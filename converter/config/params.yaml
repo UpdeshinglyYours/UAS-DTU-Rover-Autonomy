@@ -1,0 +1,15 @@
+cmd_vel_to_pwm:
+  ros__parameters:
+
+    # PWM limits
+    pwm_min:     1051
+    pwm_max:     1951
+    pwm_neutral: 1501
+
+    # Input velocity clamp limits
+    linear_vel_max:  1.0                     # m/s   — max expected linear.x
+    angular_vel_max: 1.0                     # rad/s — max expected angular.z
+
+    # RC channel assignment
+    ch_throttle: 1                           # CH2
+    ch_steering: 0                           # CH1

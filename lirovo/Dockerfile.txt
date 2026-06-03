@@ -1,0 +1,25 @@
+# Base image: ROS 2 Humble (adjust if you’re using another distro)
+FROM ros:humble
+
+# Install necessary tools
+RUN apt-get update && apt-get install -y \
+    python3-pip \
+    python3-colcon-common-extensions \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set up a workspace directory
+WORKDIR /root/ros2_ws/src
+
+# Copy your package into the workspace
+COPY . /root/ros2_ws/src/lirovo
+
+# Build the workspace
+RUN source /opt/ros/humble/setup.bash && \
+    cd /root/ros2_ws && \
+    colcon build
+
+# Source the setup when container starts
+RUN echo "source /root/ros2_ws/install/setup.bash" >> /root/.bashrc
+
+# Default command
+CMD [ "bash" ]
