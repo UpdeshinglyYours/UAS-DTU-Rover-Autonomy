@@ -190,7 +190,7 @@ void OdometryServer::RegisterFrame(const sensor_msgs::msg::PointCloud2::ConstSha
     const auto egocentric_estimation = (base_frame_.empty() || base_frame_ == cloud_frame_id);
 
     // Register frame, main entry point to GenZ-ICP pipeline
-    const auto &[planar_points, non_planar_points] = odometry_.RegisterFrame(points, timestamps);
+    const auto &[planar_points, non_planar_points, covariance] = odometry_.RegisterFrame(points, timestamps); //just added covariance here 
 
     // Compute the pose using GenZ, ego-centric to the LiDAR
     const Sophus::SE3d genz_pose = odometry_.poses().back();
@@ -203,7 +203,7 @@ void OdometryServer::RegisterFrame(const sensor_msgs::msg::PointCloud2::ConstSha
     }();
 
     // Spit the current estimated pose to ROS msgs
-    PublishOdometry(pose, msg->header.stamp, cloud_frame_id);
+    PublishOdometry(pose, msg->header.stamp, cloud_frame_id, covariance);
     // Publishing this clouds is a bit costly, so do it only if we are debugging
     if (publish_debug_clouds_) {
         PublishClouds(msg->header.stamp, cloud_frame_id, planar_points, non_planar_points);
@@ -212,7 +212,12 @@ void OdometryServer::RegisterFrame(const sensor_msgs::msg::PointCloud2::ConstSha
 
 void OdometryServer::PublishOdometry(const Sophus::SE3d &pose,
                                      const rclcpp::Time &stamp,
-                                     const std::string &cloud_frame_id) {
+                                     const std::string &cloud_frame_id,
+                                    const Eigen::Matrix<double, 6, 6> &covariance) {
+                                     
+    // FORCE THE CODE TO CONFESS:
+    RCLCPP_INFO_STREAM(this->get_logger(), "CURRENT BOOLEAN STATE IS: " << (publish_odom_tf_ ? "TRUE" : "FALSE"));
+    
     // Broadcast the tf ---
     if (publish_odom_tf_) {
         geometry_msgs::msg::TransformStamped transform_msg;
@@ -235,7 +240,21 @@ void OdometryServer::PublishOdometry(const Sophus::SE3d &pose,
     nav_msgs::msg::Odometry odom_msg;
     odom_msg.header.stamp = stamp;
     odom_msg.header.frame_id = odom_frame_;
+
+    odom_msg.child_frame_id = base_frame_.empty() ? cloud_frame_id : base_frame_;
+    
     odom_msg.pose.pose = tf2::sophusToPose(pose);
+    //odom_publisher_->publish(std::move(odom_msg));
+
+    // --- NEW: Map the Eigen covariance matrix to the ROS message ---
+    for (int i = 0; i < 6; ++i) {
+        for (int j = 0; j < 6; ++j) {
+            // ROS expects a flat 36-element array in row-major order
+            odom_msg.pose.covariance[i * 6 + j] = covariance(i, j);
+        }
+    }
+    // ---------------------------------------------------------------
+
     odom_publisher_->publish(std::move(odom_msg));
 }
 

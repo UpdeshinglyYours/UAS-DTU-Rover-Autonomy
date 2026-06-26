@@ -34,7 +34,7 @@ namespace genz_icp {
 struct Registration {
     explicit Registration(int max_num_iteration, double convergence_criterion);
 
-    std::tuple<Sophus::SE3d, std::vector<Eigen::Vector3d>, std::vector<Eigen::Vector3d>> RegisterFrame(const std::vector<Eigen::Vector3d> &frame,
+    std::tuple<Sophus::SE3d, std::vector<Eigen::Vector3d>, std::vector<Eigen::Vector3d>, Eigen::Matrix<double, 6, 6>> RegisterFrame(const std::vector<Eigen::Vector3d> &frame,
                                                                                                        const VoxelHashMap &voxel_map,
                                                                                                        const Sophus::SE3d &initial_guess,
                                                                                                        double max_correspondence_distance,

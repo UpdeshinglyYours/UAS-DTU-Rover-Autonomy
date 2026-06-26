@@ -22,7 +22,6 @@
 // SOFTWARE.
 #pragma once
 
-
 #include <Eigen/Core>
 #include <algorithm>
 #include <cstddef>
@@ -92,7 +91,7 @@ inline std::string FixFrameId(const std::string &frame_id) {
 inline auto GetTimestampField(const PointCloud2::ConstSharedPtr msg) {
     PointField timestamp_field;
     for (const auto &field : msg->fields) {
-        if ((field.name == "t" || field.name == "timestamp" || field.name == "time")) {
+        if ((field.name == "t" || field.name == "timestamp" || field.name == "time" || field.name == "point_time_offset")) {
             timestamp_field = field;
         }
     }
@@ -199,16 +198,14 @@ inline std::vector<double> GetTimestamps(const PointCloud2::ConstSharedPtr msg) 
     return timestamps;
 }
 
-inline std::vector<Eigen::Vector3d> PointCloud2ToEigen(const PointCloud2::ConstPtr msg) {
+inline std::vector<Eigen::Vector3d> PointCloud2ToEigen(const PointCloud2::ConstSharedPtr msg) {
     std::vector<Eigen::Vector3d> points;
     points.reserve(msg->height * msg->width);
     sensor_msgs::PointCloud2ConstIterator<float> msg_x(*msg, "x");
     sensor_msgs::PointCloud2ConstIterator<float> msg_y(*msg, "y");
     sensor_msgs::PointCloud2ConstIterator<float> msg_z(*msg, "z");
     for (size_t i = 0; i < msg->height * msg->width; ++i, ++msg_x, ++msg_y, ++msg_z) {
-        if (*msg_z >= 0.0f) {
-            points.emplace_back(*msg_x, *msg_y, *msg_z);
-        }
+        points.emplace_back(*msg_x, *msg_y, *msg_z);
     }
     return points;
 }

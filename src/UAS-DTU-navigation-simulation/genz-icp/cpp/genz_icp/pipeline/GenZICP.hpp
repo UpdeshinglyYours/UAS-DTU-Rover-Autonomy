@@ -61,6 +61,7 @@ class GenZICP {
 public:
     using Vector3dVector = std::vector<Eigen::Vector3d>;
     using Vector3dVectorTuple = std::tuple<Vector3dVector, Vector3dVector>;
+    using RegistrationTuple = std::tuple<Vector3dVector, Vector3dVector, Eigen::Matrix<double, 6, 6>>;
 
 public:
     explicit GenZICP(const GenZConfig &config)
@@ -72,9 +73,9 @@ public:
     GenZICP() : GenZICP(GenZConfig{}) {}
 
 public:
-    Vector3dVectorTuple RegisterFrame(const std::vector<Eigen::Vector3d> &frame);
-    Vector3dVectorTuple RegisterFrame(const std::vector<Eigen::Vector3d> &frame,
-                                      const std::vector<double> &timestamps);
+    RegistrationTuple RegisterFrame(const std::vector<Eigen::Vector3d> &frame);
+    RegistrationTuple RegisterFrame(const std::vector<Eigen::Vector3d> &frame,
+                                    const std::vector<double> &timestamps);
     Vector3dVectorTuple Voxelize(const std::vector<Eigen::Vector3d> &frame, double voxel_size) const;
     double GetAdaptiveThreshold();
     Sophus::SE3d GetPredictionModel() const;

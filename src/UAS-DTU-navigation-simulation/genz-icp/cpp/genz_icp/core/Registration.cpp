@@ -178,7 +178,7 @@ Registration::Registration(int max_num_iteration, double convergence_criterion)
     : max_num_iterations_(max_num_iteration), 
       convergence_criterion_(convergence_criterion) {}
 
-std::tuple<Sophus::SE3d, std::vector<Eigen::Vector3d>, std::vector<Eigen::Vector3d>> Registration::RegisterFrame(const std::vector<Eigen::Vector3d> &frame,
+    std::tuple<Sophus::SE3d, std::vector<Eigen::Vector3d>, std::vector<Eigen::Vector3d>, Eigen::Matrix<double, 6, 6>> Registration::RegisterFrame(const std::vector<Eigen::Vector3d> &frame,
                                                                                                    const VoxelHashMap &voxel_map,
                                                                                                    const Sophus::SE3d &initial_guess,
                                                                                                    double max_correspondence_distance,
@@ -190,10 +190,13 @@ std::tuple<Sophus::SE3d, std::vector<Eigen::Vector3d>, std::vector<Eigen::Vector
     final_planar_points.clear();
     final_non_planar_points.clear();
 
-    if (voxel_map.Empty()) return std::make_tuple(initial_guess, final_planar_points, final_non_planar_points);
+    // Added the 4th item (high uncertainty matrix) for the early exit
+    if (voxel_map.Empty()) return std::make_tuple(initial_guess, final_planar_points, final_non_planar_points, Eigen::Matrix6d::Identity() * 1e6);
 
     std::vector<Eigen::Vector3d> source = frame;
     TransformPoints(initial_guess, source);
+
+    Eigen::Matrix6d final_covariance = Eigen::Matrix6d::Identity(); //declared outside the main genz icp loop
 
     // GenZ-ICP-loop
     Sophus::SE3d T_icp = Sophus::SE3d();
@@ -201,6 +204,35 @@ std::tuple<Sophus::SE3d, std::vector<Eigen::Vector3d>, std::vector<Eigen::Vector
         const auto &[src_planar, tgt_planar, normals, src_non_planar, tgt_non_planar, planar_count, non_planar_count] = voxel_map.GetCorrespondences(source, max_correspondence_distance);
         double alpha = static_cast<double>(planar_count) / static_cast<double>(planar_count + non_planar_count);
         const auto &[JTJ, JTr] = BuildLinearSystem(src_planar, tgt_planar, normals, src_non_planar, tgt_non_planar, kernel, alpha);
+        // 1. Calculate Covariance (Q_t) = (JTJ)^-1
+        //Eigen::Matrix6d covariance = Eigen::Matrix6d::Identity();
+
+        // Safety check to ensure JTJ is invertible
+        if (JTJ.determinant() > 1e-9) { 
+            final_covariance = JTJ.inverse(); 
+
+        } else {
+            // If matrix is not invertible (featureless), set to a high constant
+            final_covariance = Eigen::Matrix6d::Identity() * 1e6; 
+        }
+
+        // 2. Print it to the terminal so you can watch it live
+        // This will spam your terminal, but it confirms the math is working!
+
+        static auto last_print_time = std::chrono::steady_clock::now();
+        auto current_time = std::chrono::steady_clock::now();
+
+        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(current_time - last_print_time).count();
+
+        if (elapsed > 1000) {
+            std::cout << "[DEBUG] Covariance Diag: " 
+                      << final_covariance.diagonal().transpose() << std::fixed << std::setprecision(8) << std::endl;
+            std::cout << "[DEBUG] Partial JTJ (Yaw column 5): " << JTJ.col(5).transpose() << std::endl;
+            std::cout << "[DEBUG] Points used for JTJ: " << planar_count + non_planar_count << std::endl;
+            last_print_time = current_time;
+
+        }
+
         const Eigen::Vector6d dx = JTJ.ldlt().solve(-JTr);
         const Sophus::SE3d estimation = Sophus::SE3d::exp(dx);
         TransformPoints(estimation, source);
@@ -216,7 +248,7 @@ std::tuple<Sophus::SE3d, std::vector<Eigen::Vector3d>, std::vector<Eigen::Vector
     }
 
     // // Spit the final transformation
-    return std::make_tuple(T_icp * initial_guess, final_planar_points, final_non_planar_points);
+    return std::make_tuple(T_icp * initial_guess, final_planar_points, final_non_planar_points, final_covariance);
 }
 
 }  // namespace genz_icp

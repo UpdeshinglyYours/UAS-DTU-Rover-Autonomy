@@ -34,8 +34,8 @@
 
 namespace genz_icp::pipeline {
 
-GenZICP::Vector3dVectorTuple GenZICP::RegisterFrame(const std::vector<Eigen::Vector3d> &frame,
-                                                    const std::vector<double> &timestamps) {
+GenZICP::RegistrationTuple GenZICP::RegisterFrame(const std::vector<Eigen::Vector3d> &frame,
+                                                  const std::vector<double> &timestamps) {
     const auto &deskew_frame = [&]() -> std::vector<Eigen::Vector3d> {
         if (!config_.deskew || timestamps.empty()) return frame;
         // TODO(Nacho) Add some asserts here to sanitize the timestamps
@@ -54,7 +54,7 @@ GenZICP::Vector3dVectorTuple GenZICP::RegisterFrame(const std::vector<Eigen::Vec
     return RegisterFrame(deskew_frame);
 }
 
-GenZICP::Vector3dVectorTuple GenZICP::RegisterFrame(const std::vector<Eigen::Vector3d> &frame) {
+GenZICP::RegistrationTuple GenZICP::RegisterFrame(const std::vector<Eigen::Vector3d> &frame) {
     // Preprocess the input cloud
     const auto &cropped_frame = Preprocess(frame, config_.max_range, config_.min_range);
 
@@ -75,8 +75,8 @@ GenZICP::Vector3dVectorTuple GenZICP::RegisterFrame(const std::vector<Eigen::Vec
     const auto last_pose = !poses_.empty() ? poses_.back() : Sophus::SE3d();
     const auto initial_guess = last_pose * prediction;
 
-    // Run GenZ-ICP
-    const auto &[new_pose, planar_points, non_planar_points] = registration_.RegisterFrame(source,         //
+    // Run GenZ-ICP with covariance
+    const auto &[new_pose, planar_points, non_planar_points, covariance] = registration_.RegisterFrame(source,         //
                                                           local_map_,     //
                                                           initial_guess,  //
                                                           3.0 * sigma,    //
@@ -85,7 +85,8 @@ GenZICP::Vector3dVectorTuple GenZICP::RegisterFrame(const std::vector<Eigen::Vec
     adaptive_threshold_.UpdateModelDeviation(model_deviation);
     local_map_.Update(frame_downsample, new_pose);
     poses_.push_back(new_pose);
-    return {planar_points, non_planar_points};
+
+    return std::make_tuple(planar_points, non_planar_points, covariance);
 }
 
 GenZICP::Vector3dVectorTuple GenZICP::Voxelize(const std::vector<Eigen::Vector3d> &frame, double adaptive_voxel_size) const {

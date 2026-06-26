@@ -21,6 +21,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 #pragma once
+#include <Eigen/Core>
 
 // GenZ-ICP
 #include "genz_icp/pipeline/GenZICP.hpp"
@@ -49,9 +50,11 @@ private:
     void RegisterFrame(const sensor_msgs::msg::PointCloud2::ConstSharedPtr &msg);
 
     /// Stream the estimated pose to ROS
+    /// Stream the estimated pose to ROS (with covariance matrix included)
     void PublishOdometry(const Sophus::SE3d &pose,
                          const rclcpp::Time &stamp,
-                         const std::string &cloud_frame_id);
+                         const std::string &cloud_frame_id,
+                         const Eigen::Matrix<double, 6, 6> &covariance);
 
     /// Stream the debugging point clouds for visualization (if required)
     void PublishClouds(const rclcpp::Time &stamp,
