@@ -31,10 +31,13 @@
 #include <tf2_ros/transform_broadcaster.h>
 #include <tf2_ros/transform_listener.h>
 
+#include <geometry_msgs/msg/pose_stamped.hpp>
 #include <nav_msgs/msg/odometry.hpp>
 #include <nav_msgs/msg/path.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
+#include <cstddef>
+#include <deque>
 #include <string>
 
 namespace genz_icp_ros {
@@ -61,6 +64,7 @@ private:
                        const std::string &cloud_frame_id,
                        const std::vector<Eigen::Vector3d> &planar_points,
                        const std::vector<Eigen::Vector3d> &non_planar_points);
+    bool HasDebugCloudSubscribers() const;
 
     /// Utility function to compute transformation using tf tree
     Sophus::SE3d LookupTransform(const std::string &target_frame,
@@ -73,6 +77,8 @@ private:
     std::unique_ptr<tf2_ros::TransformListener> tf2_listener_;
     bool publish_odom_tf_;
     bool publish_debug_clouds_;
+    bool terminal_status_enabled_{false};
+    size_t max_path_length_{2000};
 
     /// Data subscribers.
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr pointcloud_sub_;
@@ -85,6 +91,7 @@ private:
 
     /// Path publisher
     nav_msgs::msg::Path path_msg_;
+    std::deque<geometry_msgs::msg::PoseStamped> path_poses_;
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr traj_publisher_;
 
     /// GenZ-ICP

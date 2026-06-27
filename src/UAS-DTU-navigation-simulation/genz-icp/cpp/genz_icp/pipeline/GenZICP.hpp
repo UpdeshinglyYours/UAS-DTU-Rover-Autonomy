@@ -23,6 +23,8 @@
 #pragma once
 
 #include <Eigen/Core>
+#include <cstddef>
+#include <deque>
 #include <tuple>
 #include <vector>
 
@@ -55,6 +57,7 @@ struct GenZConfig {
     // registration params
     int max_num_iterations = 150;
     double convergence_criterion = 0.0001;
+    size_t max_pose_history = 2000;
 };
 
 class GenZICP {
@@ -76,6 +79,7 @@ public:
     RegistrationTuple RegisterFrame(const std::vector<Eigen::Vector3d> &frame);
     RegistrationTuple RegisterFrame(const std::vector<Eigen::Vector3d> &frame,
                                     const std::vector<double> &timestamps);
+    void SetTerminalStatusEnabled(bool enabled) { registration_.SetTerminalStatusEnabled(enabled); }
     Vector3dVectorTuple Voxelize(const std::vector<Eigen::Vector3d> &frame, double voxel_size) const;
     double GetAdaptiveThreshold();
     Sophus::SE3d GetPredictionModel() const;
@@ -84,11 +88,13 @@ public:
 public:
     // Extra C++ API to facilitate ROS debugging
     std::vector<Eigen::Vector3d> LocalMap() const { return local_map_.Pointcloud(); };
-    std::vector<Sophus::SE3d> poses() const { return poses_; };
+    const std::deque<Sophus::SE3d> &poses() const { return poses_; };
 
 private:
     // GenZ-ICP pipeline modules
-    std::vector<Sophus::SE3d> poses_;
+    std::deque<Sophus::SE3d> poses_;
+    Sophus::SE3d initial_pose_;
+    bool has_initial_pose_ = false;
     GenZConfig config_;
     Registration registration_;
     VoxelHashMap local_map_;

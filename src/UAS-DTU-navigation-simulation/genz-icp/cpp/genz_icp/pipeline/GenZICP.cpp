@@ -24,6 +24,8 @@
 #include "GenZICP.hpp"
 
 #include <Eigen/Core>
+#include <algorithm>
+#include <cstddef>
 #include <tuple>
 #include <vector>
 
@@ -84,7 +86,15 @@ GenZICP::RegistrationTuple GenZICP::RegisterFrame(const std::vector<Eigen::Vecto
     const auto model_deviation = initial_guess.inverse() * new_pose;
     adaptive_threshold_.UpdateModelDeviation(model_deviation);
     local_map_.Update(frame_downsample, new_pose);
+    if (!has_initial_pose_) {
+        initial_pose_ = new_pose;
+        has_initial_pose_ = true;
+    }
     poses_.push_back(new_pose);
+    const size_t max_pose_history = std::max<size_t>(2, config_.max_pose_history);
+    while (poses_.size() > max_pose_history) {
+        poses_.pop_front();
+    }
 
     return std::make_tuple(planar_points, non_planar_points, covariance);
 }
@@ -110,8 +120,8 @@ Sophus::SE3d GenZICP::GetPredictionModel() const {
 }
 
 bool GenZICP::HasMoved() {
-    if (poses_.empty()) return false;
-    const double motion = (poses_.front().inverse() * poses_.back()).translation().norm();
+    if (!has_initial_pose_ || poses_.empty()) return false;
+    const double motion = (initial_pose_.inverse() * poses_.back()).translation().norm();
     return motion > 5.0 * config_.min_motion_th;
 }
 

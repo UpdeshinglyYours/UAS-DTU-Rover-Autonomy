@@ -1,27 +1,6 @@
-// MIT License
-//
-// Copyright (c) 2022 Ignacio Vizzo, Tiziano Guadagnino, Benedikt Mersch, Cyrill Stachniss.
-// Modified by Daehan Lee, Hyungtae Lim, and Soohee Han, 2024
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
 #include "Registration.hpp"
 
+#include <Eigen/Cholesky>
 #include <tbb/blocked_range.h>
 #include <tbb/parallel_reduce.h>
 
@@ -41,6 +20,45 @@ using Vector6d = Eigen::Matrix<double, 6, 1>;
 namespace {
 
 inline double square(double x) { return x * x; }
+
+constexpr double kHighUncertainty = 1e6;
+constexpr double kMinInformationPivot = 1e-12;
+constexpr double kRelativeRegularization = 1e-9;
+
+Eigen::Matrix6d HighUncertaintyCovariance() {
+    return Eigen::Matrix6d::Identity() * kHighUncertainty;
+}
+
+Eigen::Matrix6d CovarianceFromInformation(const Eigen::Matrix6d &information) {
+    if (!information.allFinite()) {
+        return HighUncertaintyCovariance();
+    }
+
+    Eigen::Matrix6d sym_information = 0.5 * (information + information.transpose());
+    Eigen::LDLT<Eigen::Matrix6d> ldlt(sym_information);
+
+    if (ldlt.info() != Eigen::Success ||
+        (ldlt.vectorD().array() <= kMinInformationPivot).any()) {
+        const double max_diagonal = sym_information.diagonal().cwiseAbs().maxCoeff();
+        const double regularization =
+            std::max(kMinInformationPivot, kRelativeRegularization * max_diagonal);
+
+        sym_information.diagonal().array() += regularization;
+        ldlt.compute(sym_information);
+    }
+
+    if (ldlt.info() != Eigen::Success ||
+        (ldlt.vectorD().array() <= kMinInformationPivot).any()) {
+        return HighUncertaintyCovariance();
+    }
+
+    Eigen::Matrix6d covariance = ldlt.solve(Eigen::Matrix6d::Identity());
+    if (!covariance.allFinite()) {
+        return HighUncertaintyCovariance();
+    }
+
+    return 0.5 * (covariance + covariance.transpose());
+}
 
 struct ResultTuple {
     ResultTuple() {
@@ -178,7 +196,7 @@ Registration::Registration(int max_num_iteration, double convergence_criterion)
     : max_num_iterations_(max_num_iteration), 
       convergence_criterion_(convergence_criterion) {}
 
-    std::tuple<Sophus::SE3d, std::vector<Eigen::Vector3d>, std::vector<Eigen::Vector3d>, Eigen::Matrix<double, 6, 6>> Registration::RegisterFrame(const std::vector<Eigen::Vector3d> &frame,
+std::tuple<Sophus::SE3d, std::vector<Eigen::Vector3d>, std::vector<Eigen::Vector3d>, Eigen::Matrix<double, 6, 6>> Registration::RegisterFrame(const std::vector<Eigen::Vector3d> &frame,
                                                                                                    const VoxelHashMap &voxel_map,
                                                                                                    const Sophus::SE3d &initial_guess,
                                                                                                    double max_correspondence_distance,
@@ -190,62 +208,49 @@ Registration::Registration(int max_num_iteration, double convergence_criterion)
     final_planar_points.clear();
     final_non_planar_points.clear();
 
-    // Added the 4th item (high uncertainty matrix) for the early exit
-    if (voxel_map.Empty()) return std::make_tuple(initial_guess, final_planar_points, final_non_planar_points, Eigen::Matrix6d::Identity() * 1e6);
+    if (voxel_map.Empty()) return std::make_tuple(initial_guess, final_planar_points, final_non_planar_points, HighUncertaintyCovariance());
 
     std::vector<Eigen::Vector3d> source = frame;
     TransformPoints(initial_guess, source);
 
-    Eigen::Matrix6d final_covariance = Eigen::Matrix6d::Identity(); //declared outside the main genz icp loop
+    Eigen::Matrix6d final_information = Eigen::Matrix6d::Zero();
+    bool have_final_information = false;
 
     // GenZ-ICP-loop
     Sophus::SE3d T_icp = Sophus::SE3d();
     for (int j = 0; j < max_num_iterations_; ++j) {
         const auto &[src_planar, tgt_planar, normals, src_non_planar, tgt_non_planar, planar_count, non_planar_count] = voxel_map.GetCorrespondences(source, max_correspondence_distance);
-        double alpha = static_cast<double>(planar_count) / static_cast<double>(planar_count + non_planar_count);
+        const size_t correspondence_count = planar_count + non_planar_count;
+        if (correspondence_count == 0) {
+            break;
+        }
+
+        double alpha = static_cast<double>(planar_count) / static_cast<double>(correspondence_count);
         const auto &[JTJ, JTr] = BuildLinearSystem(src_planar, tgt_planar, normals, src_non_planar, tgt_non_planar, kernel, alpha);
-        // 1. Calculate Covariance (Q_t) = (JTJ)^-1
-        //Eigen::Matrix6d covariance = Eigen::Matrix6d::Identity();
-
-        // Safety check to ensure JTJ is invertible
-        if (JTJ.determinant() > 1e-9) { 
-            final_covariance = JTJ.inverse(); 
-
-        } else {
-            // If matrix is not invertible (featureless), set to a high constant
-            final_covariance = Eigen::Matrix6d::Identity() * 1e6; 
-        }
-
-        // 2. Print it to the terminal so you can watch it live
-        // This will spam your terminal, but it confirms the math is working!
-
-        static auto last_print_time = std::chrono::steady_clock::now();
-        auto current_time = std::chrono::steady_clock::now();
-
-        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(current_time - last_print_time).count();
-
-        if (elapsed > 1000) {
-            std::cout << "[DEBUG] Covariance Diag: " 
-                      << final_covariance.diagonal().transpose() << std::fixed << std::setprecision(8) << std::endl;
-            std::cout << "[DEBUG] Partial JTJ (Yaw column 5): " << JTJ.col(5).transpose() << std::endl;
-            std::cout << "[DEBUG] Points used for JTJ: " << planar_count + non_planar_count << std::endl;
-            last_print_time = current_time;
-
-        }
-
         const Eigen::Vector6d dx = JTJ.ldlt().solve(-JTr);
+        if (!dx.allFinite()) {
+            break;
+        }
+
         const Sophus::SE3d estimation = Sophus::SE3d::exp(dx);
         TransformPoints(estimation, source);
         // Update iterations
         T_icp = estimation * T_icp;
         // Termination criteria
         if (dx.norm() < convergence_criterion_ || j == max_num_iterations_ - 1) {
-            VisualizeStatus(planar_count, non_planar_count, alpha);
+            if (terminal_status_enabled_) {
+                VisualizeStatus(planar_count, non_planar_count, alpha);
+            }
             final_planar_points = src_planar;
             final_non_planar_points = src_non_planar;
+            final_information = JTJ;
+            have_final_information = true;
             break;
         }
     }
+
+    const Eigen::Matrix6d final_covariance =
+        have_final_information ? CovarianceFromInformation(final_information) : HighUncertaintyCovariance();
 
     // // Spit the final transformation
     return std::make_tuple(T_icp * initial_guess, final_planar_points, final_non_planar_points, final_covariance);

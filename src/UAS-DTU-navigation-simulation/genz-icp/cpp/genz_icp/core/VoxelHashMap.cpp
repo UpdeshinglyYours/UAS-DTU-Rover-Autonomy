@@ -23,10 +23,12 @@
 #include "VoxelHashMap.hpp"
 
 #include <tbb/blocked_range.h>
-#include <tbb/parallel_reduce.h>
+#include <tbb/parallel_for.h>
 
 #include <Eigen/Core>
 #include <algorithm>
+#include <array>
+#include <cstdint>
 #include <limits>
 #include <tuple>
 #include <utility>
@@ -34,15 +36,6 @@
 
 // This parameters are not intended to be changed, therefore we do not expose it
 namespace {
-struct ResultTuple { 
-    ResultTuple(std::size_t n) {
-        source.reserve(n);
-        target.reserve(n);
-    }
-    std::vector<Eigen::Vector3d> source;
-    std::vector<Eigen::Vector3d> target;
-};
-
 static const std::array<Eigen::Vector3i, 27> voxel_shifts{
     Eigen::Vector3i(0, 0, 0),   Eigen::Vector3i(1, 0, 0),   Eigen::Vector3i(-1, 0, 0),
     Eigen::Vector3i(0, 1, 0),   Eigen::Vector3i(0, -1, 0),  Eigen::Vector3i(0, 0, 1),
@@ -125,43 +118,24 @@ std::pair<bool, Eigen::Vector3d> VoxelHashMap::DeterminePlanarity(
 VoxelHashMap::Vector3dVectorTuple7 VoxelHashMap::GetCorrespondences(
     const Vector3dVector &points, double max_correspondance_distance) const {
 
-    struct ResultTuple {
-        Vector3dVector source;
-        Vector3dVector target;
-        Vector3dVector normals;
-        Vector3dVector non_planar_source;
-        Vector3dVector non_planar_target;
-        size_t planar_count = 0; // Count of planar correspondences
-        size_t non_planar_count = 0; // Count of non-planar correspondences
+    const size_t max_correspondences = points.size();
+    Vector3dVector source;
+    Vector3dVector target;
+    Vector3dVector normals;
+    Vector3dVector non_planar_source;
+    Vector3dVector non_planar_target;
 
-        ResultTuple() = default;
-        ResultTuple(size_t n) {
-            source.reserve(n);
-            target.reserve(n);
-            normals.reserve(n);
-            non_planar_source.reserve(n);
-            non_planar_target.reserve(n);
-        }
+    source.resize(max_correspondences);
+    target.resize(max_correspondences);
+    normals.resize(max_correspondences);
+    non_planar_source.resize(max_correspondences);
+    non_planar_target.resize(max_correspondences);
 
-        ResultTuple operator+(ResultTuple other) const {
-            ResultTuple result(*this);
-            result.source.insert(result.source.end(),
-                std::make_move_iterator(other.source.begin()), std::make_move_iterator(other.source.end()));
-            result.target.insert(result.target.end(),
-                std::make_move_iterator(other.target.begin()), std::make_move_iterator(other.target.end()));
-            result.normals.insert(result.normals.end(),
-                std::make_move_iterator(other.normals.begin()), std::make_move_iterator(other.normals.end()));
-            result.non_planar_source.insert(result.non_planar_source.end(),
-                std::make_move_iterator(other.non_planar_source.begin()), std::make_move_iterator(other.non_planar_source.end()));
-            result.non_planar_target.insert(result.non_planar_target.end(),
-                std::make_move_iterator(other.non_planar_target.begin()), std::make_move_iterator(other.non_planar_target.end()));
-            result.planar_count += other.planar_count;
-            result.non_planar_count += other.non_planar_count;        
-            return result;
-        }
-    };
+    std::vector<uint8_t> planar_valid(max_correspondences, 0);
+    std::vector<uint8_t> non_planar_valid(max_correspondences, 0);
 
-    auto compute = [&](const tbb::blocked_range<size_t> &r, ResultTuple result) -> ResultTuple {
+    tbb::parallel_for(tbb::blocked_range<size_t>(0, points.size()),
+        [&](const tbb::blocked_range<size_t> &r) {
         for (size_t i = r.begin(); i != r.end(); ++i) {
             const Eigen::Vector3d &point = points[i];
 
@@ -174,35 +148,59 @@ VoxelHashMap::Vector3dVectorTuple7 VoxelHashMap::GetCorrespondences(
                 const auto &[is_planar, normal] = DeterminePlanarity(covariance);
 
                 if(is_planar){
-                    result.source.emplace_back(point);
-                    result.target.emplace_back(closest_neighbor);
-                    result.normals.emplace_back(normal);
-                    result.planar_count++;
+                    source[i] = point;
+                    target[i] = closest_neighbor;
+                    normals[i] = normal;
+                    planar_valid[i] = 1;
                 } else {
-                    result.non_planar_source.emplace_back(point);
-                    result.non_planar_target.emplace_back(closest_neighbor);
-                    result.non_planar_count++;
+                    non_planar_source[i] = point;
+                    non_planar_target[i] = closest_neighbor;
+                    non_planar_valid[i] = 1;
                 }
             } 
             else {
-                    result.non_planar_source.emplace_back(point);
-                    result.non_planar_target.emplace_back(closest_neighbor);
-                    result.non_planar_count++;
+                    non_planar_source[i] = point;
+                    non_planar_target[i] = closest_neighbor;
+                    non_planar_valid[i] = 1;
             }
             
         }
-        return result;
-    };
-
-    const auto &[source, target, normals, non_planar_source, non_planar_target, planar_count, non_planar_count] = tbb::parallel_reduce(
-        tbb::blocked_range<size_t>(0, points.size()),
-        ResultTuple(points.size()),
-        compute,
-        [&](const ResultTuple &a, const ResultTuple &b) {
-            return a + b;
         });
 
-    return std::make_tuple(source, target, normals, non_planar_source, non_planar_target, planar_count, non_planar_count);
+    size_t planar_count = 0;
+    size_t non_planar_count = 0;
+    for (size_t i = 0; i < max_correspondences; ++i) {
+        if (planar_valid[i]) {
+            if (planar_count != i) {
+                source[planar_count] = source[i];
+                target[planar_count] = target[i];
+                normals[planar_count] = normals[i];
+            }
+            ++planar_count;
+        }
+        if (non_planar_valid[i]) {
+            if (non_planar_count != i) {
+                non_planar_source[non_planar_count] = non_planar_source[i];
+                non_planar_target[non_planar_count] = non_planar_target[i];
+            }
+            ++non_planar_count;
+        }
+    }
+
+    source.resize(planar_count);
+    target.resize(planar_count);
+    normals.resize(planar_count);
+    non_planar_source.resize(non_planar_count);
+    non_planar_target.resize(non_planar_count);
+
+    return std::make_tuple(
+        std::move(source),
+        std::move(target),
+        std::move(normals),
+        std::move(non_planar_source),
+        std::move(non_planar_target),
+        planar_count,
+        non_planar_count);
 }
 
 std::vector<Eigen::Vector3d> VoxelHashMap::Pointcloud() const {
