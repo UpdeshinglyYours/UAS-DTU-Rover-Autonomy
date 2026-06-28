@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <sophus/se3.hpp>
 #include <sophus/so3.hpp>
 #include <tuple>
@@ -21,15 +22,20 @@ namespace {
 
 inline double square(double x) { return x * x; }
 
-constexpr double kHighUncertainty = 1e6;
+constexpr double kHighUncertainty = 1.0;
 constexpr double kMinInformationPivot = 1e-12;
 constexpr double kRelativeRegularization = 1e-9;
+constexpr double kMinResidualVariance = 1e-6;
+constexpr double kMaxResidualVariance = 1e3;
+constexpr double kErrorConvergenceRelativeTolerance = 1e-5;
 
 Eigen::Matrix6d HighUncertaintyCovariance() {
     return Eigen::Matrix6d::Identity() * kHighUncertainty;
 }
 
-Eigen::Matrix6d CovarianceFromInformation(const Eigen::Matrix6d &information) {
+Eigen::Matrix6d CovarianceFromInformation(const Eigen::Matrix6d &information,
+                                          double weighted_error,
+                                          size_t residual_count) {
     if (!information.allFinite()) {
         return HighUncertaintyCovariance();
     }
@@ -52,7 +58,11 @@ Eigen::Matrix6d CovarianceFromInformation(const Eigen::Matrix6d &information) {
         return HighUncertaintyCovariance();
     }
 
-    Eigen::Matrix6d covariance = ldlt.solve(Eigen::Matrix6d::Identity());
+    const double dof = static_cast<double>(residual_count > 6 ? residual_count - 6 : 1);
+    const double residual_variance =
+        std::clamp(weighted_error / dof, kMinResidualVariance, kMaxResidualVariance);
+
+    Eigen::Matrix6d covariance = residual_variance * ldlt.solve(Eigen::Matrix6d::Identity());
     if (!covariance.allFinite()) {
         return HighUncertaintyCovariance();
     }
@@ -60,29 +70,13 @@ Eigen::Matrix6d CovarianceFromInformation(const Eigen::Matrix6d &information) {
     return 0.5 * (covariance + covariance.transpose());
 }
 
-struct ResultTuple {
-    ResultTuple() {
-        JTJ.setZero();
-        JTr.setZero();
-    }
-
-    ResultTuple operator+(const ResultTuple &other) {
-        this->JTJ += other.JTJ;
-        this->JTr += other.JTr;
-        return *this;
-    }
-
-    Eigen::Matrix6d JTJ;
-    Eigen::Vector6d JTr;
-};
-
 void TransformPoints(const Sophus::SE3d &T, std::vector<Eigen::Vector3d> &points) {
     std::transform(points.cbegin(), points.cend(), points.begin(),
                    [&](const auto &point) { return T * point; });
 }
 
 //Build the linear system for the GenZ-ICP
-std::tuple<Eigen::Matrix6d, Eigen::Vector6d> BuildLinearSystem(
+std::tuple<Eigen::Matrix6d, Eigen::Vector6d, double, size_t> BuildLinearSystem(
     const std::vector<Eigen::Vector3d> &src_planar,
     const std::vector<Eigen::Vector3d> &tgt_planar,
     const std::vector<Eigen::Vector3d> &normals,
@@ -94,6 +88,8 @@ std::tuple<Eigen::Matrix6d, Eigen::Vector6d> BuildLinearSystem(
     struct ResultTuple {
         Eigen::Matrix6d JTJ;
         Eigen::Vector6d JTr;
+        double weighted_error = 0.0;
+        size_t residual_count = 0;
 
         ResultTuple() : JTJ(Eigen::Matrix6d::Zero()), JTr(Eigen::Vector6d::Zero()) {}
 
@@ -101,6 +97,8 @@ std::tuple<Eigen::Matrix6d, Eigen::Vector6d> BuildLinearSystem(
             ResultTuple result;
             result.JTJ = JTJ + other.JTJ;
             result.JTr = JTr + other.JTr;
+            result.weighted_error = weighted_error + other.weighted_error;
+            result.residual_count = residual_count + other.residual_count;
             return result;
         }
     };
@@ -128,20 +126,25 @@ std::tuple<Eigen::Matrix6d, Eigen::Vector6d> BuildLinearSystem(
         auto Weight = [&](double residual_squared) {
             return kernel_squared / square(kernel + residual_squared);
         };
-        auto &[JTJ_private, JTr_private] = J;
         for (size_t i = r.begin(); i < r.end(); ++i) {
             if (i < src_planar.size()) { // Point-to-Plane
                 const auto &[J_planar, r_planar] = compute_jacobian_and_residual_planar(i);
                 double w_planar = Weight(r_planar * r_planar);
-                JTJ_private.noalias() += alpha * J_planar.transpose() * w_planar * J_planar;
-                JTr_private.noalias() += alpha * J_planar.transpose() * w_planar * r_planar;
+                const double weighted_alpha = alpha * w_planar;
+                J.JTJ.noalias() += weighted_alpha * J_planar.transpose() * J_planar;
+                J.JTr.noalias() += weighted_alpha * J_planar.transpose() * r_planar;
+                J.weighted_error += weighted_alpha * r_planar * r_planar;
+                J.residual_count += 1;
             } else { // Point-to-Point
                 size_t index = i - src_planar.size();
                 if (index < src_non_planar.size()) {
                     const auto &[J_non_planar, r_non_planar] = compute_jacobian_and_residual_non_planar(index);
                     const double w_non_planar = Weight(r_non_planar.squaredNorm());
-                    JTJ_private.noalias() += (1 - alpha) * J_non_planar.transpose() * w_non_planar * J_non_planar;
-                    JTr_private.noalias() += (1 - alpha) * J_non_planar.transpose() * w_non_planar * r_non_planar;
+                    const double weighted_alpha = (1 - alpha) * w_non_planar;
+                    J.JTJ.noalias() += weighted_alpha * J_non_planar.transpose() * J_non_planar;
+                    J.JTr.noalias() += weighted_alpha * J_non_planar.transpose() * r_non_planar;
+                    J.weighted_error += weighted_alpha * r_non_planar.squaredNorm();
+                    J.residual_count += 3;
                 }
             }
         }
@@ -150,7 +153,7 @@ std::tuple<Eigen::Matrix6d, Eigen::Vector6d> BuildLinearSystem(
 
 
     size_t total_size = src_planar.size() + src_non_planar.size();
-    const auto &[JTJ, JTr] = tbb::parallel_reduce(
+    const auto &[JTJ, JTr, weighted_error, residual_count] = tbb::parallel_reduce(
         tbb::blocked_range<size_t>(0, total_size),
         ResultTuple(),
         compute,
@@ -158,7 +161,7 @@ std::tuple<Eigen::Matrix6d, Eigen::Vector6d> BuildLinearSystem(
             return a + b;
         });
 
-    return std::make_tuple(JTJ, JTr);
+    return std::make_tuple(JTJ, JTr, weighted_error, residual_count);
 }
 
 void VisualizeStatus(size_t planar_count, size_t non_planar_count, double alpha) {
@@ -214,7 +217,10 @@ std::tuple<Sophus::SE3d, std::vector<Eigen::Vector3d>, std::vector<Eigen::Vector
     TransformPoints(initial_guess, source);
 
     Eigen::Matrix6d final_information = Eigen::Matrix6d::Zero();
+    double final_weighted_error = 0.0;
+    size_t final_residual_count = 0;
     bool have_final_information = false;
+    double previous_normalized_error = std::numeric_limits<double>::infinity();
 
     // GenZ-ICP-loop
     Sophus::SE3d T_icp = Sophus::SE3d();
@@ -226,8 +232,14 @@ std::tuple<Sophus::SE3d, std::vector<Eigen::Vector3d>, std::vector<Eigen::Vector
         }
 
         double alpha = static_cast<double>(planar_count) / static_cast<double>(correspondence_count);
-        const auto &[JTJ, JTr] = BuildLinearSystem(src_planar, tgt_planar, normals, src_non_planar, tgt_non_planar, kernel, alpha);
-        const Eigen::Vector6d dx = JTJ.ldlt().solve(-JTr);
+        const auto &[JTJ, JTr, weighted_error, residual_count] =
+            BuildLinearSystem(src_planar, tgt_planar, normals, src_non_planar, tgt_non_planar, kernel, alpha);
+        Eigen::LDLT<Eigen::Matrix6d> ldlt(JTJ);
+        if (ldlt.info() != Eigen::Success) {
+            break;
+        }
+
+        const Eigen::Vector6d dx = ldlt.solve(-JTr);
         if (!dx.allFinite()) {
             break;
         }
@@ -237,20 +249,32 @@ std::tuple<Sophus::SE3d, std::vector<Eigen::Vector3d>, std::vector<Eigen::Vector
         // Update iterations
         T_icp = estimation * T_icp;
         // Termination criteria
-        if (dx.norm() < convergence_criterion_ || j == max_num_iterations_ - 1) {
+        const double normalized_error =
+            weighted_error / std::max<double>(1.0, static_cast<double>(residual_count));
+        const bool error_converged =
+            std::isfinite(previous_normalized_error) &&
+            std::abs(previous_normalized_error - normalized_error) <=
+                kErrorConvergenceRelativeTolerance * std::max(1.0, previous_normalized_error);
+        previous_normalized_error = normalized_error;
+
+        if (dx.norm() < convergence_criterion_ || error_converged || j == max_num_iterations_ - 1) {
             if (terminal_status_enabled_) {
                 VisualizeStatus(planar_count, non_planar_count, alpha);
             }
             final_planar_points = src_planar;
             final_non_planar_points = src_non_planar;
             final_information = JTJ;
+            final_weighted_error = weighted_error;
+            final_residual_count = residual_count;
             have_final_information = true;
             break;
         }
     }
 
     const Eigen::Matrix6d final_covariance =
-        have_final_information ? CovarianceFromInformation(final_information) : HighUncertaintyCovariance();
+        have_final_information
+            ? CovarianceFromInformation(final_information, final_weighted_error, final_residual_count)
+            : HighUncertaintyCovariance();
 
     // // Spit the final transformation
     return std::make_tuple(T_icp * initial_guess, final_planar_points, final_non_planar_points, final_covariance);

@@ -124,7 +124,7 @@ void OdometryServer::RegisterFrame(const sensor_msgs::PointCloud2::ConstPtr &msg
     const auto egocentric_estimation = (base_frame_.empty() || base_frame_ == cloud_frame_id);
 
     // Register frame, main entry point to GenZ-ICP pipeline
-    const auto &[planar_points, non_planar_points] = odometry_.RegisterFrame(points, timestamps);
+    const auto &[planar_points, non_planar_points, covariance] = odometry_.RegisterFrame(points, timestamps);
 
     // Compute the pose using GenZ, ego-centric to the LiDAR
     const Sophus::SE3d genz_pose = odometry_.poses().back();
@@ -137,7 +137,7 @@ void OdometryServer::RegisterFrame(const sensor_msgs::PointCloud2::ConstPtr &msg
     }();
 
     // Spit the current estimated pose to ROS msgs
-    PublishOdometry(pose, msg->header.stamp, cloud_frame_id);
+    PublishOdometry(pose, msg->header.stamp, cloud_frame_id, covariance);
 
     // Publishing this clouds is a bit costly, so do it only if we are debugging
     if (publish_debug_clouds_) {
@@ -147,7 +147,8 @@ void OdometryServer::RegisterFrame(const sensor_msgs::PointCloud2::ConstPtr &msg
 
 void OdometryServer::PublishOdometry(const Sophus::SE3d &pose,
                                      const ros::Time &stamp,
-                                     const std::string &cloud_frame_id) {
+                                     const std::string &cloud_frame_id,
+                                     const Eigen::Matrix<double, 6, 6> &covariance) {
     // Header for point clouds and stuff seen from desired odom_frame
 
     // Broadcast the tf
@@ -172,7 +173,13 @@ void OdometryServer::PublishOdometry(const Sophus::SE3d &pose,
     nav_msgs::Odometry odom_msg;
     odom_msg.header.stamp = stamp;
     odom_msg.header.frame_id = odom_frame_;
+    odom_msg.child_frame_id = base_frame_.empty() ? cloud_frame_id : base_frame_;
     odom_msg.pose.pose = tf2::sophusToPose(pose);
+    for (int i = 0; i < 6; ++i) {
+        for (int j = 0; j < 6; ++j) {
+            odom_msg.pose.covariance[i * 6 + j] = covariance(i, j);
+        }
+    }
     odom_publisher_.publish(odom_msg);
 }
 

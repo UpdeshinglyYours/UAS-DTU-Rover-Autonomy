@@ -69,6 +69,7 @@ public:
 public:
     explicit GenZICP(const GenZConfig &config)
         : config_(config),
+          adaptive_voxel_size_(config.voxel_size),
           registration_(config.max_num_iterations, config.convergence_criterion),
           local_map_(config.voxel_size, config.max_range, config.map_cleanup_radius, config.planarity_threshold, config.max_points_per_voxel),
           adaptive_threshold_(config.initial_threshold, config.min_motion_th, config.max_range) {}
@@ -91,11 +92,19 @@ public:
     const std::deque<Sophus::SE3d> &poses() const { return poses_; };
 
 private:
+    void PushPose(const Sophus::SE3d &pose);
+
     // GenZ-ICP pipeline modules
     std::deque<Sophus::SE3d> poses_;
     Sophus::SE3d initial_pose_;
     bool has_initial_pose_ = false;
+    Eigen::Matrix<double, 6, 6> last_covariance_ = Eigen::Matrix<double, 6, 6>::Identity() * 1e6;
+    Eigen::Matrix<double, 4, 1> last_registered_signature_ = Eigen::Matrix<double, 4, 1>::Zero();
+    bool has_last_registered_signature_ = false;
+    size_t stationary_frame_count_ = 0;
+    size_t skipped_stationary_frames_ = 0;
     GenZConfig config_;
+    double adaptive_voxel_size_;
     Registration registration_;
     VoxelHashMap local_map_;
     AdaptiveThreshold adaptive_threshold_;

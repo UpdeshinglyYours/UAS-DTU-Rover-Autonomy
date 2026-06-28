@@ -22,6 +22,7 @@
 // SOFTWARE.
 #include <Eigen/Core>
 #include <algorithm>
+#include <exception>
 #include <memory>
 #include <sophus/se3.hpp>
 #include <utility>
@@ -80,6 +81,8 @@ OdometryServer::OdometryServer(const rclcpp::NodeOptions &options)
     declare_parameter<double>("min_motion_th", config_.min_motion_th);
     declare_parameter<std::string>("config_file", "");
 
+    const bool launch_deskew_requested = get_parameter("deskew").as_bool();
+
     // Load the configuration file
     std::string config_file = get_parameter("config_file").as_string();
     if (!config_file.empty()) {
@@ -119,6 +122,9 @@ OdometryServer::OdometryServer(const rclcpp::NodeOptions &options)
             }
         }
         set_parameters(overrides);
+        if (launch_deskew_requested) {
+            set_parameter(rclcpp::Parameter("deskew", true));
+        }
     }
 
     config_.max_range = get_parameter("max_range").as_double();
@@ -150,6 +156,7 @@ OdometryServer::OdometryServer(const rclcpp::NodeOptions &options)
     // Construct the main GenZ-ICP odometry node
     odometry_ = genz_icp::pipeline::GenZICP(config_);
     odometry_.SetTerminalStatusEnabled(terminal_status_enabled_);
+    RCLCPP_INFO(this->get_logger(), "LiDAR deskew is %s", config_.deskew ? "enabled" : "disabled");
 
     // Initialize subscribers
     pointcloud_sub_ = create_subscription<sensor_msgs::msg::PointCloud2>(
@@ -196,10 +203,22 @@ Sophus::SE3d OdometryServer::LookupTransform(const std::string &target_frame,
 void OdometryServer::RegisterFrame(const sensor_msgs::msg::PointCloud2::ConstSharedPtr &msg) {
     const auto cloud_frame_id = msg->header.frame_id;
     const auto points = PointCloud2ToEigen(msg);
-    const auto timestamps = [&]() -> std::vector<double> {
-        if (!config_.deskew) return {};
-        return GetTimestamps(msg);
-    }();
+    std::vector<double> timestamps;
+    if (config_.deskew) {
+        try {
+            timestamps = GetTimestamps(msg);
+            if (timestamps.size() != points.size()) {
+                RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
+                                     "Deskew enabled but timestamp count (%zu) does not match point count (%zu); skipping deskew for this scan",
+                                     timestamps.size(), points.size());
+                timestamps.clear();
+            }
+        } catch (const std::exception &ex) {
+            RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
+                                 "Deskew enabled but timestamp extraction failed: %s; skipping deskew for this scan",
+                                 ex.what());
+        }
+    }
     const auto egocentric_estimation = (base_frame_.empty() || base_frame_ == cloud_frame_id);
 
     // Register frame, main entry point to GenZ-ICP pipeline

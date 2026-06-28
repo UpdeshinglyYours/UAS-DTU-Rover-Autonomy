@@ -25,6 +25,7 @@
 #include <Eigen/Core>
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <regex>
 #include <sophus/se3.hpp>
@@ -89,28 +90,34 @@ inline std::string FixFrameId(const std::string &frame_id) {
 }
 
 inline auto GetTimestampField(const PointCloud2::ConstSharedPtr msg) {
-    PointField timestamp_field;
-    for (const auto &field : msg->fields) {
-        if ((field.name == "t" || field.name == "timestamp" || field.name == "time" || field.name == "point_time_offset")) {
-            timestamp_field = field;
+    for (const char *name : {"point_time_offset", "t", "time", "timestamp"}) {
+        for (const auto &field : msg->fields) {
+            if (field.name == name && field.count > 0) {
+                return field;
+            }
         }
     }
-    if (!timestamp_field.count) {
-        throw std::runtime_error("Field 't', 'timestamp', or 'time'  does not exist");
-    }
-    return timestamp_field;
+    throw std::runtime_error("Field 'point_time_offset', 't', 'time', or 'timestamp' does not exist");
 }
 
 // Normalize timestamps from 0.0 to 1.0
 inline auto NormalizeTimestamps(const std::vector<double> &timestamps) {
+    if (timestamps.empty()) return timestamps;
+
     const auto [min_it, max_it] = std::minmax_element(timestamps.cbegin(), timestamps.cend());
     const double min_timestamp = *min_it;
     const double max_timestamp = *max_it;
+    const double timestamp_span = max_timestamp - min_timestamp;
 
     std::vector<double> timestamps_normalized(timestamps.size());
+    if (!(timestamp_span > 0.0)) {
+        std::fill(timestamps_normalized.begin(), timestamps_normalized.end(), 0.5);
+        return timestamps_normalized;
+    }
+
     std::transform(timestamps.cbegin(), timestamps.cend(), timestamps_normalized.begin(),
                    [&](const auto &timestamp) {
-                       return (timestamp - min_timestamp) / (max_timestamp - min_timestamp);
+                       return (timestamp - min_timestamp) / timestamp_span;
                    });
     return timestamps_normalized;
 }
@@ -118,7 +125,8 @@ inline auto NormalizeTimestamps(const std::vector<double> &timestamps) {
 inline auto ExtractTimestampsFromMsg(const PointCloud2::ConstSharedPtr msg,
                                      const PointField &field) {
     auto extract_timestamps =
-        [&msg]<typename T>(sensor_msgs::PointCloud2ConstIterator<T> &&it) -> std::vector<double> {
+        [&msg, &field]<typename T>() -> std::vector<double> {
+        sensor_msgs::PointCloud2ConstIterator<T> it(*msg, field.name);
         const size_t n_points = msg->height * msg->width;
         std::vector<double> timestamps;
         timestamps.reserve(n_points);
@@ -128,17 +136,23 @@ inline auto ExtractTimestampsFromMsg(const PointCloud2::ConstSharedPtr msg,
         return NormalizeTimestamps(timestamps);
     };
 
-    // Get timestamp field that must be one of the following : {t, timestamp, time}
-    auto timestamp_field = GetTimestampField(msg);
-
     // According to the type of the timestamp == type, return a PointCloud2ConstIterator<type>
-    using sensor_msgs::PointCloud2ConstIterator;
-    if (timestamp_field.datatype == PointField::UINT32) {
-        return extract_timestamps(PointCloud2ConstIterator<uint32_t>(*msg, timestamp_field.name));
-    } else if (timestamp_field.datatype == PointField::FLOAT32) {
-        return extract_timestamps(PointCloud2ConstIterator<float>(*msg, timestamp_field.name));
-    } else if (timestamp_field.datatype == PointField::FLOAT64) {
-        return extract_timestamps(PointCloud2ConstIterator<double>(*msg, timestamp_field.name));
+    if (field.datatype == PointField::INT8) {
+        return extract_timestamps.template operator()<std::int8_t>();
+    } else if (field.datatype == PointField::UINT8) {
+        return extract_timestamps.template operator()<std::uint8_t>();
+    } else if (field.datatype == PointField::INT16) {
+        return extract_timestamps.template operator()<std::int16_t>();
+    } else if (field.datatype == PointField::UINT16) {
+        return extract_timestamps.template operator()<std::uint16_t>();
+    } else if (field.datatype == PointField::INT32) {
+        return extract_timestamps.template operator()<std::int32_t>();
+    } else if (field.datatype == PointField::UINT32) {
+        return extract_timestamps.template operator()<std::uint32_t>();
+    } else if (field.datatype == PointField::FLOAT32) {
+        return extract_timestamps.template operator()<float>();
+    } else if (field.datatype == PointField::FLOAT64) {
+        return extract_timestamps.template operator()<double>();
     }
 
     // timestamp type not supported, please open an issue :)

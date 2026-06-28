@@ -22,6 +22,8 @@
 // SOFTWARE.
 #pragma once
 
+#include <Eigen/Core>
+
 // GenZ-ICP
 #include "genz_icp/pipeline/GenZICP.hpp"
 
@@ -49,7 +51,8 @@ private:
     /// Stream the estimated pose to ROS
     void PublishOdometry(const Sophus::SE3d &pose,
                          const ros::Time &stamp,
-                         const std::string &cloud_frame_id);
+                         const std::string &cloud_frame_id,
+                         const Eigen::Matrix<double, 6, 6> &covariance);
 
     /// Stream the debugging point clouds for visualization (if required)
     void PublishClouds(const ros::Time &stamp,

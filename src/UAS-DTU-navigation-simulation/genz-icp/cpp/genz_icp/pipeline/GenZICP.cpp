@@ -24,7 +24,9 @@
 #include "GenZICP.hpp"
 
 #include <Eigen/Core>
+#include <Eigen/Geometry>
 #include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <tuple>
 #include <vector>
@@ -33,6 +35,44 @@
 #include "genz_icp/core/Preprocessing.hpp"
 #include "genz_icp/core/Registration.hpp"
 #include "genz_icp/core/VoxelHashMap.hpp"
+
+namespace {
+constexpr size_t kStationaryWarmupFrames = 5;
+constexpr size_t kMaxStationarySkippedFrames = 7;
+constexpr double kStartupPoseVariance = 1e-6;
+
+Eigen::Matrix<double, 4, 1> ComputeFrameSignature(const std::vector<Eigen::Vector3d> &frame) {
+    Eigen::Matrix<double, 4, 1> signature = Eigen::Matrix<double, 4, 1>::Zero();
+    if (frame.empty()) return signature;
+
+    for (const auto &point : frame) {
+        signature.head<3>() += point;
+        signature[3] += point.norm();
+    }
+
+    signature /= static_cast<double>(frame.size());
+    return signature;
+}
+
+bool IsStableFrameSignature(const Eigen::Matrix<double, 4, 1> &current,
+                            const Eigen::Matrix<double, 4, 1> &reference,
+                            double voxel_size) {
+    const double centroid_epsilon = std::max(0.05, 0.10 * voxel_size);
+    const double range_epsilon = std::max(0.05, 0.10 * voxel_size);
+    return (current.head<3>() - reference.head<3>()).norm() < centroid_epsilon &&
+           std::abs(current[3] - reference[3]) < range_epsilon;
+}
+
+bool IsSmallSolvedMotion(const Sophus::SE3d &model_deviation, double min_motion_threshold) {
+    const double translation = model_deviation.translation().norm();
+    const double rotation = Eigen::AngleAxisd(model_deviation.rotationMatrix()).angle();
+    return translation < std::max(0.01, 0.25 * min_motion_threshold) && rotation < 0.005;
+}
+
+Eigen::Matrix<double, 6, 6> StartupCovariance() {
+    return Eigen::Matrix<double, 6, 6>::Identity() * kStartupPoseVariance;
+}
+}  // namespace
 
 namespace genz_icp::pipeline {
 
@@ -61,16 +101,44 @@ GenZICP::RegistrationTuple GenZICP::RegisterFrame(const std::vector<Eigen::Vecto
     const auto &cropped_frame = Preprocess(frame, config_.max_range, config_.min_range);
 
     // Adapt voxel size based on LOCUS 2.0's adaptive voxel grid filter
-    static double voxel_size = config_.voxel_size; // Initial voxel size
-    const auto source_tmp = genz_icp::VoxelDownsample(cropped_frame, voxel_size);
-    double adaptive_voxel_size = genz_icp::Clamp(voxel_size * static_cast<double>(source_tmp.size()) / static_cast<double>(config_.desired_num_voxelized_points), 0.02, 2.0);
+    const auto source_tmp = genz_icp::VoxelDownsample(cropped_frame, adaptive_voxel_size_);
+    const double desired_points = static_cast<double>(std::max(1, config_.desired_num_voxelized_points));
+    double adaptive_voxel_size = genz_icp::Clamp(
+        adaptive_voxel_size_ * static_cast<double>(source_tmp.size()) / desired_points, 0.02, 2.0);
 
     // Re-voxelize using the adaptive voxel size
     const auto &[source, frame_downsample] = Voxelize(cropped_frame, adaptive_voxel_size);
-    voxel_size = adaptive_voxel_size; // Save for the next frame
+    adaptive_voxel_size_ = adaptive_voxel_size; // Save for the next frame
+
+    const auto frame_signature = ComputeFrameSignature(source);
+    if (local_map_.Empty()) {
+        const Sophus::SE3d seed_pose = !poses_.empty() ? poses_.back() : Sophus::SE3d();
+        local_map_.Update(frame_downsample, seed_pose);
+        if (!has_initial_pose_) {
+            initial_pose_ = seed_pose;
+            has_initial_pose_ = true;
+        }
+        PushPose(seed_pose);
+        last_covariance_ = StartupCovariance();
+        last_registered_signature_ = frame_signature;
+        has_last_registered_signature_ = true;
+        stationary_frame_count_ = 1;
+        skipped_stationary_frames_ = 0;
+        return std::make_tuple(Vector3dVector{}, Vector3dVector{}, last_covariance_);
+    }
 
     // Get motion prediction and adaptive_threshold
     const double sigma = GetAdaptiveThreshold();
+
+    if (!poses_.empty() &&
+        has_last_registered_signature_ &&
+        stationary_frame_count_ >= kStationaryWarmupFrames &&
+        skipped_stationary_frames_ < kMaxStationarySkippedFrames &&
+        IsStableFrameSignature(frame_signature, last_registered_signature_, adaptive_voxel_size)) {
+        PushPose(poses_.back());
+        ++skipped_stationary_frames_;
+        return std::make_tuple(Vector3dVector{}, Vector3dVector{}, last_covariance_);
+    }
 
     // Compute initial_guess for ICP
     const auto prediction = GetPredictionModel();
@@ -90,10 +158,15 @@ GenZICP::RegistrationTuple GenZICP::RegisterFrame(const std::vector<Eigen::Vecto
         initial_pose_ = new_pose;
         has_initial_pose_ = true;
     }
-    poses_.push_back(new_pose);
-    const size_t max_pose_history = std::max<size_t>(2, config_.max_pose_history);
-    while (poses_.size() > max_pose_history) {
-        poses_.pop_front();
+    PushPose(new_pose);
+    last_covariance_ = covariance;
+    last_registered_signature_ = frame_signature;
+    has_last_registered_signature_ = true;
+    skipped_stationary_frames_ = 0;
+    if (IsSmallSolvedMotion(model_deviation, config_.min_motion_th)) {
+        ++stationary_frame_count_;
+    } else {
+        stationary_frame_count_ = 0;
     }
 
     return std::make_tuple(planar_points, non_planar_points, covariance);
@@ -123,6 +196,14 @@ bool GenZICP::HasMoved() {
     if (!has_initial_pose_ || poses_.empty()) return false;
     const double motion = (initial_pose_.inverse() * poses_.back()).translation().norm();
     return motion > 5.0 * config_.min_motion_th;
+}
+
+void GenZICP::PushPose(const Sophus::SE3d &pose) {
+    poses_.push_back(pose);
+    const size_t max_pose_history = std::max<size_t>(2, config_.max_pose_history);
+    while (poses_.size() > max_pose_history) {
+        poses_.pop_front();
+    }
 }
 
 }  // namespace genz_icp::pipeline
