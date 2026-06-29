@@ -68,6 +68,14 @@ OdometryServer::OdometryServer(const ros::NodeHandle &nh, const ros::NodeHandle 
     pnh_.param("min_motion_th", config_.min_motion_th, config_.min_motion_th);
     pnh_.param("max_num_iterations", config_.max_num_iterations, config_.max_num_iterations);
     pnh_.param("convergence_criterion", config_.convergence_criterion, config_.convergence_criterion);
+    pnh_.param("enable_registration_quality_gate", config_.enable_registration_quality_gate, config_.enable_registration_quality_gate);
+    pnh_.param("min_registration_correspondences", config_.min_registration_correspondences, config_.min_registration_correspondences);
+    pnh_.param("registration_rmse_reject_ratio", config_.registration_rmse_reject_ratio, config_.registration_rmse_reject_ratio);
+    pnh_.param("registration_rmse_ema_alpha", config_.registration_rmse_ema_alpha, config_.registration_rmse_ema_alpha);
+    pnh_.param("max_registration_translation_per_frame", config_.max_registration_translation_per_frame, config_.max_registration_translation_per_frame);
+    pnh_.param("max_registration_rotation_per_frame_deg", config_.max_registration_rotation_per_frame_deg, config_.max_registration_rotation_per_frame_deg);
+    pnh_.param("max_consecutive_registration_rejections", config_.max_consecutive_registration_rejections, config_.max_consecutive_registration_rejections);
+    pnh_.param("absolute_registration_rmse_limit", config_.absolute_registration_rmse_limit, config_.absolute_registration_rmse_limit);
     if (config_.max_range < config_.min_range) {
         ROS_WARN("[WARNING] max_range is smaller than min_range, setting min_range to 0.0");
         config_.min_range = 0.0;

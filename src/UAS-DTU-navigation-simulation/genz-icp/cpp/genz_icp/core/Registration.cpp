@@ -11,6 +11,7 @@
 #include <sophus/so3.hpp>
 #include <tuple>
 #include <iostream>
+#include <utility>
 
 namespace Eigen {
 using Matrix6d = Eigen::Matrix<double, 6, 6>;
@@ -28,6 +29,8 @@ constexpr double kRelativeRegularization = 1e-9;
 constexpr double kMinResidualVariance = 1e-6;
 constexpr double kMaxResidualVariance = 1e3;
 constexpr double kErrorConvergenceRelativeTolerance = 1e-5;
+constexpr double kMinMotionPriorSigma = 1e-6;
+constexpr double kRadToDeg = 180.0 / 3.14159265358979323846;
 
 Eigen::Matrix6d HighUncertaintyCovariance() {
     return Eigen::Matrix6d::Identity() * kHighUncertainty;
@@ -70,13 +73,94 @@ Eigen::Matrix6d CovarianceFromInformation(const Eigen::Matrix6d &information,
     return 0.5 * (covariance + covariance.transpose());
 }
 
+bool IsFinitePose(const Sophus::SE3d &pose) {
+    return pose.matrix().allFinite();
+}
+
 void TransformPoints(const Sophus::SE3d &T, std::vector<Eigen::Vector3d> &points) {
     std::transform(points.cbegin(), points.cend(), points.begin(),
                    [&](const auto &point) { return T * point; });
 }
 
+struct LinearSystemResult {
+    Eigen::Matrix6d JTJ = Eigen::Matrix6d::Zero();
+    Eigen::Vector6d JTr = Eigen::Vector6d::Zero();
+    double unweighted_error = 0.0;
+    double weighted_error = 0.0;
+    double weighted_sum = 0.0;
+    size_t residual_count = 0;
+    size_t correspondence_count = 0;
+};
+
+bool MotionPriorIsActive(const genz_icp::RegistrationMotionPriorConfig &prior) {
+    return prior.enabled &&
+           prior.weight > 0.0 &&
+           std::isfinite(prior.weight) &&
+           std::isfinite(prior.translation_sigma) &&
+           std::isfinite(prior.z_sigma) &&
+           std::isfinite(prior.roll_pitch_sigma_rad) &&
+           std::isfinite(prior.yaw_sigma_rad);
+}
+
+Eigen::Matrix6d MotionPriorInformation(const genz_icp::RegistrationMotionPriorConfig &prior) {
+    Eigen::Matrix6d information = Eigen::Matrix6d::Zero();
+    const double sigma_xy = std::max(kMinMotionPriorSigma, prior.translation_sigma);
+    const double sigma_z = std::max(kMinMotionPriorSigma, prior.z_sigma);
+    const double sigma_roll_pitch = std::max(kMinMotionPriorSigma, prior.roll_pitch_sigma_rad);
+    const double sigma_yaw = std::max(kMinMotionPriorSigma, prior.yaw_sigma_rad);
+
+    information(0, 0) = prior.weight / square(sigma_xy);
+    information(1, 1) = prior.weight / square(sigma_xy);
+    information(2, 2) = prior.weight / square(sigma_z);
+    information(3, 3) = prior.weight / square(sigma_roll_pitch);
+    information(4, 4) = prior.weight / square(sigma_roll_pitch);
+    information(5, 5) = prior.weight / square(sigma_yaw);
+    return information;
+}
+
+Eigen::Vector6d MotionPriorError(const Sophus::SE3d &prior_pose,
+                                 const Sophus::SE3d &current_pose) {
+    return (prior_pose.inverse() * current_pose).log();
+}
+
+void AddMotionPrior(LinearSystemResult &linear_system,
+                    const Eigen::Matrix6d &prior_information,
+                    const Sophus::SE3d &prior_pose,
+                    const Sophus::SE3d &current_pose) {
+    const Eigen::Vector6d error = MotionPriorError(prior_pose, current_pose);
+    if (!error.allFinite()) return;
+
+    // Identity-Jacobian prior in the same [translation, rotation] tangent order
+    // used by the ICP point residuals. With dx = -H^-1 g, +W*e pulls e toward 0.
+    linear_system.JTJ.noalias() += prior_information;
+    linear_system.JTr.noalias() += prior_information * error;
+}
+
+void LogMotionPriorConfig(const genz_icp::RegistrationMotionPriorConfig &prior) {
+    std::cout << "Motion prior enabled: sigma_xy=" << prior.translation_sigma
+              << ", sigma_z=" << prior.z_sigma
+              << ", sigma_rp_deg=" << prior.roll_pitch_sigma_rad * kRadToDeg
+              << ", sigma_yaw_deg=" << prior.yaw_sigma_rad * kRadToDeg
+              << ", weight=" << prior.weight
+              << "\n";
+}
+
+void LogMotionPriorDeviation(const std::string &prefix, const Eigen::Vector6d &error) {
+    const double trans_norm = error.head<3>().norm();
+    const double rot_deg = error.tail<3>().norm() * kRadToDeg;
+    const double roll_pitch_deg = error.segment<2>(3).norm() * kRadToDeg;
+    const double yaw_deg = std::abs(error[5]) * kRadToDeg;
+    std::cout << prefix
+              << " trans_norm=" << trans_norm
+              << ", z=" << error[2]
+              << ", rot_deg=" << rot_deg
+              << ", roll_pitch_deg=" << roll_pitch_deg
+              << ", yaw_deg=" << yaw_deg
+              << "\n";
+}
+
 //Build the linear system for the GenZ-ICP
-std::tuple<Eigen::Matrix6d, Eigen::Vector6d, double, size_t> BuildLinearSystem(
+LinearSystemResult BuildLinearSystem(
     const std::vector<Eigen::Vector3d> &src_planar,
     const std::vector<Eigen::Vector3d> &tgt_planar,
     const std::vector<Eigen::Vector3d> &normals,
@@ -88,8 +172,11 @@ std::tuple<Eigen::Matrix6d, Eigen::Vector6d, double, size_t> BuildLinearSystem(
     struct ResultTuple {
         Eigen::Matrix6d JTJ;
         Eigen::Vector6d JTr;
+        double unweighted_error = 0.0;
         double weighted_error = 0.0;
+        double weighted_sum = 0.0;
         size_t residual_count = 0;
+        size_t correspondence_count = 0;
 
         ResultTuple() : JTJ(Eigen::Matrix6d::Zero()), JTr(Eigen::Vector6d::Zero()) {}
 
@@ -97,8 +184,11 @@ std::tuple<Eigen::Matrix6d, Eigen::Vector6d, double, size_t> BuildLinearSystem(
             ResultTuple result;
             result.JTJ = JTJ + other.JTJ;
             result.JTr = JTr + other.JTr;
+            result.unweighted_error = unweighted_error + other.unweighted_error;
             result.weighted_error = weighted_error + other.weighted_error;
+            result.weighted_sum = weighted_sum + other.weighted_sum;
             result.residual_count = residual_count + other.residual_count;
+            result.correspondence_count = correspondence_count + other.correspondence_count;
             return result;
         }
     };
@@ -129,22 +219,30 @@ std::tuple<Eigen::Matrix6d, Eigen::Vector6d, double, size_t> BuildLinearSystem(
         for (size_t i = r.begin(); i < r.end(); ++i) {
             if (i < src_planar.size()) { // Point-to-Plane
                 const auto &[J_planar, r_planar] = compute_jacobian_and_residual_planar(i);
-                double w_planar = Weight(r_planar * r_planar);
+                const double residual_squared = r_planar * r_planar;
+                double w_planar = Weight(residual_squared);
                 const double weighted_alpha = alpha * w_planar;
                 J.JTJ.noalias() += weighted_alpha * J_planar.transpose() * J_planar;
                 J.JTr.noalias() += weighted_alpha * J_planar.transpose() * r_planar;
-                J.weighted_error += weighted_alpha * r_planar * r_planar;
+                J.unweighted_error += residual_squared;
+                J.weighted_error += weighted_alpha * residual_squared;
+                J.weighted_sum += weighted_alpha;
                 J.residual_count += 1;
+                J.correspondence_count += 1;
             } else { // Point-to-Point
                 size_t index = i - src_planar.size();
                 if (index < src_non_planar.size()) {
                     const auto &[J_non_planar, r_non_planar] = compute_jacobian_and_residual_non_planar(index);
-                    const double w_non_planar = Weight(r_non_planar.squaredNorm());
+                    const double residual_squared = r_non_planar.squaredNorm();
+                    const double w_non_planar = Weight(residual_squared);
                     const double weighted_alpha = (1 - alpha) * w_non_planar;
                     J.JTJ.noalias() += weighted_alpha * J_non_planar.transpose() * J_non_planar;
                     J.JTr.noalias() += weighted_alpha * J_non_planar.transpose() * r_non_planar;
-                    J.weighted_error += weighted_alpha * r_non_planar.squaredNorm();
+                    J.unweighted_error += residual_squared;
+                    J.weighted_error += weighted_alpha * residual_squared;
+                    J.weighted_sum += weighted_alpha;
                     J.residual_count += 3;
+                    J.correspondence_count += 1;
                 }
             }
         }
@@ -153,7 +251,7 @@ std::tuple<Eigen::Matrix6d, Eigen::Vector6d, double, size_t> BuildLinearSystem(
 
 
     size_t total_size = src_planar.size() + src_non_planar.size();
-    const auto &[JTJ, JTr, weighted_error, residual_count] = tbb::parallel_reduce(
+    const auto result = tbb::parallel_reduce(
         tbb::blocked_range<size_t>(0, total_size),
         ResultTuple(),
         compute,
@@ -161,7 +259,13 @@ std::tuple<Eigen::Matrix6d, Eigen::Vector6d, double, size_t> BuildLinearSystem(
             return a + b;
         });
 
-    return std::make_tuple(JTJ, JTr, weighted_error, residual_count);
+    return {result.JTJ,
+            result.JTr,
+            result.unweighted_error,
+            result.weighted_error,
+            result.weighted_sum,
+            result.residual_count,
+            result.correspondence_count};
 }
 
 void VisualizeStatus(size_t planar_count, size_t non_planar_count, double alpha) {
@@ -199,26 +303,38 @@ Registration::Registration(int max_num_iteration, double convergence_criterion)
     : max_num_iterations_(max_num_iteration), 
       convergence_criterion_(convergence_criterion) {}
 
-std::tuple<Sophus::SE3d, std::vector<Eigen::Vector3d>, std::vector<Eigen::Vector3d>, Eigen::Matrix<double, 6, 6>> Registration::RegisterFrame(const std::vector<Eigen::Vector3d> &frame,
-                                                                                                   const VoxelHashMap &voxel_map,
-                                                                                                   const Sophus::SE3d &initial_guess,
-                                                                                                   double max_correspondence_distance,
-                                                                                                   double kernel) {
-    
-    // for visualization
-    std::vector<Eigen::Vector3d> final_planar_points;
-    std::vector<Eigen::Vector3d> final_non_planar_points;
-    final_planar_points.clear();
-    final_non_planar_points.clear();
+RegistrationResult Registration::RegisterFrameWithQuality(
+    const std::vector<Eigen::Vector3d> &frame,
+    const VoxelHashMap &voxel_map,
+    const Sophus::SE3d &initial_guess,
+    double max_correspondence_distance,
+    double kernel,
+    const std::optional<RegistrationMotionPriorConfig> &motion_prior) {
+    RegistrationResult result;
+    result.pose = initial_guess;
+    result.covariance = HighUncertaintyCovariance();
 
-    if (voxel_map.Empty()) return std::make_tuple(initial_guess, final_planar_points, final_non_planar_points, HighUncertaintyCovariance());
+    if (voxel_map.Empty()) return result;
+
+    const bool motion_prior_active =
+        motion_prior && MotionPriorIsActive(*motion_prior);
+    const Eigen::Matrix6d motion_prior_information =
+        motion_prior_active ? MotionPriorInformation(*motion_prior) : Eigen::Matrix6d::Zero();
+    if (motion_prior_active && motion_prior->debug) {
+        LogMotionPriorConfig(*motion_prior);
+        LogMotionPriorDeviation("Motion prior residual before ICP:",
+                                MotionPriorError(initial_guess, initial_guess));
+    }
 
     std::vector<Eigen::Vector3d> source = frame;
     TransformPoints(initial_guess, source);
 
     Eigen::Matrix6d final_information = Eigen::Matrix6d::Zero();
+    double final_unweighted_error = 0.0;
     double final_weighted_error = 0.0;
+    double final_weighted_sum = 0.0;
     size_t final_residual_count = 0;
+    size_t final_correspondence_count = 0;
     bool have_final_information = false;
     double previous_normalized_error = std::numeric_limits<double>::infinity();
 
@@ -232,14 +348,18 @@ std::tuple<Sophus::SE3d, std::vector<Eigen::Vector3d>, std::vector<Eigen::Vector
         }
 
         double alpha = static_cast<double>(planar_count) / static_cast<double>(correspondence_count);
-        const auto &[JTJ, JTr, weighted_error, residual_count] =
+        auto linear_system =
             BuildLinearSystem(src_planar, tgt_planar, normals, src_non_planar, tgt_non_planar, kernel, alpha);
-        Eigen::LDLT<Eigen::Matrix6d> ldlt(JTJ);
+        if (motion_prior_active) {
+            const Sophus::SE3d current_pose = T_icp * initial_guess;
+            AddMotionPrior(linear_system, motion_prior_information, initial_guess, current_pose);
+        }
+        Eigen::LDLT<Eigen::Matrix6d> ldlt(linear_system.JTJ);
         if (ldlt.info() != Eigen::Success) {
             break;
         }
 
-        const Eigen::Vector6d dx = ldlt.solve(-JTr);
+        const Eigen::Vector6d dx = ldlt.solve(-linear_system.JTr);
         if (!dx.allFinite()) {
             break;
         }
@@ -250,7 +370,8 @@ std::tuple<Sophus::SE3d, std::vector<Eigen::Vector3d>, std::vector<Eigen::Vector
         T_icp = estimation * T_icp;
         // Termination criteria
         const double normalized_error =
-            weighted_error / std::max<double>(1.0, static_cast<double>(residual_count));
+            linear_system.weighted_error /
+            std::max<double>(1.0, static_cast<double>(linear_system.residual_count));
         const bool error_converged =
             std::isfinite(previous_normalized_error) &&
             std::abs(previous_normalized_error - normalized_error) <=
@@ -261,23 +382,65 @@ std::tuple<Sophus::SE3d, std::vector<Eigen::Vector3d>, std::vector<Eigen::Vector
             if (terminal_status_enabled_) {
                 VisualizeStatus(planar_count, non_planar_count, alpha);
             }
-            final_planar_points = src_planar;
-            final_non_planar_points = src_non_planar;
-            final_information = JTJ;
-            final_weighted_error = weighted_error;
-            final_residual_count = residual_count;
+            result.planar_points = src_planar;
+            result.non_planar_points = src_non_planar;
+            final_information = linear_system.JTJ;
+            final_unweighted_error = linear_system.unweighted_error;
+            final_weighted_error = linear_system.weighted_error;
+            final_weighted_sum = linear_system.weighted_sum;
+            final_residual_count = linear_system.residual_count;
+            final_correspondence_count = linear_system.correspondence_count;
             have_final_information = true;
             break;
         }
     }
 
-    const Eigen::Matrix6d final_covariance =
+    result.pose = T_icp * initial_guess;
+    if (motion_prior_active && motion_prior->debug) {
+        LogMotionPriorDeviation("Motion prior final deviation:",
+                                MotionPriorError(initial_guess, result.pose));
+    }
+    result.covariance =
         have_final_information
             ? CovarianceFromInformation(final_information, final_weighted_error, final_residual_count)
             : HighUncertaintyCovariance();
 
-    // // Spit the final transformation
-    return std::make_tuple(T_icp * initial_guess, final_planar_points, final_non_planar_points, final_covariance);
+    if (have_final_information && final_correspondence_count > 0) {
+        result.quality.correspondence_count = final_correspondence_count;
+        // Quality RMSE is correspondence-level: planar uses r^2 and non-planar
+        // uses ||r||^2, then the total is normalized by correspondence count.
+        result.quality.rmse =
+            std::sqrt(final_unweighted_error / static_cast<double>(final_correspondence_count));
+        if (final_weighted_sum > 0.0) {
+            result.quality.weighted_rmse =
+                std::sqrt(final_weighted_error / final_weighted_sum);
+        }
+        result.quality.finite =
+            IsFinitePose(result.pose) &&
+            result.covariance.allFinite() &&
+            final_information.allFinite() &&
+            std::isfinite(result.quality.rmse) &&
+            std::isfinite(result.quality.weighted_rmse);
+    }
+
+    return result;
+}
+
+std::tuple<Sophus::SE3d,
+           std::vector<Eigen::Vector3d>,
+           std::vector<Eigen::Vector3d>,
+           Eigen::Matrix<double, 6, 6>>
+Registration::RegisterFrame(const std::vector<Eigen::Vector3d> &frame,
+                            const VoxelHashMap &voxel_map,
+                            const Sophus::SE3d &initial_guess,
+                            double max_correspondence_distance,
+                            double kernel) {
+    auto result = RegisterFrameWithQuality(
+        frame, voxel_map, initial_guess, max_correspondence_distance, kernel);
+    return std::make_tuple(result.pose,
+                           std::move(result.planar_points),
+                           std::move(result.non_planar_points),
+                           result.covariance);
 }
 
 }  // namespace genz_icp

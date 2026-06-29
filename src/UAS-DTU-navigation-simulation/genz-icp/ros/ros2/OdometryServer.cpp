@@ -22,9 +22,22 @@
 // SOFTWARE.
 #include <Eigen/Core>
 #include <algorithm>
+#include <cmath>
+#include <cctype>
+#include <cstdint>
 #include <exception>
+#include <functional>
+#include <iomanip>
+#include <iterator>
+#include <limits>
 #include <memory>
+#include <mutex>
+#include <optional>
 #include <sophus/se3.hpp>
+#include <sophus/so3.hpp>
+#include <sstream>
+#include <stdexcept>
+#include <string>
 #include <utility>
 #include <vector>
 #include <yaml-cpp/yaml.h>
@@ -46,7 +59,10 @@
 #include <nav_msgs/msg/path.hpp>
 #include <rclcpp/qos.hpp>
 #include <rclcpp/rclcpp.hpp>
+#include <sensor_msgs/msg/imu.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
+#include <sensor_msgs/msg/point_field.hpp>
+#include <sensor_msgs/point_cloud2_iterator.hpp>
 #include <std_msgs/msg/string.hpp>
 #include "ament_index_cpp/get_package_share_directory.hpp"
 #include "rcpputils/filesystem_helper.hpp"
@@ -56,6 +72,199 @@ namespace genz_icp_ros {
 using utils::EigenToPointCloud2;
 using utils::GetTimestamps;
 using utils::PointCloud2ToEigen;
+
+namespace {
+using PointCloud2 = sensor_msgs::msg::PointCloud2;
+using PointField = sensor_msgs::msg::PointField;
+
+constexpr double kAbsoluteUnixTimeThreshold = 1.0e8;
+constexpr double kTimeEpsilon = 1.0e-9;
+constexpr double kRadiansToDegrees = 180.0 / 3.14159265358979323846;
+
+std::string ToLower(std::string value) {
+    std::transform(value.begin(), value.end(), value.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    return value;
+}
+
+std::string Trim(const std::string &value) {
+    const auto begin = value.find_first_not_of(" \t\n\r");
+    if (begin == std::string::npos) return "";
+    const auto end = value.find_last_not_of(" \t\n\r");
+    return value.substr(begin, end - begin + 1);
+}
+
+std::vector<std::string> SplitCandidates(const std::string &value) {
+    std::vector<std::string> candidates;
+    std::stringstream stream(value);
+    std::string token;
+    while (std::getline(stream, token, ',')) {
+        token = Trim(token);
+        if (!token.empty()) candidates.push_back(token);
+    }
+    return candidates;
+}
+
+std::optional<ImuPredictionTimeUnit> ParseImuPredictionTimeUnit(const std::string &unit) {
+    const auto normalized = ToLower(Trim(unit));
+    if (normalized == "seconds" || normalized == "second" || normalized == "sec" ||
+        normalized == "s") {
+        return ImuPredictionTimeUnit::Seconds;
+    }
+    if (normalized == "milliseconds" || normalized == "millisecond" || normalized == "msec" ||
+        normalized == "ms") {
+        return ImuPredictionTimeUnit::Milliseconds;
+    }
+    if (normalized == "microseconds" || normalized == "microsecond" || normalized == "usec" ||
+        normalized == "us") {
+        return ImuPredictionTimeUnit::Microseconds;
+    }
+    if (normalized == "nanoseconds" || normalized == "nanosecond" || normalized == "nsec" ||
+        normalized == "ns") {
+        return ImuPredictionTimeUnit::Nanoseconds;
+    }
+    return std::nullopt;
+}
+
+std::optional<ImuPredictionScanLocation> ParseImuPredictionScanLocation(
+    const std::string &location) {
+    const auto normalized = ToLower(Trim(location));
+    if (normalized == "start" || normalized == "begin" || normalized == "beginning") {
+        return ImuPredictionScanLocation::Start;
+    }
+    if (normalized == "middle" || normalized == "mid" || normalized == "midpoint" ||
+        normalized == "center" || normalized == "centre") {
+        return ImuPredictionScanLocation::Middle;
+    }
+    if (normalized == "end" || normalized == "finish" || normalized == "last") {
+        return ImuPredictionScanLocation::End;
+    }
+    return std::nullopt;
+}
+
+double UnitScale(const ImuPredictionTimeUnit unit) {
+    switch (unit) {
+        case ImuPredictionTimeUnit::Seconds:
+            return 1.0;
+        case ImuPredictionTimeUnit::Milliseconds:
+            return 1.0e-3;
+        case ImuPredictionTimeUnit::Microseconds:
+            return 1.0e-6;
+        case ImuPredictionTimeUnit::Nanoseconds:
+            return 1.0e-9;
+    }
+    return 1.0;
+}
+
+double LocationOffset(const ImuPredictionScanLocation location, const double duration) {
+    switch (location) {
+        case ImuPredictionScanLocation::Start:
+            return 0.0;
+        case ImuPredictionScanLocation::Middle:
+            return 0.5 * duration;
+        case ImuPredictionScanLocation::End:
+            return duration;
+    }
+    return 0.0;
+}
+
+std::string FieldTypeName(const std::uint8_t datatype) {
+    switch (datatype) {
+        case PointField::INT8:
+            return "INT8";
+        case PointField::UINT8:
+            return "UINT8";
+        case PointField::INT16:
+            return "INT16";
+        case PointField::UINT16:
+            return "UINT16";
+        case PointField::INT32:
+            return "INT32";
+        case PointField::UINT32:
+            return "UINT32";
+        case PointField::FLOAT32:
+            return "FLOAT32";
+        case PointField::FLOAT64:
+            return "FLOAT64";
+        default:
+            return "UNKNOWN";
+    }
+}
+
+std::string AvailableFieldsString(const PointCloud2 &cloud) {
+    std::ostringstream stream;
+    for (size_t i = 0; i < cloud.fields.size(); ++i) {
+        const auto &field = cloud.fields[i];
+        if (i > 0) stream << ", ";
+        stream << field.name << ":" << FieldTypeName(field.datatype) << "@" << field.offset;
+        if (field.count != 1) stream << "[" << field.count << "]";
+    }
+    return stream.str();
+}
+
+const PointField *FindField(const PointCloud2 &cloud, const std::string &name) {
+    const auto it = std::find_if(cloud.fields.begin(), cloud.fields.end(),
+                                 [&](const PointField &field) {
+                                     return field.name == name && field.count > 0;
+                                 });
+    return it == cloud.fields.end() ? nullptr : &(*it);
+}
+
+template <typename T>
+std::vector<double> ExtractTypedFieldSeconds(const PointCloud2 &cloud,
+                                             const std::string &field_name,
+                                             const double unit_scale) {
+    const size_t n_points = static_cast<size_t>(cloud.width) * static_cast<size_t>(cloud.height);
+    std::vector<double> values;
+    values.reserve(n_points);
+
+    sensor_msgs::PointCloud2ConstIterator<T> it(cloud, field_name);
+    for (size_t i = 0; i < n_points; ++i, ++it) {
+        values.push_back(static_cast<double>(*it) * unit_scale);
+    }
+    return values;
+}
+
+std::vector<double> ExtractFieldSeconds(const PointCloud2 &cloud,
+                                        const PointField &field,
+                                        const ImuPredictionTimeUnit unit) {
+    const double unit_scale = UnitScale(unit);
+    switch (field.datatype) {
+        case PointField::INT8:
+            return ExtractTypedFieldSeconds<std::int8_t>(cloud, field.name, unit_scale);
+        case PointField::UINT8:
+            return ExtractTypedFieldSeconds<std::uint8_t>(cloud, field.name, unit_scale);
+        case PointField::INT16:
+            return ExtractTypedFieldSeconds<std::int16_t>(cloud, field.name, unit_scale);
+        case PointField::UINT16:
+            return ExtractTypedFieldSeconds<std::uint16_t>(cloud, field.name, unit_scale);
+        case PointField::INT32:
+            return ExtractTypedFieldSeconds<std::int32_t>(cloud, field.name, unit_scale);
+        case PointField::UINT32:
+            return ExtractTypedFieldSeconds<std::uint32_t>(cloud, field.name, unit_scale);
+        case PointField::FLOAT32:
+            return ExtractTypedFieldSeconds<float>(cloud, field.name, unit_scale);
+        case PointField::FLOAT64:
+            return ExtractTypedFieldSeconds<double>(cloud, field.name, unit_scale);
+        default:
+            throw std::runtime_error("unsupported point time field datatype: " +
+                                     FieldTypeName(field.datatype));
+    }
+}
+
+bool AllFinite(const std::vector<double> &values) {
+    return std::all_of(values.begin(), values.end(), [](const double value) {
+        return std::isfinite(value);
+    });
+}
+
+std::string FormatVector(const Eigen::Vector3d &value) {
+    std::ostringstream stream;
+    stream << std::fixed << std::setprecision(6)
+           << "[" << value.x() << ", " << value.y() << ", " << value.z() << "]";
+    return stream.str();
+}
+}  // namespace
 
 OdometryServer::OdometryServer(const rclcpp::NodeOptions &options)
     : rclcpp::Node("odometry_node", options) {
@@ -79,6 +288,68 @@ OdometryServer::OdometryServer(const rclcpp::NodeOptions &options)
     declare_parameter<int>("max_pose_history", static_cast<int>(config_.max_pose_history));
     declare_parameter<double>("initial_threshold", config_.initial_threshold);
     declare_parameter<double>("min_motion_th", config_.min_motion_th);
+    declare_parameter<bool>("enable_registration_quality_gate", config_.enable_registration_quality_gate);
+    declare_parameter<int>("min_registration_correspondences", config_.min_registration_correspondences);
+    declare_parameter<double>("registration_rmse_reject_ratio", config_.registration_rmse_reject_ratio);
+    declare_parameter<double>("registration_rmse_ema_alpha", config_.registration_rmse_ema_alpha);
+    declare_parameter<double>("max_registration_translation_per_frame", config_.max_registration_translation_per_frame);
+    declare_parameter<double>("max_registration_rotation_per_frame_deg", config_.max_registration_rotation_per_frame_deg);
+    declare_parameter<int>("max_consecutive_registration_rejections", config_.max_consecutive_registration_rejections);
+    declare_parameter<double>("absolute_registration_rmse_limit", config_.absolute_registration_rmse_limit);
+    enable_imu_motion_prediction_ =
+        declare_parameter<bool>("enable_imu_motion_prediction", enable_imu_motion_prediction_);
+    imu_topic_ = declare_parameter<std::string>("imu_topic", imu_topic_);
+    imu_prediction_point_time_field_ =
+        declare_parameter<std::string>("imu_prediction_point_time_field", imu_prediction_point_time_field_);
+    declare_parameter<std::string>("imu_prediction_point_time_unit", "nanoseconds");
+    declare_parameter<std::string>("imu_prediction_cloud_stamp_location", "end");
+    declare_parameter<std::string>("imu_prediction_deskew_reference", "middle");
+    imu_angular_velocity_scale_ =
+        declare_parameter<double>("imu_angular_velocity_scale", imu_angular_velocity_scale_);
+    enable_imu_prediction_gyro_bias_calibration_ =
+        declare_parameter<bool>("enable_imu_prediction_gyro_bias_calibration",
+                                enable_imu_prediction_gyro_bias_calibration_);
+    imu_prediction_gyro_bias_calibration_seconds_ =
+        declare_parameter<double>("imu_prediction_gyro_bias_calibration_seconds",
+                                  imu_prediction_gyro_bias_calibration_seconds_);
+    imu_prediction_gyro_bias_min_samples_ =
+        declare_parameter<int>("imu_prediction_gyro_bias_min_samples",
+                               imu_prediction_gyro_bias_min_samples_);
+    declare_parameter<std::vector<double>>("imu_prediction_gyro_bias", std::vector<double>{});
+    imu_prediction_max_gap_seconds_ =
+        declare_parameter<double>("imu_prediction_max_gap_seconds", imu_prediction_max_gap_seconds_);
+    imu_prediction_max_age_seconds_ =
+        declare_parameter<double>("imu_prediction_max_age_seconds", imu_prediction_max_age_seconds_);
+    imu_prediction_max_rejected_frame_age_seconds_ =
+        declare_parameter<double>("imu_prediction_max_rejected_frame_age_seconds",
+                                  imu_prediction_max_rejected_frame_age_seconds_);
+    imu_prediction_rotation_only_ =
+        declare_parameter<bool>("imu_prediction_rotation_only", imu_prediction_rotation_only_);
+    imu_prediction_debug_ =
+        declare_parameter<bool>("imu_prediction_debug", imu_prediction_debug_);
+    declare_parameter<bool>("enable_yaw_search_initializer", config_.enable_yaw_search_initializer);
+    declare_parameter<std::vector<double>>("yaw_search_degrees", config_.yaw_search_degrees);
+    declare_parameter<double>("yaw_search_score_max_correspondence_distance",
+                              config_.yaw_search_score_max_correspondence_distance);
+    declare_parameter<int>("yaw_search_min_correspondences", config_.yaw_search_min_correspondences);
+    declare_parameter<bool>("yaw_search_use_weighted_rmse", config_.yaw_search_use_weighted_rmse);
+    declare_parameter<std::string>("yaw_search_vertical_axis", config_.yaw_search_vertical_axis);
+    declare_parameter<bool>("yaw_search_debug", config_.yaw_search_debug);
+    declare_parameter<bool>("enable_motion_prior", config_.enable_motion_prior);
+    declare_parameter<double>("motion_prior_translation_sigma", config_.motion_prior_translation_sigma);
+    declare_parameter<double>("motion_prior_z_sigma", config_.motion_prior_z_sigma);
+    declare_parameter<double>("motion_prior_roll_pitch_sigma_deg", config_.motion_prior_roll_pitch_sigma_deg);
+    declare_parameter<double>("motion_prior_yaw_sigma_deg", config_.motion_prior_yaw_sigma_deg);
+    declare_parameter<double>("motion_prior_weight", config_.motion_prior_weight);
+    declare_parameter<bool>("motion_prior_apply_during_recovery", config_.motion_prior_apply_during_recovery);
+    declare_parameter<bool>("motion_prior_debug", config_.motion_prior_debug);
+    declare_parameter<bool>("enable_map_update_quality_gate", config_.enable_map_update_quality_gate);
+    declare_parameter<double>("map_update_max_weighted_rmse_ratio", config_.map_update_max_weighted_rmse_ratio);
+    declare_parameter<double>("map_update_max_rmse", config_.map_update_max_rmse);
+    declare_parameter<double>("map_update_max_translation_delta", config_.map_update_max_translation_delta);
+    declare_parameter<double>("map_update_max_rotation_delta_deg", config_.map_update_max_rotation_delta_deg);
+    declare_parameter<int>("map_update_min_correspondences", config_.map_update_min_correspondences);
+    declare_parameter<bool>("map_update_debug", config_.map_update_debug);
     declare_parameter<std::string>("config_file", "");
 
     const bool launch_deskew_requested = get_parameter("deskew").as_bool();
@@ -119,6 +390,24 @@ OdometryServer::OdometryServer(const rclcpp::NodeOptions &options)
                     default:
                         break;
                 }
+            } else if (value.IsSequence()) {
+                rcl_interfaces::msg::ParameterDescriptor descriptor;
+                descriptor = this->describe_parameter(name);
+
+                using ParamType = rcl_interfaces::msg::ParameterType;
+                switch (descriptor.type) {
+                    case ParamType::PARAMETER_DOUBLE_ARRAY: {
+                        std::vector<double> values;
+                        values.reserve(value.size());
+                        for (const auto &entry : value) {
+                            values.push_back(entry.as<double>());
+                        }
+                        overrides.emplace_back(name, values);
+                        break;
+                    }
+                    default:
+                        break;
+                }
             }
         }
         set_parameters(overrides);
@@ -141,6 +430,97 @@ OdometryServer::OdometryServer(const rclcpp::NodeOptions &options)
         static_cast<size_t>(std::max<int64_t>(2, get_parameter("max_pose_history").as_int()));
     config_.initial_threshold = get_parameter("initial_threshold").as_double();
     config_.min_motion_th = get_parameter("min_motion_th").as_double();
+    config_.enable_registration_quality_gate =
+        get_parameter("enable_registration_quality_gate").as_bool();
+    config_.min_registration_correspondences =
+        static_cast<int>(std::max<int64_t>(0, get_parameter("min_registration_correspondences").as_int()));
+    config_.registration_rmse_reject_ratio =
+        get_parameter("registration_rmse_reject_ratio").as_double();
+    config_.registration_rmse_ema_alpha =
+        get_parameter("registration_rmse_ema_alpha").as_double();
+    config_.max_registration_translation_per_frame =
+        get_parameter("max_registration_translation_per_frame").as_double();
+    config_.max_registration_rotation_per_frame_deg =
+        get_parameter("max_registration_rotation_per_frame_deg").as_double();
+    config_.max_consecutive_registration_rejections =
+        static_cast<int>(std::max<int64_t>(0, get_parameter("max_consecutive_registration_rejections").as_int()));
+    config_.absolute_registration_rmse_limit =
+        get_parameter("absolute_registration_rmse_limit").as_double();
+    enable_imu_motion_prediction_ =
+        get_parameter("enable_imu_motion_prediction").as_bool();
+    imu_topic_ = get_parameter("imu_topic").as_string();
+    imu_prediction_point_time_field_ =
+        get_parameter("imu_prediction_point_time_field").as_string();
+    const auto imu_prediction_point_time_unit_param =
+        get_parameter("imu_prediction_point_time_unit").as_string();
+    const auto imu_prediction_cloud_stamp_location_param =
+        get_parameter("imu_prediction_cloud_stamp_location").as_string();
+    const auto imu_prediction_deskew_reference_param =
+        get_parameter("imu_prediction_deskew_reference").as_string();
+    imu_angular_velocity_scale_ =
+        get_parameter("imu_angular_velocity_scale").as_double();
+    enable_imu_prediction_gyro_bias_calibration_ =
+        get_parameter("enable_imu_prediction_gyro_bias_calibration").as_bool();
+    imu_prediction_gyro_bias_calibration_seconds_ =
+        get_parameter("imu_prediction_gyro_bias_calibration_seconds").as_double();
+    imu_prediction_gyro_bias_min_samples_ =
+        static_cast<int>(std::max<int64_t>(1, get_parameter("imu_prediction_gyro_bias_min_samples").as_int()));
+    const auto imu_prediction_gyro_bias_override =
+        get_parameter("imu_prediction_gyro_bias").as_double_array();
+    imu_prediction_max_gap_seconds_ =
+        get_parameter("imu_prediction_max_gap_seconds").as_double();
+    imu_prediction_max_age_seconds_ =
+        get_parameter("imu_prediction_max_age_seconds").as_double();
+    imu_prediction_max_rejected_frame_age_seconds_ =
+        get_parameter("imu_prediction_max_rejected_frame_age_seconds").as_double();
+    imu_prediction_rotation_only_ =
+        get_parameter("imu_prediction_rotation_only").as_bool();
+    imu_prediction_debug_ =
+        get_parameter("imu_prediction_debug").as_bool();
+    config_.enable_yaw_search_initializer =
+        get_parameter("enable_yaw_search_initializer").as_bool();
+    config_.yaw_search_degrees =
+        get_parameter("yaw_search_degrees").as_double_array();
+    config_.yaw_search_score_max_correspondence_distance =
+        get_parameter("yaw_search_score_max_correspondence_distance").as_double();
+    config_.yaw_search_min_correspondences =
+        static_cast<int>(std::max<int64_t>(0, get_parameter("yaw_search_min_correspondences").as_int()));
+    config_.yaw_search_use_weighted_rmse =
+        get_parameter("yaw_search_use_weighted_rmse").as_bool();
+    config_.yaw_search_vertical_axis =
+        get_parameter("yaw_search_vertical_axis").as_string();
+    config_.yaw_search_debug =
+        get_parameter("yaw_search_debug").as_bool();
+    config_.enable_motion_prior =
+        get_parameter("enable_motion_prior").as_bool();
+    config_.motion_prior_translation_sigma =
+        get_parameter("motion_prior_translation_sigma").as_double();
+    config_.motion_prior_z_sigma =
+        get_parameter("motion_prior_z_sigma").as_double();
+    config_.motion_prior_roll_pitch_sigma_deg =
+        get_parameter("motion_prior_roll_pitch_sigma_deg").as_double();
+    config_.motion_prior_yaw_sigma_deg =
+        get_parameter("motion_prior_yaw_sigma_deg").as_double();
+    config_.motion_prior_weight =
+        get_parameter("motion_prior_weight").as_double();
+    config_.motion_prior_apply_during_recovery =
+        get_parameter("motion_prior_apply_during_recovery").as_bool();
+    config_.motion_prior_debug =
+        get_parameter("motion_prior_debug").as_bool();
+    config_.enable_map_update_quality_gate =
+        get_parameter("enable_map_update_quality_gate").as_bool();
+    config_.map_update_max_weighted_rmse_ratio =
+        get_parameter("map_update_max_weighted_rmse_ratio").as_double();
+    config_.map_update_max_rmse =
+        get_parameter("map_update_max_rmse").as_double();
+    config_.map_update_max_translation_delta =
+        get_parameter("map_update_max_translation_delta").as_double();
+    config_.map_update_max_rotation_delta_deg =
+        get_parameter("map_update_max_rotation_delta_deg").as_double();
+    config_.map_update_min_correspondences =
+        static_cast<int>(std::max<int64_t>(0, get_parameter("map_update_min_correspondences").as_int()));
+    config_.map_update_debug =
+        get_parameter("map_update_debug").as_bool();
     terminal_status_enabled_ = get_parameter("terminal_status").as_bool();
     max_path_length_ =
         static_cast<size_t>(std::max<int64_t>(0, get_parameter("max_path_length").as_int()));
@@ -150,6 +530,94 @@ OdometryServer::OdometryServer(const rclcpp::NodeOptions &options)
     if (config_.max_range < config_.min_range) {
         RCLCPP_WARN(get_logger(), "[WARNING] max_range is smaller than min_range, settng min_range to 0.0");
         config_.min_range = 0.0;
+    }
+
+    if (const auto unit = ParseImuPredictionTimeUnit(imu_prediction_point_time_unit_param)) {
+        imu_prediction_point_time_unit_ = *unit;
+    } else {
+        RCLCPP_WARN(get_logger(), "Invalid imu_prediction_point_time_unit '%s'; using nanoseconds",
+                    imu_prediction_point_time_unit_param.c_str());
+    }
+
+    if (const auto location =
+            ParseImuPredictionScanLocation(imu_prediction_cloud_stamp_location_param)) {
+        imu_prediction_cloud_stamp_location_ = *location;
+    } else {
+        RCLCPP_WARN(get_logger(),
+                    "Invalid imu_prediction_cloud_stamp_location '%s'; using end",
+                    imu_prediction_cloud_stamp_location_param.c_str());
+    }
+
+    if (const auto reference =
+            ParseImuPredictionScanLocation(imu_prediction_deskew_reference_param)) {
+        imu_prediction_deskew_reference_ = *reference;
+    } else {
+        RCLCPP_WARN(get_logger(),
+                    "Invalid imu_prediction_deskew_reference '%s'; using middle",
+                    imu_prediction_deskew_reference_param.c_str());
+    }
+
+    if (!std::isfinite(imu_angular_velocity_scale_)) {
+        RCLCPP_WARN(get_logger(), "Invalid imu_angular_velocity_scale; using 1.0");
+        imu_angular_velocity_scale_ = 1.0;
+    }
+    imu_prediction_gyro_bias_calibration_seconds_ =
+        std::max(0.0, imu_prediction_gyro_bias_calibration_seconds_);
+    imu_prediction_max_gap_seconds_ = std::max(0.0, imu_prediction_max_gap_seconds_);
+    imu_prediction_max_age_seconds_ = std::max(0.0, imu_prediction_max_age_seconds_);
+    imu_prediction_max_rejected_frame_age_seconds_ =
+        std::max(0.0, imu_prediction_max_rejected_frame_age_seconds_);
+    imu_prediction_buffer_seconds_ =
+        std::max(2.0,
+                 std::max(imu_prediction_max_age_seconds_,
+                          imu_prediction_max_rejected_frame_age_seconds_) + 1.0);
+    config_.yaw_search_score_max_correspondence_distance =
+        std::max(0.0, config_.yaw_search_score_max_correspondence_distance);
+    config_.yaw_search_min_correspondences =
+        std::max(0, config_.yaw_search_min_correspondences);
+    if (config_.yaw_search_degrees.empty()) {
+        config_.yaw_search_degrees.push_back(0.0);
+    }
+    config_.motion_prior_translation_sigma =
+        std::max(1e-6, config_.motion_prior_translation_sigma);
+    config_.motion_prior_z_sigma =
+        std::max(1e-6, config_.motion_prior_z_sigma);
+    config_.motion_prior_roll_pitch_sigma_deg =
+        std::max(1e-6, config_.motion_prior_roll_pitch_sigma_deg);
+    config_.motion_prior_yaw_sigma_deg =
+        std::max(1e-6, config_.motion_prior_yaw_sigma_deg);
+    config_.motion_prior_weight =
+        std::max(0.0, config_.motion_prior_weight);
+    config_.map_update_min_correspondences =
+        std::max(0, config_.map_update_min_correspondences);
+
+    if (!imu_prediction_rotation_only_) {
+        RCLCPP_WARN(get_logger(),
+                    "imu_prediction_rotation_only=false requested, but only rotation-only IMU "
+                    "prediction is implemented; keeping translation prediction from GenZ-ICP");
+        imu_prediction_rotation_only_ = true;
+    }
+
+    imu_prediction_gyro_bias_ = Eigen::Vector3d::Zero();
+    imu_prediction_gyro_bias_ready_ = false;
+    imu_prediction_gyro_bias_manual_override_ = false;
+    if (!imu_prediction_gyro_bias_override.empty()) {
+        if (imu_prediction_gyro_bias_override.size() == 3 &&
+            AllFinite(imu_prediction_gyro_bias_override)) {
+            imu_prediction_gyro_bias_ = Eigen::Vector3d(imu_prediction_gyro_bias_override[0],
+                                                        imu_prediction_gyro_bias_override[1],
+                                                        imu_prediction_gyro_bias_override[2]);
+            imu_prediction_gyro_bias_ready_ = true;
+            imu_prediction_gyro_bias_manual_override_ = true;
+            RCLCPP_INFO(get_logger(), "Using manual imu_prediction_gyro_bias=%s rad/s",
+                        FormatVector(imu_prediction_gyro_bias_).c_str());
+        } else {
+            RCLCPP_WARN(get_logger(),
+                        "Ignoring imu_prediction_gyro_bias override: expected [x, y, z] finite values");
+        }
+    }
+    if (!imu_prediction_gyro_bias_manual_override_) {
+        imu_prediction_gyro_bias_ready_ = !enable_imu_prediction_gyro_bias_calibration_;
     }
     // clang-format on
 
@@ -162,6 +630,23 @@ OdometryServer::OdometryServer(const rclcpp::NodeOptions &options)
     pointcloud_sub_ = create_subscription<sensor_msgs::msg::PointCloud2>(
         "pointcloud_topic", rclcpp::QoS(rclcpp::KeepLast(1)).reliable(),
         std::bind(&OdometryServer::RegisterFrame, this, std::placeholders::_1));
+    if (enable_imu_motion_prediction_) {
+        imu_prediction_sub_ = create_subscription<sensor_msgs::msg::Imu>(
+            imu_topic_, rclcpp::SensorDataQoS(),
+            std::bind(&OdometryServer::ImuPredictionCallback, this, std::placeholders::_1));
+        RCLCPP_INFO(get_logger(),
+                    "IMU motion prediction enabled: imu=%s scale=%.12f bias_calibration=%s "
+                    "point_time_field=%s",
+                    imu_topic_.c_str(), imu_angular_velocity_scale_,
+                    enable_imu_prediction_gyro_bias_calibration_ &&
+                            !imu_prediction_gyro_bias_manual_override_
+                        ? "enabled"
+                        : "disabled",
+                    imu_prediction_point_time_field_.c_str());
+        RCLCPP_INFO(get_logger(),
+                    "IMU prediction uses angular_velocity only; orientation and "
+                    "linear_acceleration are ignored");
+    }
 
     // Initialize publishers
     rclcpp::QoS qos((rclcpp::SystemDefaultsQoS().keep_last(1).durability_volatile()));
@@ -200,6 +685,337 @@ Sophus::SE3d OdometryServer::LookupTransform(const std::string &target_frame,
     return {};
 }
 
+void OdometryServer::ImuPredictionCallback(const sensor_msgs::msg::Imu::ConstSharedPtr msg) {
+    const double stamp = rclcpp::Time(msg->header.stamp).seconds();
+    const Eigen::Vector3d raw_angular_velocity(msg->angular_velocity.x,
+                                               msg->angular_velocity.y,
+                                               msg->angular_velocity.z);
+    const Eigen::Vector3d scaled_angular_velocity =
+        imu_angular_velocity_scale_ * raw_angular_velocity;
+    if (!std::isfinite(stamp) ||
+        !raw_angular_velocity.allFinite() ||
+        !scaled_angular_velocity.allFinite()) {
+        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000,
+                             "Dropping IMU prediction sample with non-finite time or angular velocity");
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock(imu_prediction_mutex_);
+    if (!imu_prediction_gyro_bias_ready_) {
+        UpdateImuPredictionGyroBiasCalibration(stamp, raw_angular_velocity,
+                                               scaled_angular_velocity);
+        if (!imu_prediction_gyro_bias_ready_) {
+            return;
+        }
+    }
+
+    const Eigen::Vector3d angular_velocity =
+        scaled_angular_velocity - imu_prediction_gyro_bias_;
+    if (!angular_velocity.allFinite()) {
+        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000,
+                             "Dropping IMU prediction sample with non-finite bias-corrected angular velocity");
+        return;
+    }
+
+    latest_imu_prediction_stamp_ = std::max(latest_imu_prediction_stamp_, stamp);
+    if (stamp < latest_imu_prediction_stamp_ - imu_prediction_buffer_seconds_) {
+        return;
+    }
+
+    InsertImuPredictionSample(ImuPredictionSample{stamp, angular_velocity});
+
+    const double cutoff = latest_imu_prediction_stamp_ - imu_prediction_buffer_seconds_;
+    while (!imu_prediction_buffer_.empty() && imu_prediction_buffer_.front().stamp < cutoff) {
+        imu_prediction_buffer_.pop_front();
+    }
+}
+
+void OdometryServer::UpdateImuPredictionGyroBiasCalibration(
+    const double stamp,
+    const Eigen::Vector3d &raw_angular_velocity,
+    const Eigen::Vector3d &scaled_angular_velocity) {
+    if (std::isnan(imu_prediction_gyro_bias_calibration_start_)) {
+        imu_prediction_gyro_bias_calibration_start_ = stamp;
+        RCLCPP_INFO(get_logger(),
+                    "Starting IMU prediction gyro bias calibration: duration=%.3fs min_samples=%d",
+                    imu_prediction_gyro_bias_calibration_seconds_,
+                    imu_prediction_gyro_bias_min_samples_);
+    }
+
+    imu_prediction_gyro_bias_raw_sum_ += raw_angular_velocity;
+    imu_prediction_gyro_bias_scaled_sum_ += scaled_angular_velocity;
+    ++imu_prediction_gyro_bias_sample_count_;
+
+    const double elapsed =
+        std::max(0.0, stamp - imu_prediction_gyro_bias_calibration_start_);
+    if (elapsed < imu_prediction_gyro_bias_calibration_seconds_ ||
+        imu_prediction_gyro_bias_sample_count_ <
+            static_cast<size_t>(imu_prediction_gyro_bias_min_samples_)) {
+        return;
+    }
+
+    const double inv_count =
+        1.0 / static_cast<double>(imu_prediction_gyro_bias_sample_count_);
+    const Eigen::Vector3d raw_mean =
+        imu_prediction_gyro_bias_raw_sum_ * inv_count;
+    const Eigen::Vector3d scaled_mean =
+        imu_prediction_gyro_bias_scaled_sum_ * inv_count;
+
+    imu_prediction_gyro_bias_ = scaled_mean;
+    imu_prediction_gyro_bias_ready_ = true;
+    RCLCPP_INFO(get_logger(),
+                "IMU prediction gyro bias calibration complete: samples=%zu elapsed=%.3fs",
+                imu_prediction_gyro_bias_sample_count_, elapsed);
+    RCLCPP_INFO(get_logger(), "IMU prediction raw omega mean=%s",
+                FormatVector(raw_mean).c_str());
+    RCLCPP_INFO(get_logger(), "IMU prediction scaled omega mean=%s rad/s",
+                FormatVector(scaled_mean).c_str());
+    RCLCPP_INFO(get_logger(), "IMU prediction final gyro_bias=%s rad/s",
+                FormatVector(imu_prediction_gyro_bias_).c_str());
+}
+
+void OdometryServer::InsertImuPredictionSample(const ImuPredictionSample &sample) {
+    const auto it = std::lower_bound(
+        imu_prediction_buffer_.begin(), imu_prediction_buffer_.end(), sample.stamp,
+        [](const ImuPredictionSample &candidate, const double value) {
+            return candidate.stamp < value;
+        });
+
+    if (it != imu_prediction_buffer_.end() &&
+        std::abs(it->stamp - sample.stamp) <= kTimeEpsilon) {
+        *it = sample;
+    } else if (it != imu_prediction_buffer_.begin() &&
+               std::abs(std::prev(it)->stamp - sample.stamp) <= kTimeEpsilon) {
+        *std::prev(it) = sample;
+    } else {
+        imu_prediction_buffer_.insert(it, sample);
+    }
+}
+
+std::optional<double> OdometryServer::ComputeScanReferenceTime(
+    const sensor_msgs::msg::PointCloud2 &msg,
+    std::string *reason) const {
+    std::vector<std::string> candidates;
+    const auto requested = ToLower(Trim(imu_prediction_point_time_field_));
+    if (requested.empty() || requested == "auto") {
+        candidates = {"time", "timestamp", "t", "offset_time", "point_time_offset",
+                      "time_offset"};
+    } else {
+        candidates = SplitCandidates(imu_prediction_point_time_field_);
+        if (candidates.empty()) candidates.push_back(imu_prediction_point_time_field_);
+    }
+
+    const PointField *time_field = nullptr;
+    for (const auto &candidate : candidates) {
+        if (const auto *field = FindField(msg, candidate)) {
+            time_field = field;
+            break;
+        }
+    }
+    if (time_field == nullptr) {
+        if (reason) {
+            *reason = "point time field not found; available fields: " +
+                      AvailableFieldsString(msg);
+        }
+        return std::nullopt;
+    }
+
+    std::vector<double> offsets_seconds;
+    try {
+        offsets_seconds =
+            ExtractFieldSeconds(msg, *time_field, imu_prediction_point_time_unit_);
+    } catch (const std::exception &ex) {
+        if (reason) {
+            *reason = std::string("failed to read point time field '") +
+                      time_field->name + "': " + ex.what();
+        }
+        return std::nullopt;
+    }
+
+    const size_t n_points = static_cast<size_t>(msg.width) * static_cast<size_t>(msg.height);
+    if (offsets_seconds.size() != n_points || offsets_seconds.empty() ||
+        !AllFinite(offsets_seconds)) {
+        if (reason) *reason = "point time field has invalid size or non-finite values";
+        return std::nullopt;
+    }
+
+    const auto [min_it, max_it] =
+        std::minmax_element(offsets_seconds.begin(), offsets_seconds.end());
+    const double min_offset = *min_it;
+    const double max_offset = *max_it;
+    const double header_time = rclcpp::Time(msg.header.stamp).seconds();
+
+    double scan_start = 0.0;
+    double duration = 0.0;
+    if (min_offset > kAbsoluteUnixTimeThreshold) {
+        scan_start = min_offset;
+        duration = max_offset - min_offset;
+    } else if (min_offset < -kTimeEpsilon) {
+        const double observed_start = header_time + min_offset;
+        const double observed_end = header_time + max_offset;
+        duration = observed_end - observed_start;
+        scan_start =
+            header_time - LocationOffset(imu_prediction_cloud_stamp_location_, duration);
+    } else {
+        duration = max_offset;
+        scan_start =
+            header_time - LocationOffset(imu_prediction_cloud_stamp_location_, duration);
+    }
+
+    if (!(duration > kTimeEpsilon)) {
+        if (reason) *reason = "scan duration from point time field is zero or invalid";
+        return std::nullopt;
+    }
+
+    const double reference_time =
+        scan_start + LocationOffset(imu_prediction_deskew_reference_, duration);
+    if (!std::isfinite(reference_time)) {
+        if (reason) *reason = "computed scan reference time is non-finite";
+        return std::nullopt;
+    }
+    return reference_time;
+}
+
+std::optional<ImuPredictionResult> OdometryServer::BuildImuMotionPrediction(
+    const double current_reference_time,
+    std::string *reason) const {
+    if (!previous_accepted_scan_reference_time_) {
+        if (reason) *reason = "no previous accepted scan reference time";
+        return std::nullopt;
+    }
+
+    const double previous_reference_time = *previous_accepted_scan_reference_time_;
+    if (!std::isfinite(previous_reference_time) || !std::isfinite(current_reference_time)) {
+        if (reason) *reason = "non-finite scan reference time";
+        return std::nullopt;
+    }
+
+    if (current_reference_time < previous_reference_time - kTimeEpsilon) {
+        if (reason) *reason = "current scan reference time is older than previous accepted scan";
+        return std::nullopt;
+    }
+
+    const double dt_total = current_reference_time - previous_reference_time;
+    if (dt_total <= kTimeEpsilon) {
+        return ImuPredictionResult{Sophus::SO3d(), 0.0, 0};
+    }
+
+    const bool using_rejected_frame_age =
+        odometry_.ConsecutiveRegistrationRejections() > 0;
+    const double max_prediction_age =
+        using_rejected_frame_age
+            ? imu_prediction_max_rejected_frame_age_seconds_
+            : imu_prediction_max_age_seconds_;
+    if (max_prediction_age > 0.0 && dt_total > max_prediction_age) {
+        if (reason) {
+            *reason = "prediction interval " + std::to_string(dt_total) +
+                      "s exceeds " +
+                      (using_rejected_frame_age
+                           ? "imu_prediction_max_rejected_frame_age_seconds="
+                           : "imu_prediction_max_age_seconds=") +
+                      std::to_string(max_prediction_age);
+        }
+        return std::nullopt;
+    }
+
+    std::vector<ImuPredictionSample> samples;
+    {
+        std::lock_guard<std::mutex> lock(imu_prediction_mutex_);
+        if (!imu_prediction_gyro_bias_ready_) {
+            if (reason) *reason = "gyro bias calibration in progress";
+            return std::nullopt;
+        }
+        samples.assign(imu_prediction_buffer_.begin(), imu_prediction_buffer_.end());
+    }
+
+    if (samples.size() < 2) {
+        if (reason) *reason = "not enough IMU prediction samples buffered";
+        return std::nullopt;
+    }
+
+    const auto first_after_start = std::upper_bound(
+        samples.begin(), samples.end(), previous_reference_time,
+        [](const double value, const ImuPredictionSample &sample) {
+            return value < sample.stamp;
+        });
+    if (first_after_start == samples.begin()) {
+        if (reason) {
+            *reason = "IMU prediction buffer does not cover previous accepted reference; first IMU=" +
+                      std::to_string(samples.front().stamp) +
+                      " requested=" + std::to_string(previous_reference_time);
+        }
+        return std::nullopt;
+    }
+    const size_t first_index =
+        static_cast<size_t>(std::distance(samples.begin(), first_after_start) - 1);
+
+    const auto first_at_or_after_end = std::lower_bound(
+        samples.begin(), samples.end(), current_reference_time,
+        [](const ImuPredictionSample &sample, const double value) {
+            return sample.stamp < value;
+        });
+    if (first_at_or_after_end == samples.end()) {
+        if (reason) {
+            *reason = "IMU prediction buffer does not cover current reference; last IMU=" +
+                      std::to_string(samples.back().stamp) +
+                      " requested=" + std::to_string(current_reference_time);
+        }
+        return std::nullopt;
+    }
+    const size_t last_index =
+        static_cast<size_t>(std::distance(samples.begin(), first_at_or_after_end));
+
+    Sophus::SO3d rotation;
+    for (size_t i = first_index; i < last_index; ++i) {
+        const double t0 = samples[i].stamp;
+        const double t1 = samples[i + 1].stamp;
+        const double dt = t1 - t0;
+        if (!(dt > 0.0)) {
+            if (reason) *reason = "IMU prediction samples are not strictly time ordered";
+            return std::nullopt;
+        }
+
+        const bool overlaps_requested_interval =
+            t0 < current_reference_time && t1 > previous_reference_time;
+        if (imu_prediction_max_gap_seconds_ > 0.0 && overlaps_requested_interval &&
+            dt > imu_prediction_max_gap_seconds_) {
+            if (reason) {
+                *reason = "IMU prediction gap " + std::to_string(dt) +
+                          "s exceeds imu_prediction_max_gap_seconds=" +
+                          std::to_string(imu_prediction_max_gap_seconds_);
+            }
+            return std::nullopt;
+        }
+
+        const double segment_start = std::max(previous_reference_time, t0);
+        const double segment_end = std::min(current_reference_time, t1);
+        if (segment_end <= segment_start) {
+            continue;
+        }
+
+        const double alpha_start = (segment_start - t0) / dt;
+        const double alpha_end = (segment_end - t0) / dt;
+        const Eigen::Vector3d omega_start =
+            samples[i].angular_velocity +
+            alpha_start * (samples[i + 1].angular_velocity - samples[i].angular_velocity);
+        const Eigen::Vector3d omega_end =
+            samples[i].angular_velocity +
+            alpha_end * (samples[i + 1].angular_velocity - samples[i].angular_velocity);
+
+        // Body-frame gyro integration uses right composition:
+        // R(t + dt) = R(t) * Exp(omega_body * dt).
+        const Eigen::Vector3d omega_mid = 0.5 * (omega_start + omega_end);
+        rotation = rotation * Sophus::SO3d::exp(omega_mid * (segment_end - segment_start));
+    }
+
+    if (!rotation.matrix().allFinite()) {
+        if (reason) *reason = "IMU prediction rotation is non-finite";
+        return std::nullopt;
+    }
+
+    return ImuPredictionResult{rotation, dt_total, last_index - first_index + 1};
+}
+
 void OdometryServer::RegisterFrame(const sensor_msgs::msg::PointCloud2::ConstSharedPtr &msg) {
     const auto cloud_frame_id = msg->header.frame_id;
     const auto points = PointCloud2ToEigen(msg);
@@ -221,8 +1037,60 @@ void OdometryServer::RegisterFrame(const sensor_msgs::msg::PointCloud2::ConstSha
     }
     const auto egocentric_estimation = (base_frame_.empty() || base_frame_ == cloud_frame_id);
 
+    std::optional<double> current_scan_reference_time;
+    std::optional<Sophus::SO3d> imu_rotation_prediction;
+    std::string initial_guess_source = "normal";
+    if (enable_imu_motion_prediction_) {
+        std::string timing_reason;
+        current_scan_reference_time = ComputeScanReferenceTime(*msg, &timing_reason);
+        if (!current_scan_reference_time) {
+            if (imu_prediction_debug_) {
+                RCLCPP_WARN_THROTTLE(
+                    get_logger(), *get_clock(), 2000,
+                    "IMU prediction unavailable: reason=%s", timing_reason.c_str());
+            }
+        } else {
+            std::string prediction_reason;
+            const auto prediction =
+                BuildImuMotionPrediction(*current_scan_reference_time, &prediction_reason);
+            if (prediction) {
+                imu_rotation_prediction = prediction->rotation;
+                initial_guess_source = "imu_prediction";
+                if (imu_prediction_debug_) {
+                    RCLCPP_INFO(get_logger(),
+                                "IMU prediction: available=true dt=%.4f samples=%zu "
+                                "rotation_delta_deg=%.3f",
+                                prediction->dt, prediction->sample_count,
+                                prediction->rotation.log().norm() * kRadiansToDegrees);
+                }
+            } else if (imu_prediction_debug_) {
+                RCLCPP_WARN_THROTTLE(
+                    get_logger(), *get_clock(), 2000,
+                    "IMU prediction unavailable: reason=%s", prediction_reason.c_str());
+            }
+        }
+    }
+    if (enable_imu_motion_prediction_ &&
+        imu_prediction_debug_ &&
+        !config_.enable_yaw_search_initializer) {
+        RCLCPP_INFO(get_logger(), "ICP initial guess source: %s",
+                    initial_guess_source.c_str());
+    }
+
     // Register frame, main entry point to GenZ-ICP pipeline
-    const auto &[planar_points, non_planar_points, covariance] = odometry_.RegisterFrame(points, timestamps);
+    const auto registration_output =
+        odometry_.RegisterFrame(points, timestamps, imu_rotation_prediction);
+    const auto &[planar_points, non_planar_points, covariance] = registration_output;
+
+    if (enable_imu_motion_prediction_ && current_scan_reference_time) {
+        if (odometry_.LastFrameAccepted()) {
+            previous_accepted_scan_reference_time_ = *current_scan_reference_time;
+        } else if (imu_prediction_debug_) {
+            RCLCPP_INFO_THROTTLE(
+                get_logger(), *get_clock(), 2000,
+                "IMU prediction reference not advanced because registration was rejected");
+        }
+    }
 
     // Compute the pose using GenZ, ego-centric to the LiDAR
     const Sophus::SE3d genz_pose = odometry_.poses().back();

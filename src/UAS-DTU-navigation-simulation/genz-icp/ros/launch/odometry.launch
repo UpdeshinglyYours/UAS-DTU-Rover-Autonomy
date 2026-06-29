@@ -22,6 +22,14 @@
   <arg name="min_motion_th" default="0.1"/>
   <arg name="max_num_iterations" default="100"/>
   <arg name="convergence_criterion" default="0.0001"/>
+  <arg name="enable_registration_quality_gate" default="true"/>
+  <arg name="min_registration_correspondences" default="300"/>
+  <arg name="registration_rmse_reject_ratio" default="2.5"/>
+  <arg name="registration_rmse_ema_alpha" default="0.05"/>
+  <arg name="max_registration_translation_per_frame" default="1.0"/>
+  <arg name="max_registration_rotation_per_frame_deg" default="45.0"/>
+  <arg name="max_consecutive_registration_rejections" default="5"/>
+  <arg name="absolute_registration_rmse_limit" default="1.0"/>
 
   <!-- Odometry node -->
   <node pkg="genz_icp" type="odometry_node" name="odometry_node" output="screen">
@@ -49,6 +57,14 @@
     <param if="$(eval config_file == '')" name="min_motion_th" value="$(arg min_motion_th)"/>
     <param if="$(eval config_file == '')" name="max_num_iterations" value="$(arg max_num_iterations)"/>
     <param if="$(eval config_file == '')" name="convergence_criterion" value="$(arg convergence_criterion)"/>
+    <param if="$(eval config_file == '')" name="enable_registration_quality_gate" value="$(arg enable_registration_quality_gate)"/>
+    <param if="$(eval config_file == '')" name="min_registration_correspondences" value="$(arg min_registration_correspondences)"/>
+    <param if="$(eval config_file == '')" name="registration_rmse_reject_ratio" value="$(arg registration_rmse_reject_ratio)"/>
+    <param if="$(eval config_file == '')" name="registration_rmse_ema_alpha" value="$(arg registration_rmse_ema_alpha)"/>
+    <param if="$(eval config_file == '')" name="max_registration_translation_per_frame" value="$(arg max_registration_translation_per_frame)"/>
+    <param if="$(eval config_file == '')" name="max_registration_rotation_per_frame_deg" value="$(arg max_registration_rotation_per_frame_deg)"/>
+    <param if="$(eval config_file == '')" name="max_consecutive_registration_rejections" value="$(arg max_consecutive_registration_rejections)"/>
+    <param if="$(eval config_file == '')" name="absolute_registration_rmse_limit" value="$(arg absolute_registration_rmse_limit)"/>
   </node>
 
   <!-- Rosbag player, if bagfile argument was specified -->

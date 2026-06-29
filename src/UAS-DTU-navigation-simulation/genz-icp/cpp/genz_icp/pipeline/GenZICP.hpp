@@ -25,6 +25,9 @@
 #include <Eigen/Core>
 #include <cstddef>
 #include <deque>
+#include <optional>
+#include <sophus/so3.hpp>
+#include <string>
 #include <tuple>
 #include <vector>
 
@@ -58,6 +61,44 @@ struct GenZConfig {
     int max_num_iterations = 150;
     double convergence_criterion = 0.0001;
     size_t max_pose_history = 2000;
+
+    // Registration quality gate
+    bool enable_registration_quality_gate = true;
+    int min_registration_correspondences = 300;
+    double registration_rmse_reject_ratio = 2.5;
+    double registration_rmse_ema_alpha = 0.05;
+    double max_registration_translation_per_frame = 1.0;
+    double max_registration_rotation_per_frame_deg = 45.0;
+    int max_consecutive_registration_rejections = 5;
+    double absolute_registration_rmse_limit = 1.0;
+
+    // Optional pre-ICP yaw search initializer
+    bool enable_yaw_search_initializer = false;
+    std::vector<double> yaw_search_degrees = {-12.0, -8.0, -4.0, 0.0, 4.0, 8.0, 12.0};
+    double yaw_search_score_max_correspondence_distance = 1.5;
+    int yaw_search_min_correspondences = 500;
+    bool yaw_search_use_weighted_rmse = true;
+    std::string yaw_search_vertical_axis = "z";
+    bool yaw_search_debug = true;
+
+    // Optional soft motion prior inside ICP registration
+    bool enable_motion_prior = false;
+    double motion_prior_translation_sigma = 0.35;
+    double motion_prior_z_sigma = 0.12;
+    double motion_prior_roll_pitch_sigma_deg = 6.0;
+    double motion_prior_yaw_sigma_deg = 30.0;
+    double motion_prior_weight = 1.0;
+    bool motion_prior_apply_during_recovery = true;
+    bool motion_prior_debug = true;
+
+    // Optional gate for inserting accepted scans into the local map
+    bool enable_map_update_quality_gate = false;
+    double map_update_max_weighted_rmse_ratio = 1.25;
+    double map_update_max_rmse = 0.35;
+    double map_update_max_translation_delta = 0.75;
+    double map_update_max_rotation_delta_deg = 10.0;
+    int map_update_min_correspondences = 2500;
+    bool map_update_debug = true;
 };
 
 class GenZICP {
@@ -79,8 +120,16 @@ public:
 public:
     RegistrationTuple RegisterFrame(const std::vector<Eigen::Vector3d> &frame);
     RegistrationTuple RegisterFrame(const std::vector<Eigen::Vector3d> &frame,
+                                    const std::optional<Sophus::SO3d> &rotation_prediction);
+    RegistrationTuple RegisterFrame(const std::vector<Eigen::Vector3d> &frame,
                                     const std::vector<double> &timestamps);
-    void SetTerminalStatusEnabled(bool enabled) { registration_.SetTerminalStatusEnabled(enabled); }
+    RegistrationTuple RegisterFrame(const std::vector<Eigen::Vector3d> &frame,
+                                    const std::vector<double> &timestamps,
+                                    const std::optional<Sophus::SO3d> &rotation_prediction);
+    void SetTerminalStatusEnabled(bool enabled) {
+        terminal_status_enabled_ = enabled;
+        registration_.SetTerminalStatusEnabled(enabled);
+    }
     Vector3dVectorTuple Voxelize(const std::vector<Eigen::Vector3d> &frame, double voxel_size) const;
     double GetAdaptiveThreshold();
     Sophus::SE3d GetPredictionModel() const;
@@ -90,9 +139,24 @@ public:
     // Extra C++ API to facilitate ROS debugging
     std::vector<Eigen::Vector3d> LocalMap() const { return local_map_.Pointcloud(); };
     const std::deque<Sophus::SE3d> &poses() const { return poses_; };
+    bool LastFrameAccepted() const { return last_frame_accepted_; }
+    size_t ConsecutiveRegistrationRejections() const { return consecutive_registration_rejections_; }
 
 private:
     void PushPose(const Sophus::SE3d &pose);
+    bool IsRegistrationAcceptable(const genz_icp::RegistrationQuality &quality,
+                                  std::string &reason) const;
+    bool IsMapUpdateAcceptable(const genz_icp::RegistrationQuality &quality,
+                               std::string &reason) const;
+    void UpdateRegistrationQualityEma(const genz_icp::RegistrationQuality &quality);
+    void LogRegistrationDecision(bool accepted,
+                                 const genz_icp::RegistrationQuality &quality,
+                                 const std::string &reason,
+                                 bool force = false) const;
+    void LogMapUpdateDecision(bool accepted,
+                              const genz_icp::RegistrationQuality &quality,
+                              const std::string &reason,
+                              bool force = false) const;
 
     // GenZ-ICP pipeline modules
     std::deque<Sophus::SE3d> poses_;
@@ -103,6 +167,15 @@ private:
     bool has_last_registered_signature_ = false;
     size_t stationary_frame_count_ = 0;
     size_t skipped_stationary_frames_ = 0;
+    bool terminal_status_enabled_ = true;
+    bool registration_rmse_ema_initialized_ = false;
+    double registration_rmse_ema_ = 0.0;
+    bool registration_weighted_rmse_ema_initialized_ = false;
+    double registration_weighted_rmse_ema_ = 0.0;
+    size_t accepted_registration_count_ = 0;
+    size_t consecutive_registration_rejections_ = 0;
+    bool registration_recovery_mode_ = false;
+    bool last_frame_accepted_ = false;
     GenZConfig config_;
     double adaptive_voxel_size_;
     Registration registration_;

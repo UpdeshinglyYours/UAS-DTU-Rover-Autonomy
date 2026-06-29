@@ -69,6 +69,7 @@ elseif("$ENV{ROS_VERSION}" STREQUAL "2")
 
   find_package(ament_cmake REQUIRED)
   find_package(ament_index_cpp REQUIRED)
+  find_package(geometry_msgs REQUIRED)
   find_package(nav_msgs REQUIRED)
   find_package(rcutils REQUIRED)
   find_package(rclcpp REQUIRED)
@@ -96,7 +97,14 @@ elseif("$ENV{ROS_VERSION}" STREQUAL "2")
 
   rclcpp_components_register_node(odometry_component PLUGIN "genz_icp_ros::OdometryServer" EXECUTABLE odometry_node)
 
-  install(TARGETS odometry_component LIBRARY DESTINATION lib RUNTIME DESTINATION lib/${PROJECT_NAME})
+  add_executable(imu_rotation_deskew_node ros2/ImuRotationDeskewNode.cpp)
+  target_compile_features(imu_rotation_deskew_node PUBLIC cxx_std_20)
+  target_link_libraries(imu_rotation_deskew_node genz_icp::core)
+  ament_target_dependencies(imu_rotation_deskew_node rclcpp sensor_msgs)
+
+  install(TARGETS odometry_component imu_rotation_deskew_node
+    LIBRARY DESTINATION lib
+    RUNTIME DESTINATION lib/${PROJECT_NAME})
   install(DIRECTORY launch rviz config DESTINATION share/${PROJECT_NAME}/)
 
   ament_package()
