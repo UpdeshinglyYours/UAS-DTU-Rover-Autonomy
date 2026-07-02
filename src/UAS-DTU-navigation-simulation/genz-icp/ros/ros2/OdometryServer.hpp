@@ -22,6 +22,7 @@
 // SOFTWARE.
 #pragma once
 #include <Eigen/Core>
+#include <Eigen/Geometry>
 #include <sophus/so3.hpp>
 
 // GenZ-ICP
@@ -78,6 +79,9 @@ private:
                          const rclcpp::Time &stamp,
                          const std::string &cloud_frame_id,
                          const Eigen::Matrix<double, 6, 6> &covariance);
+    void FillTwist(nav_msgs::msg::Odometry &odom_msg,
+                   const Sophus::SE3d &pose,
+                   const rclcpp::Time &stamp);
 
     /// Stream the debugging point clouds for visualization (if required)
     void PublishClouds(const rclcpp::Time &stamp,
@@ -108,6 +112,23 @@ private:
     bool publish_debug_clouds_;
     bool terminal_status_enabled_{false};
     size_t max_path_length_{2000};
+
+    /// Twist estimation from consecutive published odometry poses.
+    bool publish_twist_{true};
+    bool twist_in_child_frame_{true};
+    double twist_smoothing_alpha_{1.0};
+    double twist_min_dt_{0.001};
+    double twist_max_dt_{1.0};
+    bool twist_debug_{false};
+    double twist_linear_covariance_{0.25};
+    double twist_angular_covariance_{0.25};
+    bool has_previous_twist_pose_{false};
+    bool has_smoothed_twist_{false};
+    rclcpp::Time previous_twist_stamp_;
+    Eigen::Vector3d previous_twist_position_{Eigen::Vector3d::Zero()};
+    Eigen::Quaterniond previous_twist_orientation_{Eigen::Quaterniond::Identity()};
+    Eigen::Vector3d smoothed_linear_velocity_{Eigen::Vector3d::Zero()};
+    Eigen::Vector3d smoothed_angular_velocity_{Eigen::Vector3d::Zero()};
 
     /// Data subscribers.
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr pointcloud_sub_;

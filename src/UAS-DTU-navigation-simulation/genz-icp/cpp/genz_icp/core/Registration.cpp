@@ -5,10 +5,13 @@
 #include <tbb/parallel_reduce.h>
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <limits>
+#include <numeric>
 #include <sophus/se3.hpp>
 #include <sophus/so3.hpp>
+#include <string>
 #include <tuple>
 #include <iostream>
 #include <utility>
@@ -92,6 +95,27 @@ struct LinearSystemResult {
     size_t correspondence_count = 0;
 };
 
+struct RobustResidualEntry {
+    bool planar = false;
+    size_t index = 0;
+    double residual = 0.0;
+    double correspondence_distance = 0.0;
+};
+
+struct RobustICPSelection {
+    std::vector<uint8_t> planar_mask;
+    std::vector<uint8_t> non_planar_mask;
+    size_t input_correspondences = 0;
+    size_t rejected_by_max_distance = 0;
+    size_t kept_after_trimmed_icp = 0;
+    size_t final_correspondences = 0;
+    size_t final_planar_count = 0;
+    size_t final_non_planar_count = 0;
+    double mean_residual = 0.0;
+    double median_residual = 0.0;
+    bool fallback_to_normal_set = false;
+};
+
 bool MotionPriorIsActive(const genz_icp::RegistrationMotionPriorConfig &prior) {
     return prior.enabled &&
            prior.weight > 0.0 &&
@@ -116,6 +140,125 @@ Eigen::Matrix6d MotionPriorInformation(const genz_icp::RegistrationMotionPriorCo
     information(4, 4) = prior.weight / square(sigma_roll_pitch);
     information(5, 5) = prior.weight / square(sigma_yaw);
     return information;
+}
+
+std::string ToLower(std::string value) {
+    std::transform(value.begin(), value.end(), value.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    return value;
+}
+
+double RobustLossWeight(const genz_icp::RegistrationRobustICPConfig &config,
+                        double residual) {
+    const double delta = std::max(1e-6, config.residual_threshold);
+    residual = std::abs(residual);
+    const std::string loss_type = ToLower(config.loss_type);
+
+    if (loss_type == "none") {
+        return 1.0;
+    }
+    if (loss_type == "huber") {
+        return residual <= delta ? 1.0 : delta / residual;
+    }
+    if (loss_type == "tukey") {
+        if (residual >= delta) return 0.0;
+        const double ratio = residual / delta;
+        return square(1.0 - ratio * ratio);
+    }
+
+    // Default to Cauchy for unknown values because it is conservative and smooth.
+    const double ratio = residual / delta;
+    return 1.0 / (1.0 + ratio * ratio);
+}
+
+RobustICPSelection SelectRobustCorrespondences(
+    const std::vector<Eigen::Vector3d> &src_planar,
+    const std::vector<Eigen::Vector3d> &tgt_planar,
+    const std::vector<Eigen::Vector3d> &normals,
+    const std::vector<Eigen::Vector3d> &src_non_planar,
+    const std::vector<Eigen::Vector3d> &tgt_non_planar,
+    const genz_icp::RegistrationRobustICPConfig &config) {
+    RobustICPSelection selection;
+    selection.input_correspondences = src_planar.size() + src_non_planar.size();
+    selection.planar_mask.assign(src_planar.size(), 0);
+    selection.non_planar_mask.assign(src_non_planar.size(), 0);
+
+    std::vector<RobustResidualEntry> entries;
+    entries.reserve(selection.input_correspondences);
+    std::vector<double> residuals;
+    residuals.reserve(selection.input_correspondences);
+
+    for (size_t i = 0; i < src_planar.size(); ++i) {
+        const double residual = std::abs((src_planar[i] - tgt_planar[i]).dot(normals[i]));
+        const double correspondence_distance = (src_planar[i] - tgt_planar[i]).norm();
+        entries.push_back({true, i, residual, correspondence_distance});
+        residuals.push_back(residual);
+    }
+    for (size_t i = 0; i < src_non_planar.size(); ++i) {
+        const Eigen::Vector3d residual = src_non_planar[i] - tgt_non_planar[i];
+        const double residual_norm = residual.norm();
+        entries.push_back({false, i, residual_norm, residual_norm});
+        residuals.push_back(residual_norm);
+    }
+
+    if (!residuals.empty()) {
+        const double residual_sum =
+            std::accumulate(residuals.cbegin(), residuals.cend(), 0.0);
+        selection.mean_residual = residual_sum / static_cast<double>(residuals.size());
+        std::sort(residuals.begin(), residuals.end());
+        selection.median_residual = residuals[residuals.size() / 2];
+    }
+
+    std::vector<RobustResidualEntry> candidates;
+    candidates.reserve(entries.size());
+    const bool use_max_distance =
+        std::isfinite(config.max_correspondence_distance) &&
+        config.max_correspondence_distance > 0.0;
+    for (const auto &entry : entries) {
+        if (use_max_distance &&
+            entry.correspondence_distance > config.max_correspondence_distance) {
+            ++selection.rejected_by_max_distance;
+            continue;
+        }
+        candidates.push_back(entry);
+    }
+
+    if (config.trimmed_icp_enabled && !candidates.empty()) {
+        const double keep_ratio = std::clamp(config.trimmed_icp_keep_ratio, 0.01, 1.0);
+        size_t keep_count =
+            static_cast<size_t>(std::ceil(keep_ratio * static_cast<double>(candidates.size())));
+        const size_t min_correspondences =
+            static_cast<size_t>(std::max(0, config.min_correspondences));
+        keep_count = std::max(keep_count, std::min(min_correspondences, candidates.size()));
+        keep_count = std::min(keep_count, candidates.size());
+
+        std::sort(candidates.begin(), candidates.end(),
+                  [](const RobustResidualEntry &lhs, const RobustResidualEntry &rhs) {
+                      return lhs.residual < rhs.residual;
+                  });
+        candidates.resize(keep_count);
+    }
+    selection.kept_after_trimmed_icp = candidates.size();
+
+    const size_t min_correspondences =
+        static_cast<size_t>(std::max(0, config.min_correspondences));
+    if (min_correspondences > 0 && candidates.size() < min_correspondences) {
+        selection.fallback_to_normal_set = true;
+        candidates = std::move(entries);
+    }
+
+    for (const auto &entry : candidates) {
+        if (entry.planar) {
+            selection.planar_mask[entry.index] = 1;
+            ++selection.final_planar_count;
+        } else {
+            selection.non_planar_mask[entry.index] = 1;
+            ++selection.final_non_planar_count;
+        }
+    }
+    selection.final_correspondences =
+        selection.final_planar_count + selection.final_non_planar_count;
+    return selection;
 }
 
 Eigen::Vector6d MotionPriorError(const Sophus::SE3d &prior_pose,
@@ -167,7 +310,10 @@ LinearSystemResult BuildLinearSystem(
     const std::vector<Eigen::Vector3d> &src_non_planar,
     const std::vector<Eigen::Vector3d> &tgt_non_planar,
     double kernel,
-    double alpha) {
+    double alpha,
+    const genz_icp::RegistrationRobustICPConfig *robust_icp = nullptr,
+    const std::vector<uint8_t> *planar_mask = nullptr,
+    const std::vector<uint8_t> *non_planar_mask = nullptr) {
 
     struct ResultTuple {
         Eigen::Matrix6d JTJ;
@@ -218,9 +364,13 @@ LinearSystemResult BuildLinearSystem(
         };
         for (size_t i = r.begin(); i < r.end(); ++i) {
             if (i < src_planar.size()) { // Point-to-Plane
+                if (planar_mask != nullptr && !(*planar_mask)[i]) continue;
                 const auto &[J_planar, r_planar] = compute_jacobian_and_residual_planar(i);
                 const double residual_squared = r_planar * r_planar;
                 double w_planar = Weight(residual_squared);
+                if (robust_icp != nullptr && robust_icp->enabled) {
+                    w_planar *= RobustLossWeight(*robust_icp, std::abs(r_planar));
+                }
                 const double weighted_alpha = alpha * w_planar;
                 J.JTJ.noalias() += weighted_alpha * J_planar.transpose() * J_planar;
                 J.JTr.noalias() += weighted_alpha * J_planar.transpose() * r_planar;
@@ -232,9 +382,13 @@ LinearSystemResult BuildLinearSystem(
             } else { // Point-to-Point
                 size_t index = i - src_planar.size();
                 if (index < src_non_planar.size()) {
+                    if (non_planar_mask != nullptr && !(*non_planar_mask)[index]) continue;
                     const auto &[J_non_planar, r_non_planar] = compute_jacobian_and_residual_non_planar(index);
                     const double residual_squared = r_non_planar.squaredNorm();
-                    const double w_non_planar = Weight(residual_squared);
+                    double w_non_planar = Weight(residual_squared);
+                    if (robust_icp != nullptr && robust_icp->enabled) {
+                        w_non_planar *= RobustLossWeight(*robust_icp, std::sqrt(residual_squared));
+                    }
                     const double weighted_alpha = (1 - alpha) * w_non_planar;
                     J.JTJ.noalias() += weighted_alpha * J_non_planar.transpose() * J_non_planar;
                     J.JTr.noalias() += weighted_alpha * J_non_planar.transpose() * r_non_planar;
@@ -309,7 +463,8 @@ RegistrationResult Registration::RegisterFrameWithQuality(
     const Sophus::SE3d &initial_guess,
     double max_correspondence_distance,
     double kernel,
-    const std::optional<RegistrationMotionPriorConfig> &motion_prior) {
+    const std::optional<RegistrationMotionPriorConfig> &motion_prior,
+    const std::optional<RegistrationRobustICPConfig> &robust_icp) {
     RegistrationResult result;
     result.pose = initial_guess;
     result.covariance = HighUncertaintyCovariance();
@@ -318,6 +473,7 @@ RegistrationResult Registration::RegisterFrameWithQuality(
 
     const bool motion_prior_active =
         motion_prior && MotionPriorIsActive(*motion_prior);
+    const bool robust_icp_active = robust_icp && robust_icp->enabled;
     const Eigen::Matrix6d motion_prior_information =
         motion_prior_active ? MotionPriorInformation(*motion_prior) : Eigen::Matrix6d::Zero();
     if (motion_prior_active && motion_prior->debug) {
@@ -347,9 +503,64 @@ RegistrationResult Registration::RegisterFrameWithQuality(
             break;
         }
 
-        double alpha = static_cast<double>(planar_count) / static_cast<double>(correspondence_count);
+        RobustICPSelection robust_selection;
+        size_t used_planar_count = planar_count;
+        size_t used_non_planar_count = non_planar_count;
+        size_t used_correspondence_count = correspondence_count;
+        const std::vector<uint8_t> *planar_mask = nullptr;
+        const std::vector<uint8_t> *non_planar_mask = nullptr;
+        if (robust_icp_active) {
+            robust_selection =
+                SelectRobustCorrespondences(src_planar,
+                                            tgt_planar,
+                                            normals,
+                                            src_non_planar,
+                                            tgt_non_planar,
+                                            *robust_icp);
+            used_planar_count = robust_selection.final_planar_count;
+            used_non_planar_count = robust_selection.final_non_planar_count;
+            used_correspondence_count = robust_selection.final_correspondences;
+            planar_mask = &robust_selection.planar_mask;
+            non_planar_mask = &robust_selection.non_planar_mask;
+
+            if (robust_icp->debug) {
+                std::cout << "Robust ICP iter=" << j
+                          << ": input_correspondences="
+                          << robust_selection.input_correspondences
+                          << ", rejected_by_max_distance="
+                          << robust_selection.rejected_by_max_distance
+                          << ", kept_by_trimmed_icp="
+                          << robust_selection.kept_after_trimmed_icp
+                          << ", mean_residual="
+                          << robust_selection.mean_residual
+                          << ", median_residual="
+                          << robust_selection.median_residual
+                          << ", final_used_correspondences="
+                          << robust_selection.final_correspondences
+                          << (robust_selection.fallback_to_normal_set
+                                  ? ", fallback_to_normal_set=true"
+                                  : "")
+                          << "\n";
+            }
+        }
+
+        if (used_correspondence_count == 0) {
+            break;
+        }
+
+        double alpha = static_cast<double>(used_planar_count) /
+                       static_cast<double>(used_correspondence_count);
         auto linear_system =
-            BuildLinearSystem(src_planar, tgt_planar, normals, src_non_planar, tgt_non_planar, kernel, alpha);
+            BuildLinearSystem(src_planar,
+                              tgt_planar,
+                              normals,
+                              src_non_planar,
+                              tgt_non_planar,
+                              kernel,
+                              alpha,
+                              robust_icp_active ? &(*robust_icp) : nullptr,
+                              planar_mask,
+                              non_planar_mask);
         if (motion_prior_active) {
             const Sophus::SE3d current_pose = T_icp * initial_guess;
             AddMotionPrior(linear_system, motion_prior_information, initial_guess, current_pose);
@@ -380,7 +591,7 @@ RegistrationResult Registration::RegisterFrameWithQuality(
 
         if (dx.norm() < convergence_criterion_ || error_converged || j == max_num_iterations_ - 1) {
             if (terminal_status_enabled_) {
-                VisualizeStatus(planar_count, non_planar_count, alpha);
+                VisualizeStatus(used_planar_count, used_non_planar_count, alpha);
             }
             result.planar_points = src_planar;
             result.non_planar_points = src_non_planar;

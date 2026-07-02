@@ -21,6 +21,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 #include <Eigen/Core>
+#include <Eigen/Geometry>
 #include <algorithm>
 #include <cmath>
 #include <cctype>
@@ -274,6 +275,14 @@ OdometryServer::OdometryServer(const rclcpp::NodeOptions &options)
     publish_odom_tf_ = declare_parameter<bool>("publish_odom_tf", publish_odom_tf_);
     publish_debug_clouds_ = declare_parameter<bool>("visualize", publish_debug_clouds_);
     terminal_status_enabled_ = declare_parameter<bool>("terminal_status", terminal_status_enabled_);
+    publish_twist_ = declare_parameter<bool>("publish_twist", publish_twist_);
+    twist_in_child_frame_ = declare_parameter<bool>("twist_in_child_frame", twist_in_child_frame_);
+    twist_smoothing_alpha_ = declare_parameter<double>("twist_smoothing_alpha", twist_smoothing_alpha_);
+    twist_min_dt_ = declare_parameter<double>("twist_min_dt", twist_min_dt_);
+    twist_max_dt_ = declare_parameter<double>("twist_max_dt", twist_max_dt_);
+    twist_debug_ = declare_parameter<bool>("twist_debug", twist_debug_);
+    twist_linear_covariance_ = declare_parameter<double>("twist_linear_covariance", twist_linear_covariance_);
+    twist_angular_covariance_ = declare_parameter<double>("twist_angular_covariance", twist_angular_covariance_);
     declare_parameter<int>("max_path_length", static_cast<int>(max_path_length_));
     declare_parameter<double>("max_range", config_.max_range);
     declare_parameter<double>("min_range", config_.min_range);
@@ -350,6 +359,27 @@ OdometryServer::OdometryServer(const rclcpp::NodeOptions &options)
     declare_parameter<double>("map_update_max_rotation_delta_deg", config_.map_update_max_rotation_delta_deg);
     declare_parameter<int>("map_update_min_correspondences", config_.map_update_min_correspondences);
     declare_parameter<bool>("map_update_debug", config_.map_update_debug);
+    declare_parameter<bool>("enable_robust_icp_outlier_handling", config_.enable_robust_icp_outlier_handling);
+    declare_parameter<double>("robust_max_correspondence_distance", config_.robust_max_correspondence_distance);
+    declare_parameter<double>("robust_residual_threshold", config_.robust_residual_threshold);
+    declare_parameter<std::string>("robust_loss_type", config_.robust_loss_type);
+    declare_parameter<bool>("trimmed_icp_enabled", config_.trimmed_icp_enabled);
+    declare_parameter<double>("trimmed_icp_keep_ratio", config_.trimmed_icp_keep_ratio);
+    declare_parameter<int>("robust_min_correspondences", config_.robust_min_correspondences);
+    declare_parameter<bool>("robust_icp_debug", config_.robust_icp_debug);
+    declare_parameter<bool>("enable_tentative_map_gating", config_.enable_tentative_map_gating);
+    declare_parameter<double>("tentative_voxel_size", config_.tentative_voxel_size);
+    declare_parameter<int>("tentative_required_observations", config_.tentative_required_observations);
+    declare_parameter<int>("tentative_max_age_frames", config_.tentative_max_age_frames);
+    declare_parameter<double>("tentative_stable_support_radius", config_.tentative_stable_support_radius);
+    declare_parameter<bool>("use_tentative_points_for_icp", config_.use_tentative_points_for_icp);
+    declare_parameter<bool>("insert_new_points_as_tentative", config_.insert_new_points_as_tentative);
+    declare_parameter<bool>("promote_tentative_only_when_motion_is_calm", config_.promote_tentative_only_when_motion_is_calm);
+    declare_parameter<double>("dynamic_enable_max_delta_yaw_deg", config_.dynamic_enable_max_delta_yaw_deg);
+    declare_parameter<double>("dynamic_relax_max_delta_yaw_deg", config_.dynamic_relax_max_delta_yaw_deg);
+    declare_parameter<bool>("map_update_allow_new_points_when_map_is_small", config_.map_update_allow_new_points_when_map_is_small);
+    declare_parameter<int>("map_update_min_stable_map_points", config_.map_update_min_stable_map_points);
+    declare_parameter<bool>("tentative_map_debug", config_.tentative_map_debug);
     declare_parameter<std::string>("config_file", "");
 
     const bool launch_deskew_requested = get_parameter("deskew").as_bool();
@@ -521,7 +551,57 @@ OdometryServer::OdometryServer(const rclcpp::NodeOptions &options)
         static_cast<int>(std::max<int64_t>(0, get_parameter("map_update_min_correspondences").as_int()));
     config_.map_update_debug =
         get_parameter("map_update_debug").as_bool();
+    config_.enable_robust_icp_outlier_handling =
+        get_parameter("enable_robust_icp_outlier_handling").as_bool();
+    config_.robust_max_correspondence_distance =
+        get_parameter("robust_max_correspondence_distance").as_double();
+    config_.robust_residual_threshold =
+        get_parameter("robust_residual_threshold").as_double();
+    config_.robust_loss_type =
+        ToLower(Trim(get_parameter("robust_loss_type").as_string()));
+    config_.trimmed_icp_enabled =
+        get_parameter("trimmed_icp_enabled").as_bool();
+    config_.trimmed_icp_keep_ratio =
+        get_parameter("trimmed_icp_keep_ratio").as_double();
+    config_.robust_min_correspondences =
+        static_cast<int>(std::max<int64_t>(0, get_parameter("robust_min_correspondences").as_int()));
+    config_.robust_icp_debug =
+        get_parameter("robust_icp_debug").as_bool();
+    config_.enable_tentative_map_gating =
+        get_parameter("enable_tentative_map_gating").as_bool();
+    config_.tentative_voxel_size =
+        get_parameter("tentative_voxel_size").as_double();
+    config_.tentative_required_observations =
+        static_cast<int>(std::max<int64_t>(1, get_parameter("tentative_required_observations").as_int()));
+    config_.tentative_max_age_frames =
+        static_cast<int>(std::max<int64_t>(1, get_parameter("tentative_max_age_frames").as_int()));
+    config_.tentative_stable_support_radius =
+        get_parameter("tentative_stable_support_radius").as_double();
+    config_.use_tentative_points_for_icp =
+        get_parameter("use_tentative_points_for_icp").as_bool();
+    config_.insert_new_points_as_tentative =
+        get_parameter("insert_new_points_as_tentative").as_bool();
+    config_.promote_tentative_only_when_motion_is_calm =
+        get_parameter("promote_tentative_only_when_motion_is_calm").as_bool();
+    config_.dynamic_enable_max_delta_yaw_deg =
+        get_parameter("dynamic_enable_max_delta_yaw_deg").as_double();
+    config_.dynamic_relax_max_delta_yaw_deg =
+        get_parameter("dynamic_relax_max_delta_yaw_deg").as_double();
+    config_.map_update_allow_new_points_when_map_is_small =
+        get_parameter("map_update_allow_new_points_when_map_is_small").as_bool();
+    config_.map_update_min_stable_map_points =
+        static_cast<int>(std::max<int64_t>(0, get_parameter("map_update_min_stable_map_points").as_int()));
+    config_.tentative_map_debug =
+        get_parameter("tentative_map_debug").as_bool();
     terminal_status_enabled_ = get_parameter("terminal_status").as_bool();
+    publish_twist_ = get_parameter("publish_twist").as_bool();
+    twist_in_child_frame_ = get_parameter("twist_in_child_frame").as_bool();
+    twist_smoothing_alpha_ = get_parameter("twist_smoothing_alpha").as_double();
+    twist_min_dt_ = get_parameter("twist_min_dt").as_double();
+    twist_max_dt_ = get_parameter("twist_max_dt").as_double();
+    twist_debug_ = get_parameter("twist_debug").as_bool();
+    twist_linear_covariance_ = get_parameter("twist_linear_covariance").as_double();
+    twist_angular_covariance_ = get_parameter("twist_angular_covariance").as_double();
     max_path_length_ =
         static_cast<size_t>(std::max<int64_t>(0, get_parameter("max_path_length").as_int()));
     if (max_path_length_ > 0) {
@@ -590,6 +670,81 @@ OdometryServer::OdometryServer(const rclcpp::NodeOptions &options)
         std::max(0.0, config_.motion_prior_weight);
     config_.map_update_min_correspondences =
         std::max(0, config_.map_update_min_correspondences);
+    if (!std::isfinite(config_.robust_max_correspondence_distance) ||
+        config_.robust_max_correspondence_distance < 0.0) {
+        RCLCPP_WARN(get_logger(), "Invalid robust_max_correspondence_distance; using 1.0");
+        config_.robust_max_correspondence_distance = 1.0;
+    }
+    if (!std::isfinite(config_.robust_residual_threshold) ||
+        config_.robust_residual_threshold <= 0.0) {
+        RCLCPP_WARN(get_logger(), "Invalid robust_residual_threshold; using 0.35");
+        config_.robust_residual_threshold = 0.35;
+    }
+    if (config_.robust_loss_type != "none" &&
+        config_.robust_loss_type != "huber" &&
+        config_.robust_loss_type != "cauchy" &&
+        config_.robust_loss_type != "tukey") {
+        RCLCPP_WARN(get_logger(),
+                    "Invalid robust_loss_type '%s'; using cauchy",
+                    config_.robust_loss_type.c_str());
+        config_.robust_loss_type = "cauchy";
+    }
+    if (!std::isfinite(config_.trimmed_icp_keep_ratio)) {
+        RCLCPP_WARN(get_logger(), "Invalid trimmed_icp_keep_ratio; using 0.80");
+        config_.trimmed_icp_keep_ratio = 0.80;
+    }
+    config_.trimmed_icp_keep_ratio = std::clamp(config_.trimmed_icp_keep_ratio, 0.01, 1.0);
+    config_.robust_min_correspondences =
+        std::max(0, config_.robust_min_correspondences);
+    if (!std::isfinite(config_.tentative_voxel_size) ||
+        config_.tentative_voxel_size <= 0.0) {
+        RCLCPP_WARN(get_logger(), "Invalid tentative_voxel_size; using 0.35");
+        config_.tentative_voxel_size = 0.35;
+    }
+    config_.tentative_required_observations =
+        std::max(1, config_.tentative_required_observations);
+    config_.tentative_max_age_frames =
+        std::max(1, config_.tentative_max_age_frames);
+    if (!std::isfinite(config_.tentative_stable_support_radius) ||
+        config_.tentative_stable_support_radius < 0.0) {
+        RCLCPP_WARN(get_logger(), "Invalid tentative_stable_support_radius; using 0.45");
+        config_.tentative_stable_support_radius = 0.45;
+    }
+    if (!std::isfinite(config_.dynamic_enable_max_delta_yaw_deg) ||
+        config_.dynamic_enable_max_delta_yaw_deg < 0.0) {
+        RCLCPP_WARN(get_logger(), "Invalid dynamic_enable_max_delta_yaw_deg; using 8.0");
+        config_.dynamic_enable_max_delta_yaw_deg = 8.0;
+    }
+    if (!std::isfinite(config_.dynamic_relax_max_delta_yaw_deg) ||
+        config_.dynamic_relax_max_delta_yaw_deg < config_.dynamic_enable_max_delta_yaw_deg) {
+        RCLCPP_WARN(get_logger(),
+                    "Invalid dynamic_relax_max_delta_yaw_deg; using enable threshold");
+        config_.dynamic_relax_max_delta_yaw_deg =
+            config_.dynamic_enable_max_delta_yaw_deg;
+    }
+    config_.map_update_min_stable_map_points =
+        std::max(0, config_.map_update_min_stable_map_points);
+    if (!std::isfinite(twist_smoothing_alpha_)) {
+        RCLCPP_WARN(get_logger(), "Invalid twist_smoothing_alpha; using 1.0");
+        twist_smoothing_alpha_ = 1.0;
+    }
+    twist_smoothing_alpha_ = std::clamp(twist_smoothing_alpha_, 0.0, 1.0);
+    if (!std::isfinite(twist_min_dt_) || twist_min_dt_ < 0.0) {
+        RCLCPP_WARN(get_logger(), "Invalid twist_min_dt; using 0.001");
+        twist_min_dt_ = 0.001;
+    }
+    if (!std::isfinite(twist_max_dt_) || twist_max_dt_ <= twist_min_dt_) {
+        RCLCPP_WARN(get_logger(), "Invalid twist_max_dt; using 1.0");
+        twist_max_dt_ = std::max(1.0, twist_min_dt_ + 1.0);
+    }
+    if (!std::isfinite(twist_linear_covariance_) || twist_linear_covariance_ < 0.0) {
+        RCLCPP_WARN(get_logger(), "Invalid twist_linear_covariance; using 0.25");
+        twist_linear_covariance_ = 0.25;
+    }
+    if (!std::isfinite(twist_angular_covariance_) || twist_angular_covariance_ < 0.0) {
+        RCLCPP_WARN(get_logger(), "Invalid twist_angular_covariance; using 0.25");
+        twist_angular_covariance_ = 0.25;
+    }
 
     if (!imu_prediction_rotation_only_) {
         RCLCPP_WARN(get_logger(),
@@ -625,6 +780,25 @@ OdometryServer::OdometryServer(const rclcpp::NodeOptions &options)
     odometry_ = genz_icp::pipeline::GenZICP(config_);
     odometry_.SetTerminalStatusEnabled(terminal_status_enabled_);
     RCLCPP_INFO(this->get_logger(), "LiDAR deskew is %s", config_.deskew ? "enabled" : "disabled");
+    RCLCPP_INFO(get_logger(),
+                "Robust ICP outlier handling is %s: max_corr=%.3f residual_threshold=%.3f "
+                "loss=%s trimmed=%s keep_ratio=%.2f min_correspondences=%d",
+                config_.enable_robust_icp_outlier_handling ? "enabled" : "disabled",
+                config_.robust_max_correspondence_distance,
+                config_.robust_residual_threshold,
+                config_.robust_loss_type.c_str(),
+                config_.trimmed_icp_enabled ? "true" : "false",
+                config_.trimmed_icp_keep_ratio,
+                config_.robust_min_correspondences);
+    RCLCPP_INFO(get_logger(),
+                "Tentative map gating is %s: voxel_size=%.3f required_observations=%d "
+                "max_age_frames=%d support_radius=%.3f use_tentative_for_icp=%s",
+                config_.enable_tentative_map_gating ? "enabled" : "disabled",
+                config_.tentative_voxel_size,
+                config_.tentative_required_observations,
+                config_.tentative_max_age_frames,
+                config_.tentative_stable_support_radius,
+                config_.use_tentative_points_for_icp ? "true" : "false");
 
     // Initialize subscribers
     pointcloud_sub_ = create_subscription<sensor_msgs::msg::PointCloud2>(
@@ -1160,7 +1334,156 @@ void OdometryServer::PublishOdometry(const Sophus::SE3d &pose,
         }
     }
 
+    FillTwist(odom_msg, pose, stamp);
+
     odom_publisher_->publish(std::move(odom_msg));
+}
+
+void OdometryServer::FillTwist(nav_msgs::msg::Odometry &odom_msg,
+                               const Sophus::SE3d &pose,
+                               const rclcpp::Time &stamp) {
+    odom_msg.twist.covariance.fill(0.0);
+    if (!publish_twist_) {
+        return;
+    }
+
+    odom_msg.twist.covariance[0] = twist_linear_covariance_;
+    odom_msg.twist.covariance[7] = twist_linear_covariance_;
+    odom_msg.twist.covariance[14] = twist_linear_covariance_;
+    odom_msg.twist.covariance[21] = twist_angular_covariance_;
+    odom_msg.twist.covariance[28] = twist_angular_covariance_;
+    odom_msg.twist.covariance[35] = twist_angular_covariance_;
+
+    const auto publish_velocity = [&](const Eigen::Vector3d &linear,
+                                      const Eigen::Vector3d &angular) {
+        odom_msg.twist.twist.linear.x = linear.x();
+        odom_msg.twist.twist.linear.y = linear.y();
+        odom_msg.twist.twist.linear.z = linear.z();
+        odom_msg.twist.twist.angular.x = angular.x();
+        odom_msg.twist.twist.angular.y = angular.y();
+        odom_msg.twist.twist.angular.z = angular.z();
+    };
+
+    const auto publish_smoothed_or_zero = [&]() {
+        if (has_smoothed_twist_) {
+            publish_velocity(smoothed_linear_velocity_, smoothed_angular_velocity_);
+        } else {
+            publish_velocity(Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero());
+        }
+    };
+
+    const auto store_previous_pose = [&](const Eigen::Vector3d &position,
+                                         const Eigen::Quaterniond &orientation) {
+        previous_twist_stamp_ = stamp;
+        previous_twist_position_ = position;
+        previous_twist_orientation_ = orientation;
+        has_previous_twist_pose_ = true;
+    };
+
+    const Eigen::Vector3d current_position = pose.translation();
+    Eigen::Quaterniond current_orientation(pose.so3().unit_quaternion());
+    current_orientation.normalize();
+
+    if (!current_position.allFinite() || !current_orientation.coeffs().allFinite()) {
+        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000,
+                             "Cannot compute odometry twist from non-finite pose");
+        publish_smoothed_or_zero();
+        return;
+    }
+
+    if (!has_previous_twist_pose_) {
+        publish_velocity(Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero());
+        store_previous_pose(current_position, current_orientation);
+        return;
+    }
+
+    double dt = 0.0;
+    try {
+        dt = (stamp - previous_twist_stamp_).seconds();
+    } catch (const std::exception &ex) {
+        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000,
+                             "Cannot compute odometry twist dt: %s", ex.what());
+        publish_smoothed_or_zero();
+        store_previous_pose(current_position, current_orientation);
+        return;
+    }
+
+    if (!std::isfinite(dt)) {
+        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000,
+                             "Cannot compute odometry twist from non-finite dt");
+        publish_smoothed_or_zero();
+        store_previous_pose(current_position, current_orientation);
+        return;
+    }
+
+    if (dt <= twist_min_dt_) {
+        publish_smoothed_or_zero();
+        return;
+    }
+
+    if (dt > twist_max_dt_) {
+        smoothed_linear_velocity_.setZero();
+        smoothed_angular_velocity_.setZero();
+        has_smoothed_twist_ = false;
+        publish_velocity(Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero());
+        store_previous_pose(current_position, current_orientation);
+        return;
+    }
+
+    const Eigen::Vector3d linear_world =
+        (current_position - previous_twist_position_) / dt;
+    const Eigen::Matrix3d rotation_world_body =
+        current_orientation.normalized().toRotationMatrix();
+    const Eigen::Vector3d computed_linear_velocity =
+        twist_in_child_frame_ ? rotation_world_body.transpose() * linear_world : linear_world;
+
+    Eigen::Quaterniond previous_orientation = previous_twist_orientation_.normalized();
+    Eigen::Quaterniond delta_orientation =
+        previous_orientation.conjugate() * current_orientation.normalized();
+    delta_orientation.normalize();
+    if (delta_orientation.w() < 0.0) {
+        delta_orientation.coeffs() *= -1.0;
+    }
+
+    const Eigen::AngleAxisd angle_axis(delta_orientation);
+    const Eigen::Vector3d angular_body =
+        angle_axis.axis() * angle_axis.angle() / dt;
+    const Eigen::Vector3d computed_angular_velocity =
+        twist_in_child_frame_ ? angular_body : rotation_world_body * angular_body;
+
+    if (!computed_linear_velocity.allFinite() || !computed_angular_velocity.allFinite()) {
+        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000,
+                             "Cannot compute odometry twist from non-finite velocity");
+        publish_smoothed_or_zero();
+        store_previous_pose(current_position, current_orientation);
+        return;
+    }
+
+    if (!has_smoothed_twist_) {
+        smoothed_linear_velocity_ = computed_linear_velocity;
+        smoothed_angular_velocity_ = computed_angular_velocity;
+        has_smoothed_twist_ = true;
+    } else {
+        const double alpha = twist_smoothing_alpha_;
+        smoothed_linear_velocity_ =
+            alpha * computed_linear_velocity +
+            (1.0 - alpha) * smoothed_linear_velocity_;
+        smoothed_angular_velocity_ =
+            alpha * computed_angular_velocity +
+            (1.0 - alpha) * smoothed_angular_velocity_;
+    }
+
+    publish_velocity(smoothed_linear_velocity_, smoothed_angular_velocity_);
+    store_previous_pose(current_position, current_orientation);
+
+    if (twist_debug_) {
+        RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 1000,
+                             "twist dt=%.3fs v=%s m/s omega=%s rad/s yaw_rate=%.3f deg/s",
+                             dt,
+                             FormatVector(smoothed_linear_velocity_).c_str(),
+                             FormatVector(smoothed_angular_velocity_).c_str(),
+                             smoothed_angular_velocity_.z() * kRadiansToDegrees);
+    }
 }
 
 void OdometryServer::PublishClouds(const rclcpp::Time &stamp,

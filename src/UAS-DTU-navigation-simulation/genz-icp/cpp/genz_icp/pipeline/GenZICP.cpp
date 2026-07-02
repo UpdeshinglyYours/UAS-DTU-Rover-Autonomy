@@ -97,6 +97,12 @@ bool IsFinitePose(const Sophus::SE3d &pose) {
     return pose.matrix().allFinite();
 }
 
+double DeltaYawDegrees(const Sophus::SE3d &delta) {
+    const Eigen::Matrix3d rotation = delta.rotationMatrix();
+    const double yaw = std::atan2(rotation(1, 0), rotation(0, 0));
+    return std::abs(yaw) * kRadToDeg;
+}
+
 Eigen::Matrix<double, 6, 6> StartupCovariance() {
     return Eigen::Matrix<double, 6, 6>::Identity() * kStartupPoseVariance;
 }
@@ -353,6 +359,7 @@ GenZICP::RegistrationTuple GenZICP::RegisterFrame(
     if (local_map_.Empty()) {
         const Sophus::SE3d seed_pose = !poses_.empty() ? poses_.back() : Sophus::SE3d();
         local_map_.Update(frame_downsample, seed_pose);
+        ++frame_index_;
         if (!has_initial_pose_) {
             initial_pose_ = seed_pose;
             has_initial_pose_ = true;
@@ -391,10 +398,16 @@ GenZICP::RegistrationTuple GenZICP::RegisterFrame(
     const auto base_initial_guess = last_pose * prediction;
     Sophus::SE3d initial_guess = base_initial_guess;
     bool yaw_search_selected = false;
+    std::optional<VoxelHashMap> registration_map_with_tentative;
+    const VoxelHashMap *registration_map = &local_map_;
+    if (config_.enable_tentative_map_gating && config_.use_tentative_points_for_icp) {
+        registration_map_with_tentative = BuildRegistrationMap();
+        registration_map = &(*registration_map_with_tentative);
+    }
     if (config_.enable_yaw_search_initializer) {
         const auto yaw_search_result =
             SelectYawSearchInitialGuess(source,
-                                        local_map_,
+                                        *registration_map,
                                         base_initial_guess,
                                         config_,
                                         sigma / 3.0);
@@ -415,14 +428,19 @@ GenZICP::RegistrationTuple GenZICP::RegisterFrame(
         BuildMotionPriorConfig(config_,
                                consecutive_registration_rejections_,
                                registration_recovery_mode_);
+    const auto robust_icp =
+        config_.enable_robust_icp_outlier_handling
+            ? std::optional<genz_icp::RegistrationRobustICPConfig>(BuildRobustICPConfig())
+            : std::nullopt;
 
     // Run GenZ-ICP and evaluate the complete candidate before committing it.
     auto registration_result = registration_.RegisterFrameWithQuality(source,         //
-                                                                      local_map_,     //
+                                                                      *registration_map, //
                                                                       initial_guess,  //
                                                                       3.0 * sigma,    //
                                                                       sigma / 3.0,    //
-                                                                      motion_prior);
+                                                                      motion_prior,
+                                                                      robust_icp);
     const auto &new_pose = registration_result.pose;
     const auto &covariance = registration_result.covariance;
 
@@ -474,7 +492,14 @@ GenZICP::RegistrationTuple GenZICP::RegisterFrame(
     const auto model_deviation = initial_guess.inverse() * new_pose;
     adaptive_threshold_.UpdateModelDeviation(model_deviation);
     if (update_map) {
-        local_map_.Update(frame_downsample, new_pose);
+        if (config_.enable_tentative_map_gating) {
+            UpdateMapWithTentativeGating(frame_downsample,
+                                         new_pose,
+                                         DeltaYawDegrees(accepted_delta));
+        } else {
+            local_map_.Update(frame_downsample, new_pose);
+            ++frame_index_;
+        }
     }
     if (!has_initial_pose_) {
         initial_pose_ = new_pose;
@@ -692,6 +717,211 @@ void GenZICP::LogMapUpdateDecision(bool accepted,
               << ", correspondences=" << quality.correspondence_count
               << ", trans_delta=" << FormatDouble(quality.translation_delta)
               << ", rot_delta_deg=" << FormatDouble(rotation_delta_deg)
+              << "\n";
+}
+
+RegistrationRobustICPConfig GenZICP::BuildRobustICPConfig() const {
+    RegistrationRobustICPConfig robust;
+    robust.enabled = config_.enable_robust_icp_outlier_handling;
+    robust.max_correspondence_distance =
+        std::max(0.0, config_.robust_max_correspondence_distance);
+    robust.residual_threshold =
+        std::max(1e-6, config_.robust_residual_threshold);
+    robust.loss_type = config_.robust_loss_type;
+    robust.trimmed_icp_enabled = config_.trimmed_icp_enabled;
+    robust.trimmed_icp_keep_ratio =
+        std::clamp(config_.trimmed_icp_keep_ratio, 0.01, 1.0);
+    robust.min_correspondences =
+        std::max(0, config_.robust_min_correspondences);
+    robust.debug = config_.robust_icp_debug;
+    return robust;
+}
+
+VoxelHashMap GenZICP::BuildRegistrationMap() const {
+    VoxelHashMap registration_map = local_map_;
+    if (config_.enable_tentative_map_gating && config_.use_tentative_points_for_icp) {
+        registration_map.AddPoints(TentativePointcloud());
+    }
+    return registration_map;
+}
+
+GenZICP::Vector3dVector GenZICP::TentativePointcloud() const {
+    Vector3dVector points;
+    points.reserve(tentative_map_.size());
+    for (const auto &[voxel, tentative] : tentative_map_) {
+        (void)voxel;
+        if (tentative.centroid.allFinite()) {
+            points.push_back(tentative.centroid);
+        }
+    }
+    return points;
+}
+
+void GenZICP::UpdateMapWithTentativeGating(
+    const std::vector<Eigen::Vector3d> &frame_downsample,
+    const Sophus::SE3d &pose,
+    double delta_yaw_deg) {
+    ++frame_index_;
+
+    TentativeMapStats stats;
+    stats.current_frame_points = frame_downsample.size();
+    stats.delta_yaw_deg = delta_yaw_deg;
+    stats.gating_mode = TentativeModeForYaw(delta_yaw_deg);
+
+    const size_t stable_map_points = local_map_.PointCount();
+    const size_t min_stable_map_points =
+        static_cast<size_t>(std::max(0, config_.map_update_min_stable_map_points));
+    if (config_.map_update_allow_new_points_when_map_is_small &&
+        stable_map_points < min_stable_map_points) {
+        local_map_.Update(frame_downsample, pose);
+        stats.stable_map_insertions = frame_downsample.size();
+        if (config_.tentative_map_debug) {
+            LogTentativeMapStats(stats);
+        }
+        return;
+    }
+
+    const auto transformed_points = TransformFrame(pose, frame_downsample);
+    std::vector<Eigen::Vector3d> stable_insertions;
+    stable_insertions.reserve(transformed_points.size());
+    std::vector<Eigen::Vector3d> promoted_points;
+
+    const double support_radius =
+        std::max(0.0, config_.tentative_stable_support_radius);
+    for (const auto &point : transformed_points) {
+        if (!point.allFinite()) continue;
+
+        if (local_map_.HasNeighborWithin(point, support_radius)) {
+            ++stats.stable_supported_points;
+            stable_insertions.push_back(point);
+            continue;
+        }
+
+        if (config_.insert_new_points_as_tentative) {
+            UpdateTentativeVoxel(point, frame_index_, promoted_points, stats);
+        }
+    }
+
+    stable_insertions.insert(stable_insertions.end(),
+                             promoted_points.begin(),
+                             promoted_points.end());
+    stats.stable_map_insertions = stable_insertions.size();
+    local_map_.Update(stable_insertions, pose.translation());
+
+    if (stats.gating_mode == TentativeGatingMode::Normal) {
+        ExpireTentativeVoxels(frame_index_, stats);
+    }
+
+    if (config_.tentative_map_debug) {
+        LogTentativeMapStats(stats);
+    }
+}
+
+void GenZICP::UpdateTentativeVoxel(const Eigen::Vector3d &point,
+                                   size_t frame_index,
+                                   std::vector<Eigen::Vector3d> &promoted_points,
+                                   TentativeMapStats &stats) {
+    const auto voxel = TentativeVoxelForPoint(point);
+    auto search = tentative_map_.find(voxel);
+    if (search == tentative_map_.end()) {
+        TentativeVoxel tentative;
+        tentative.centroid = point;
+        tentative.observation_count = 1;
+        tentative.first_seen_frame = frame_index;
+        tentative.last_seen_frame = frame_index;
+        search = tentative_map_.insert({voxel, tentative}).first;
+    } else {
+        auto &tentative = search.value();
+        if (tentative.last_seen_frame != frame_index) {
+            ++tentative.observation_count;
+            tentative.last_seen_frame = frame_index;
+            const double alpha = 1.0 / static_cast<double>(
+                                           std::max(1, tentative.observation_count));
+            tentative.centroid = (1.0 - alpha) * tentative.centroid + alpha * point;
+        } else {
+            tentative.centroid = 0.5 * (tentative.centroid + point);
+        }
+    }
+    ++stats.tentative_updated_points;
+
+    const bool calm_enough =
+        stats.gating_mode == TentativeGatingMode::Normal ||
+        (!config_.promote_tentative_only_when_motion_is_calm &&
+         stats.gating_mode == TentativeGatingMode::Relaxed);
+    const int required_observations =
+        std::max(1, config_.tentative_required_observations);
+    if (!calm_enough ||
+        search->second.observation_count < required_observations) {
+        return;
+    }
+
+    promoted_points.push_back(search->second.centroid);
+    tentative_map_.erase(search);
+    ++stats.tentative_promoted_points;
+}
+
+void GenZICP::ExpireTentativeVoxels(size_t frame_index, TentativeMapStats &stats) {
+    const size_t max_age_frames =
+        static_cast<size_t>(std::max(1, config_.tentative_max_age_frames));
+    for (auto it = tentative_map_.begin(); it != tentative_map_.end();) {
+        const size_t age =
+            frame_index > it->second.last_seen_frame
+                ? frame_index - it->second.last_seen_frame
+                : 0;
+        if (age > max_age_frames) {
+            it = tentative_map_.erase(it);
+            ++stats.tentative_expired_points;
+        } else {
+            ++it;
+        }
+    }
+}
+
+VoxelHashMap::Voxel GenZICP::TentativeVoxelForPoint(const Eigen::Vector3d &point) const {
+    const double voxel_size = std::max(1e-6, config_.tentative_voxel_size);
+    return VoxelHashMap::Voxel(
+        static_cast<int>(std::floor(point.x() / voxel_size)),
+        static_cast<int>(std::floor(point.y() / voxel_size)),
+        static_cast<int>(std::floor(point.z() / voxel_size)));
+}
+
+GenZICP::TentativeGatingMode GenZICP::TentativeModeForYaw(double delta_yaw_deg) const {
+    const double normal_limit =
+        std::max(0.0, config_.dynamic_enable_max_delta_yaw_deg);
+    const double relaxed_limit =
+        std::max(normal_limit, config_.dynamic_relax_max_delta_yaw_deg);
+    const double abs_yaw = std::abs(delta_yaw_deg);
+    if (abs_yaw <= normal_limit) {
+        return TentativeGatingMode::Normal;
+    }
+    if (abs_yaw <= relaxed_limit) {
+        return TentativeGatingMode::Relaxed;
+    }
+    return TentativeGatingMode::Frozen;
+}
+
+const char *GenZICP::TentativeModeName(TentativeGatingMode mode) const {
+    switch (mode) {
+        case TentativeGatingMode::Normal:
+            return "normal";
+        case TentativeGatingMode::Relaxed:
+            return "relaxed";
+        case TentativeGatingMode::Frozen:
+            return "frozen";
+    }
+    return "normal";
+}
+
+void GenZICP::LogTentativeMapStats(const TentativeMapStats &stats) const {
+    std::cout << "Tentative map: current_frame_points=" << stats.current_frame_points
+              << ", stable_supported_points=" << stats.stable_supported_points
+              << ", tentative_updated_points=" << stats.tentative_updated_points
+              << ", tentative_promoted_points=" << stats.tentative_promoted_points
+              << ", tentative_expired_points=" << stats.tentative_expired_points
+              << ", stable_map_insertions=" << stats.stable_map_insertions
+              << ", delta_yaw_deg=" << FormatDouble(stats.delta_yaw_deg)
+              << ", gating_mode=" << TentativeModeName(stats.gating_mode)
+              << ", tentative_voxels=" << tentative_map_.size()
               << "\n";
 }
 

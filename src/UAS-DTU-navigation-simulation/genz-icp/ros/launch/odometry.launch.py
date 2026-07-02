@@ -148,7 +148,54 @@ def _launch_setup(context, *args, **kwargs):
         ),
         "map_update_min_correspondences": LaunchConfiguration("map_update_min_correspondences"),
         "map_update_debug": LaunchConfiguration("map_update_debug"),
+        "enable_robust_icp_outlier_handling": LaunchConfiguration(
+            "enable_robust_icp_outlier_handling"
+        ),
+        "robust_max_correspondence_distance": LaunchConfiguration(
+            "robust_max_correspondence_distance"
+        ),
+        "robust_residual_threshold": LaunchConfiguration("robust_residual_threshold"),
+        "robust_loss_type": LaunchConfiguration("robust_loss_type"),
+        "trimmed_icp_enabled": LaunchConfiguration("trimmed_icp_enabled"),
+        "trimmed_icp_keep_ratio": LaunchConfiguration("trimmed_icp_keep_ratio"),
+        "robust_min_correspondences": LaunchConfiguration("robust_min_correspondences"),
+        "robust_icp_debug": LaunchConfiguration("robust_icp_debug"),
+        "enable_tentative_map_gating": LaunchConfiguration("enable_tentative_map_gating"),
+        "tentative_voxel_size": LaunchConfiguration("tentative_voxel_size"),
+        "tentative_required_observations": LaunchConfiguration(
+            "tentative_required_observations"
+        ),
+        "tentative_max_age_frames": LaunchConfiguration("tentative_max_age_frames"),
+        "tentative_stable_support_radius": LaunchConfiguration(
+            "tentative_stable_support_radius"
+        ),
+        "use_tentative_points_for_icp": LaunchConfiguration("use_tentative_points_for_icp"),
+        "insert_new_points_as_tentative": LaunchConfiguration("insert_new_points_as_tentative"),
+        "promote_tentative_only_when_motion_is_calm": LaunchConfiguration(
+            "promote_tentative_only_when_motion_is_calm"
+        ),
+        "dynamic_enable_max_delta_yaw_deg": LaunchConfiguration(
+            "dynamic_enable_max_delta_yaw_deg"
+        ),
+        "dynamic_relax_max_delta_yaw_deg": LaunchConfiguration(
+            "dynamic_relax_max_delta_yaw_deg"
+        ),
+        "map_update_allow_new_points_when_map_is_small": LaunchConfiguration(
+            "map_update_allow_new_points_when_map_is_small"
+        ),
+        "map_update_min_stable_map_points": LaunchConfiguration(
+            "map_update_min_stable_map_points"
+        ),
+        "tentative_map_debug": LaunchConfiguration("tentative_map_debug"),
         "publish_odom_tf": LaunchConfiguration("publish_odom_tf"),
+        "publish_twist": LaunchConfiguration("publish_twist"),
+        "twist_in_child_frame": LaunchConfiguration("twist_in_child_frame"),
+        "twist_smoothing_alpha": LaunchConfiguration("twist_smoothing_alpha"),
+        "twist_min_dt": LaunchConfiguration("twist_min_dt"),
+        "twist_max_dt": LaunchConfiguration("twist_max_dt"),
+        "twist_debug": LaunchConfiguration("twist_debug"),
+        "twist_linear_covariance": LaunchConfiguration("twist_linear_covariance"),
+        "twist_angular_covariance": LaunchConfiguration("twist_angular_covariance"),
         "visualize": LaunchConfiguration("visualize"),
         "terminal_status": LaunchConfiguration("terminal_status"),
         "config_file": LaunchConfiguration("config_file"),
@@ -188,6 +235,14 @@ def generate_launch_description():
             DeclareLaunchArgument("odom_frame", default_value="odom"),
             DeclareLaunchArgument("base_frame", default_value=""),
             DeclareLaunchArgument("publish_odom_tf", default_value="true"),
+            DeclareLaunchArgument("publish_twist", default_value="true"),
+            DeclareLaunchArgument("twist_in_child_frame", default_value="true"),
+            DeclareLaunchArgument("twist_smoothing_alpha", default_value="1.0"),
+            DeclareLaunchArgument("twist_min_dt", default_value="0.001"),
+            DeclareLaunchArgument("twist_max_dt", default_value="1.0"),
+            DeclareLaunchArgument("twist_debug", default_value="false"),
+            DeclareLaunchArgument("twist_linear_covariance", default_value="0.25"),
+            DeclareLaunchArgument("twist_angular_covariance", default_value="0.25"),
             DeclareLaunchArgument("use_sim_time", default_value="false"),
             # GenZ-ICP parameters
             DeclareLaunchArgument("deskew", default_value="false"),
@@ -253,6 +308,33 @@ def generate_launch_description():
             DeclareLaunchArgument("map_update_max_rotation_delta_deg", default_value="10.0"),
             DeclareLaunchArgument("map_update_min_correspondences", default_value="2500"),
             DeclareLaunchArgument("map_update_debug", default_value="true"),
+            DeclareLaunchArgument("enable_robust_icp_outlier_handling", default_value="false"),
+            DeclareLaunchArgument("robust_max_correspondence_distance", default_value="1.0"),
+            DeclareLaunchArgument("robust_residual_threshold", default_value="0.35"),
+            DeclareLaunchArgument("robust_loss_type", default_value="cauchy"),
+            DeclareLaunchArgument("trimmed_icp_enabled", default_value="false"),
+            DeclareLaunchArgument("trimmed_icp_keep_ratio", default_value="0.80"),
+            DeclareLaunchArgument("robust_min_correspondences", default_value="500"),
+            DeclareLaunchArgument("robust_icp_debug", default_value="false"),
+            DeclareLaunchArgument("enable_tentative_map_gating", default_value="false"),
+            DeclareLaunchArgument("tentative_voxel_size", default_value="0.35"),
+            DeclareLaunchArgument("tentative_required_observations", default_value="3"),
+            DeclareLaunchArgument("tentative_max_age_frames", default_value="8"),
+            DeclareLaunchArgument("tentative_stable_support_radius", default_value="0.45"),
+            DeclareLaunchArgument("use_tentative_points_for_icp", default_value="false"),
+            DeclareLaunchArgument("insert_new_points_as_tentative", default_value="true"),
+            DeclareLaunchArgument(
+                "promote_tentative_only_when_motion_is_calm",
+                default_value="true",
+            ),
+            DeclareLaunchArgument("dynamic_enable_max_delta_yaw_deg", default_value="8.0"),
+            DeclareLaunchArgument("dynamic_relax_max_delta_yaw_deg", default_value="18.0"),
+            DeclareLaunchArgument(
+                "map_update_allow_new_points_when_map_is_small",
+                default_value="true",
+            ),
+            DeclareLaunchArgument("map_update_min_stable_map_points", default_value="1500"),
+            DeclareLaunchArgument("tentative_map_debug", default_value="false"),
             DeclareLaunchArgument("config_file", default_value=""),
             OpaqueFunction(function=_launch_setup),
             Node(

@@ -28,6 +28,7 @@
 #include <Eigen/Core>
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstdint>
 #include <limits>
 #include <tuple>
@@ -213,6 +214,46 @@ std::vector<Eigen::Vector3d> VoxelHashMap::Pointcloud() const {
         }
     }
     return points;
+}
+
+size_t VoxelHashMap::PointCount() const {
+    size_t count = 0;
+    for (const auto &[voxel, voxel_block] : map_) {
+        (void)voxel;
+        count += voxel_block.points.size();
+    }
+    return count;
+}
+
+bool VoxelHashMap::HasNeighborWithin(const Eigen::Vector3d &query, double radius) const {
+    if (map_.empty() || !query.allFinite() || !std::isfinite(radius) || radius < 0.0 ||
+        !std::isfinite(voxel_size_) || voxel_size_ <= 0.0) {
+        return false;
+    }
+
+    const double radius_squared = radius * radius;
+    const int search_radius_voxels =
+        std::max(1, static_cast<int>(std::ceil(radius / voxel_size_)));
+    const auto kx = static_cast<int>(query.x() / voxel_size_);
+    const auto ky = static_cast<int>(query.y() / voxel_size_);
+    const auto kz = static_cast<int>(query.z() / voxel_size_);
+
+    for (int dx = -search_radius_voxels; dx <= search_radius_voxels; ++dx) {
+        for (int dy = -search_radius_voxels; dy <= search_radius_voxels; ++dy) {
+            for (int dz = -search_radius_voxels; dz <= search_radius_voxels; ++dz) {
+                const Voxel voxel(kx + dx, ky + dy, kz + dz);
+                const auto search = map_.find(voxel);
+                if (search == map_.end()) continue;
+
+                for (const auto &neighbor : search->second.points) {
+                    if ((neighbor - query).squaredNorm() <= radius_squared) {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    return false;
 }
 
 void VoxelHashMap::Update(const Vector3dVector &points, const Eigen::Vector3d &origin) {

@@ -290,6 +290,11 @@ public:
         max_imu_gap_seconds_ = declare_parameter<double>("max_imu_gap_seconds", 0.03);
         debug_print_ = declare_parameter<bool>("debug_print", false);
         invert_correction_ = declare_parameter<bool>("invert_correction", false);
+        enable_lidar_lever_arm_correction_ =
+            declare_parameter<bool>("enable_lidar_lever_arm_correction", false);
+        const auto lidar_lever_arm_param =
+            declare_parameter<std::vector<double>>("lidar_lever_arm",
+                                                   std::vector<double>{0.0, 0.0, 0.0});
         imu_angular_velocity_scale_ =
             declare_parameter<double>("imu_angular_velocity_scale", 1.0);
         enable_gyro_bias_calibration_ =
@@ -344,6 +349,17 @@ public:
         max_pending_cloud_wait_seconds_ = std::max(0.0, max_pending_cloud_wait_seconds_);
         max_pending_clouds_ = std::max(1, max_pending_clouds_);
 
+        if (lidar_lever_arm_param.size() == 3 && AllFinite(lidar_lever_arm_param)) {
+            lidar_lever_arm_ = Eigen::Vector3d(lidar_lever_arm_param[0],
+                                               lidar_lever_arm_param[1],
+                                               lidar_lever_arm_param[2]);
+        } else {
+            RCLCPP_WARN(get_logger(),
+                        "Invalid lidar_lever_arm parameter: expected exactly 3 finite values; "
+                        "using [0.0, 0.0, 0.0]");
+            lidar_lever_arm_ = Eigen::Vector3d::Zero();
+        }
+
         if (!gyro_bias_override.empty()) {
             if (gyro_bias_override.size() == 3 && AllFinite(gyro_bias_override)) {
                 gyro_bias_ = Eigen::Vector3d(gyro_bias_override[0],
@@ -386,6 +402,10 @@ public:
                     enable_gyro_bias_calibration_ && !gyro_bias_manual_override_
                         ? "enabled"
                         : "disabled");
+        RCLCPP_INFO(get_logger(),
+                    "Lidar lever-arm correction=%s, lidar_lever_arm=%s m",
+                    enable_lidar_lever_arm_correction_ ? "enabled" : "disabled",
+                    FormatVector(lidar_lever_arm_).c_str());
     }
 
 private:
@@ -943,7 +963,13 @@ private:
                 point_to_reference = point_to_reference.inverse();
             }
 
-            const Eigen::Vector3d corrected_point = point_to_reference * raw_point;
+            Eigen::Vector3d corrected_point;
+            if (enable_lidar_lever_arm_correction_) {
+                corrected_point =
+                    point_to_reference * (raw_point + lidar_lever_arm_) - lidar_lever_arm_;
+            } else {
+                corrected_point = point_to_reference * raw_point;
+            }
             *out_x = static_cast<float>(corrected_point.x());
             *out_y = static_cast<float>(corrected_point.y());
             *out_z = static_cast<float>(corrected_point.z());
@@ -975,6 +1001,8 @@ private:
     double max_imu_gap_seconds_{0.03};
     bool debug_print_{false};
     bool invert_correction_{false};
+    bool enable_lidar_lever_arm_correction_{false};
+    Eigen::Vector3d lidar_lever_arm_{Eigen::Vector3d::Zero()};
     double imu_angular_velocity_scale_{1.0};
     bool enable_gyro_bias_calibration_{false};
     double gyro_bias_calibration_seconds_{2.0};

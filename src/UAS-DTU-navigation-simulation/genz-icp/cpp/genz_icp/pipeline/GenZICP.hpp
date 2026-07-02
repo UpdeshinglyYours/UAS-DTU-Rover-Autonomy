@@ -99,6 +99,31 @@ struct GenZConfig {
     double map_update_max_rotation_delta_deg = 10.0;
     int map_update_min_correspondences = 2500;
     bool map_update_debug = true;
+
+    // Optional robust correspondence handling inside ICP
+    bool enable_robust_icp_outlier_handling = false;
+    double robust_max_correspondence_distance = 1.0;
+    double robust_residual_threshold = 0.35;
+    std::string robust_loss_type = "cauchy";
+    bool trimmed_icp_enabled = false;
+    double trimmed_icp_keep_ratio = 0.80;
+    int robust_min_correspondences = 500;
+    bool robust_icp_debug = false;
+
+    // Optional tentative/stable map update gating for dynamic obstacle robustness
+    bool enable_tentative_map_gating = false;
+    double tentative_voxel_size = 0.35;
+    int tentative_required_observations = 3;
+    int tentative_max_age_frames = 8;
+    double tentative_stable_support_radius = 0.45;
+    bool use_tentative_points_for_icp = false;
+    bool insert_new_points_as_tentative = true;
+    bool promote_tentative_only_when_motion_is_calm = true;
+    double dynamic_enable_max_delta_yaw_deg = 8.0;
+    double dynamic_relax_max_delta_yaw_deg = 18.0;
+    bool map_update_allow_new_points_when_map_is_small = true;
+    int map_update_min_stable_map_points = 1500;
+    bool tentative_map_debug = false;
 };
 
 class GenZICP {
@@ -143,6 +168,26 @@ public:
     size_t ConsecutiveRegistrationRejections() const { return consecutive_registration_rejections_; }
 
 private:
+    enum class TentativeGatingMode { Normal, Relaxed, Frozen };
+
+    struct TentativeVoxel {
+        Eigen::Vector3d centroid = Eigen::Vector3d::Zero();
+        int observation_count = 0;
+        size_t last_seen_frame = 0;
+        size_t first_seen_frame = 0;
+    };
+
+    struct TentativeMapStats {
+        size_t current_frame_points = 0;
+        size_t stable_supported_points = 0;
+        size_t tentative_updated_points = 0;
+        size_t tentative_promoted_points = 0;
+        size_t tentative_expired_points = 0;
+        size_t stable_map_insertions = 0;
+        double delta_yaw_deg = 0.0;
+        TentativeGatingMode gating_mode = TentativeGatingMode::Normal;
+    };
+
     void PushPose(const Sophus::SE3d &pose);
     bool IsRegistrationAcceptable(const genz_icp::RegistrationQuality &quality,
                                   std::string &reason) const;
@@ -157,6 +202,21 @@ private:
                               const genz_icp::RegistrationQuality &quality,
                               const std::string &reason,
                               bool force = false) const;
+    RegistrationRobustICPConfig BuildRobustICPConfig() const;
+    VoxelHashMap BuildRegistrationMap() const;
+    Vector3dVector TentativePointcloud() const;
+    void UpdateMapWithTentativeGating(const std::vector<Eigen::Vector3d> &frame_downsample,
+                                      const Sophus::SE3d &pose,
+                                      double delta_yaw_deg);
+    void UpdateTentativeVoxel(const Eigen::Vector3d &point,
+                              size_t frame_index,
+                              std::vector<Eigen::Vector3d> &promoted_points,
+                              TentativeMapStats &stats);
+    void ExpireTentativeVoxels(size_t frame_index, TentativeMapStats &stats);
+    VoxelHashMap::Voxel TentativeVoxelForPoint(const Eigen::Vector3d &point) const;
+    TentativeGatingMode TentativeModeForYaw(double delta_yaw_deg) const;
+    const char *TentativeModeName(TentativeGatingMode mode) const;
+    void LogTentativeMapStats(const TentativeMapStats &stats) const;
 
     // GenZ-ICP pipeline modules
     std::deque<Sophus::SE3d> poses_;
@@ -180,6 +240,8 @@ private:
     double adaptive_voxel_size_;
     Registration registration_;
     VoxelHashMap local_map_;
+    tsl::robin_map<VoxelHashMap::Voxel, TentativeVoxel, VoxelHashMap::VoxelHash> tentative_map_;
+    size_t frame_index_ = 0;
     AdaptiveThreshold adaptive_threshold_;
 };
 

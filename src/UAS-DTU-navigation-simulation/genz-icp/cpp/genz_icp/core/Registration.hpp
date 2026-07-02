@@ -61,6 +61,17 @@ struct RegistrationMotionPriorConfig {
     double weight = 1.0;
     bool debug = false;
 };
+
+struct RegistrationRobustICPConfig {
+    bool enabled = false;
+    double max_correspondence_distance = 1.0;
+    double residual_threshold = 0.35;
+    std::string loss_type = "cauchy";
+    bool trimmed_icp_enabled = false;
+    double trimmed_icp_keep_ratio = 0.80;
+    int min_correspondences = 500;
+    bool debug = false;
+};
     
 struct Registration {
     explicit Registration(int max_num_iteration, double convergence_criterion);
@@ -71,7 +82,8 @@ struct Registration {
                                                 const Sophus::SE3d &initial_guess,
                                                 double max_correspondence_distance,
                                                 double kernel,
-                                                const std::optional<RegistrationMotionPriorConfig> &motion_prior = std::nullopt);
+                                                const std::optional<RegistrationMotionPriorConfig> &motion_prior = std::nullopt,
+                                                const std::optional<RegistrationRobustICPConfig> &robust_icp = std::nullopt);
 
     std::tuple<Sophus::SE3d, std::vector<Eigen::Vector3d>, std::vector<Eigen::Vector3d>, Eigen::Matrix<double, 6, 6>> RegisterFrame(const std::vector<Eigen::Vector3d> &frame,
                                                                                                        const VoxelHashMap &voxel_map,

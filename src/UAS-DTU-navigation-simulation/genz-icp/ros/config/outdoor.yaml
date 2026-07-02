@@ -22,12 +22,12 @@ max_registration_rotation_per_frame_deg: 45.0
 max_consecutive_registration_rejections: 5
 absolute_registration_rmse_limit: 1.0
 enable_imu_motion_prediction: false
-imu_topic: /bf_lidar/imu_out
+imu_topic: /mavros/imu/data
 imu_prediction_point_time_field: auto
 imu_prediction_point_time_unit: nanoseconds
 imu_prediction_cloud_stamp_location: end
-imu_prediction_deskew_reference: middle
-imu_angular_velocity_scale: 0.017453292519943295
+imu_prediction_deskew_reference: end
+imu_angular_velocity_scale: 1.0
 enable_imu_prediction_gyro_bias_calibration: true
 imu_prediction_gyro_bias_calibration_seconds: 2.0
 imu_prediction_gyro_bias_min_samples: 50

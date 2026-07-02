@@ -76,6 +76,7 @@ elseif("$ENV{ROS_VERSION}" STREQUAL "2")
   find_package(rclcpp_components REQUIRED)
   find_package(rcpputils REQUIRED)
   find_package(sensor_msgs REQUIRED)
+  find_package(tf2 REQUIRED)
   find_package(tf2_ros REQUIRED)
   find_package(yaml-cpp REQUIRED)
 
@@ -102,7 +103,18 @@ elseif("$ENV{ROS_VERSION}" STREQUAL "2")
   target_link_libraries(imu_rotation_deskew_node genz_icp::core)
   ament_target_dependencies(imu_rotation_deskew_node rclcpp sensor_msgs)
 
-  install(TARGETS odometry_component imu_rotation_deskew_node
+  add_executable(dynamic_pointcloud_filter_node ros2/dynamic_pointcloud_filter_node.cpp)
+  target_compile_features(dynamic_pointcloud_filter_node PUBLIC cxx_std_20)
+  target_link_libraries(dynamic_pointcloud_filter_node genz_icp::core)
+  ament_target_dependencies(
+    dynamic_pointcloud_filter_node
+    rclcpp
+    sensor_msgs
+    geometry_msgs
+    tf2
+    tf2_ros)
+
+  install(TARGETS odometry_component imu_rotation_deskew_node dynamic_pointcloud_filter_node
     LIBRARY DESTINATION lib
     RUNTIME DESTINATION lib/${PROJECT_NAME})
   install(DIRECTORY launch rviz config DESTINATION share/${PROJECT_NAME}/)

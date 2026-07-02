@@ -1,6 +1,14 @@
 publish_odom_tf: true  
 odom_frame: odom
 base_frame: base_link
+publish_twist: true
+twist_in_child_frame: true
+twist_smoothing_alpha: 1.0
+twist_min_dt: 0.001
+twist_max_dt: 1.0
+twist_debug: false
+twist_linear_covariance: 0.25
+twist_angular_covariance: 0.25
 max_range: 60.0  
 min_range: 1.0
 voxel_size: 0.55   
