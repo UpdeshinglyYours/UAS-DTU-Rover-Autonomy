@@ -1,3 +1,5 @@
+from glob import glob
+
 from setuptools import find_packages, setup
 
 package_name = 'lirovo'
@@ -14,11 +16,13 @@ setup(
         ('share/' + package_name + '/config', ['config/slam_params.yaml']),
         ('share/' + package_name + '/config', ['config/localization.yaml']),
         ('share/' + package_name + '/launch', ['launch/lirovo.launch.py']),
+        ('share/' + package_name + '/launch',
+        glob('launch/*.launch.py')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
-    maintainer='abhimanyu',
-    maintainer_email='abhimanyu@todo.todo',
+    maintainer='UASDTU',
+    maintainer_email='UASDTUtodo.todo',
     description='TODO: Package description',
     license='TODO: License declaration',
     tests_require=['pytest'],
@@ -28,6 +32,9 @@ setup(
             'pointcloud_processor = lirovo.pointcloud_processor:main',
             'navigator = lirovo.navigator:main',
             'converter = lirovo.converter:main',
+            'stack_watchdog = lirovo.stack_watchdog:main',
+            'startup_report = lirovo.startup_report:main',
+
         ],
     },
 )

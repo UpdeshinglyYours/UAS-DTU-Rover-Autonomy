@@ -1,318 +1,179 @@
-# New BCR Robot
+# UAS-DTU Rover Autonomy Stack (ROS2 Humble)
 
-https://github.com/blackcoffeerobotics/bcr_bot/assets/13151010/0fc570a3-c70c-415b-8222-b9573d5911c8
+## Overview
 
-## About
+This repository contains the simulation and autonomy stack used by the **UAS-DTU Rover Team**.
 
-This repository contains a Gazebo and Isaac Sim simulation for a differential drive robot, equipped with an IMU, a depth camera, stereo camera and a 2D LiDAR. The primary contriution of this project is to support multiple ROS and Gazebo distros. Currently, the project supports the following versions - 
+The system is built on top of the **BCR Bot** framework but has been extensively modified to match the hardware configuration and software architecture of the UAS-DTU rover.
 
-1. [ROS Noetic + Gazebo Classic 11 (branch ros1)](#noetic--classic-ubuntu-2004)
-2. [ROS2 Humble + Gazebo Classic 11 (branch ros2)](#humble--classic-ubuntu-2204)
-3. [ROS2 Humble + Gazebo Fortress (branch ros2)](#humble--fortress-ubuntu-2204)
-4. [ROS2 Humble + Gazebo Harmonic (branch ros2)](#humble--harmonic-ubuntu-2204)
-5. [ROS2 Humble + Isaac Sim (branch ros2)](#humble--isaac-sim-ubuntu-2204)
+### Key Differences from BCR Bot
 
-Each of the following sections describes depedencies, build and run instructions for each of the above combinations
+| BCR Bot | UAS-DTU Rover |
+|----------|-------------|
+| 2D LiDAR | 3D LiDAR |
+| Generic simulation robot | Hardware-matched rover model |
+| Default sensor frequencies | Sensor frequencies tuned to match real hardware |
+| Generic Nav2 configuration | Hardware-tested Nav2 parameters |
+| Basic simulation | Full SLAM + Navigation pipeline |
 
-## Noetic + Classic (Ubuntu 20.04)
+### Customizations
 
-### Dependencies
+- ROS2 Humble based stack
+- 3D LiDAR integration
+- PointCloud → LaserScan conversion pipeline
+- Hardware-matched Nav2 parameters
+- Hardware-matched sensor update rates
+- SLAM Toolbox integration
+- Nav2 autonomous navigation
+- Gazebo simulation environment for testing and validation
 
-In addition to ROS1 Noetic and Gazebo Classic installations, the dependencies can be installed with [rosdep](http://wiki.ros.org/rosdep)
+> Sensor update rates and Nav2 parameters have been intentionally configured to resemble the real rover hardware. As a result, motion in simulation may appear slightly jittery compared to idealized simulations. This behavior is expected and helps achieve more realistic testing conditions.
 
-```bash
-# From the root directory of the workspace. This will install everything mentioned in package.xml
-rosdep install --from-paths src --ignore-src -r -y
+---
+
+# System Architecture
+
+```text
+3D LiDAR
+    ↓
+PointCloud2
+    ↓
+pointcloud_to_laserscan
+    ↓
+LaserScan
+    ↓
+SLAM Toolbox
+    ↓
+Map Generation
+    ↓
+Nav2
+    ↓
+Autonomous Navigation
 ```
 
-### Source Build
+---
 
-```bash
-catkin build --packages-select bcr_bot
-```
+# Launching the Simulation
 
-### Binary Install
-To install BCR bot in the binaries:
+Start the Gazebo simulation:
 
-```bash
-sudo apt-get install ros-noetic-bcr-bot
-```
-### Run
-
-To launch the robot in Gazebo,
-```bash
-roslaunch bcr_bot gazebo.launch
-```
-To view in rviz,
-```bash
-roslaunch bcr_bot rviz.launch
-```
-### Configuration
-
-The launch file accepts multiple launch arguments,
-```bash
-roslaunch bcr_bot gazebo.launch 
-	camera_enabled:=True \
-	two_d_lidar_enabled:=True \
-	position_x:=0.0 \
-	position_y:=0.0 \
-	orientation_yaw:=0.0 \
-	odometry_source:=world \
-	world_file:=small_warehouse.world \
-	robot_namespace:="bcr_bot"
-```
-**Note:** To use stereo_image_proc with the stereo images excute following command: 
-```bash
-ROS_NAMESPACE=bcr_bot/stereo_camera rosrun stereo_image_proc stereo_image_proc
-```
-
-## Humble + Classic (Ubuntu 22.04)
-
-### Dependencies
-
-In addition to ROS2 Humble and Gazebo Classic installations, we need to manually install [gazebo_ros_pkgs](https://github.com/ros-simulation/gazebo_ros_pkgs/tree/ros2) (since the same branch supports Classic and Fortress)
-
-```bash
-sudo apt-get install ros-humble-gazebo-ros-pkgs
-```
-Remainder of the dependencies can be installed with [rosdep](http://wiki.ros.org/rosdep)
-
-```bash
-# From the root directory of the workspace. This will install everything mentioned in package.xml
-rosdep install --from-paths src --ignore-src -r -y
-```
-
-### Source Build
-
-```bash
-colcon build --packages-select bcr_bot
-```
-
-### Binary Install
-To install BCR bot in the binaries:
-
-```bash
-sudo apt-get install ros-humble-bcr-bot
-```
-
-### Run
-
-To launch the robot in Gazebo,
 ```bash
 ros2 launch bcr_bot gazebo.launch.py
 ```
-To view in rviz,
-```bash
-ros2 launch bcr_bot rviz.launch.py
-```
-### Configuration
 
-The launch file accepts multiple launch arguments,
-```bash
-ros2 launch bcr_bot gazebo.launch.py \
-	camera_enabled:=True \
-	two_d_lidar_enabled:=True \
-	stereo_camera_enabled:=False \
-	position_x:=0.0 \
-	position_y:=0.0 \
-	orientation_yaw:=0.0 \
-	odometry_source:=world \
-	world_file:=small_warehouse.sdf \
-	robot_namespace:="bcr_bot"
-```
-**Note:** To use stereo_image_proc with the stereo images excute following command: 
-```bash
-ros2 launch stereo_image_proc stereo_image_proc.launch.py left_namespace:=bcr_bot/stereo_camera/left right_namespace:=bcr_bot/stereo_camera/right
-```
-## Humble + Fortress (Ubuntu 22.04)
+---
 
-### Dependencies
+# Mapping (SLAM)
 
-In addition to ROS2 Humble and [Gazebo Fortress installations](https://gazebosim.org/docs/fortress/install_ubuntu), we need to manually install interfaces between ROS2 and Gazebo sim as follows,
+Launch SLAM Toolbox:
 
-```bash
-sudo apt-get install ros-humble-ros-gz-sim ros-humble-ros-gz-bridge ros-humble-ros-gz-interfaces 
-```
-Remainder of the dependencies can be installed with [rosdep](http://wiki.ros.org/rosdep)
-
-```bash
-# From the root directory of the workspace. This will install everything mentioned in package.xml
-rosdep install --from-paths src --ignore-src -r -y
-```
-
-### Source Build
-
-```bash
-colcon build --packages-select bcr_bot
-```
-
-### Binary Install
-To install BCR bot in the binaries:
-
-```bash
-sudo apt-get install ros-humble-bcr-bot
-```
-
-### Run
-
-To launch the robot in Gazebo,
-```bash
-ros2 launch bcr_bot ign.launch.py
-```
-To view in rviz,
-```bash
-ros2 launch bcr_bot rviz.launch.py
-```
-
-### Configuration
-
-The launch file accepts multiple launch arguments,
-```bash
-ros2 launch bcr_bot ign.launch.py \
-	camera_enabled:=True \
-	stereo_camera_enabled:=False \
-	two_d_lidar_enabled:=True \
-	position_x:=0.0 \
-	position_y:=0.0  \
-	orientation_yaw:=0.0 \
-	odometry_source:=world \
-	world_file:=small_warehouse.sdf
-```
-**Note:** To use stereo_image_proc with the stereo images excute following command: 
-```bash
-ros2 launch stereo_image_proc stereo_image_proc.launch.py left_namespace:=bcr_bot/stereo_camera/left right_namespace:=bcr_bot/stereo_camera/right
-```
-
-## Humble + Harmonic (Ubuntu 22.04)
-
-### Dependencies
-
-In addition to ROS2 Humble and [Gazebo Harmonic installations](https://gazebosim.org/docs/harmonic/install_ubuntu), we need to manually install interfaces between ROS2 and Gazebo sim as follows,
-
-```bash
-sudo apt-get install ros-humble-ros-gzharmonic
-```
-Remainder of the dependencies can be installed with [rosdep](http://wiki.ros.org/rosdep)
-
-```bash
-# From the root directory of the workspace. This will install everything mentioned in package.xml
-rosdep install --from-paths src --ignore-src -r -y
-```
-
-### Build
-
-```bash
-colcon build --packages-select bcr_bot
-```
-
-### Run
-
-To launch the robot in Gazebo,
-```bash
-ros2 launch bcr_bot gz.launch.py
-```
-To view in rviz,
-```bash
-ros2 launch bcr_bot rviz.launch.py
-```
-
-### Configuration
-
-The launch file accepts multiple launch arguments,
-```bash
-ros2 launch bcr_bot gz.launch.py \
-	camera_enabled:=True \
-	stereo_camera_enabled:=False \
-	two_d_lidar_enabled:=True \
-	position_x:=0.0 \
-	position_y:=0.0  \
-	orientation_yaw:=0.0 \
-	odometry_source:=world \
-	world_file:=small_warehouse.sdf
-```
-**Note:** 
-1. To use stereo_image_proc with the stereo images excute following command: 
-```bash
-ros2 launch stereo_image_proc stereo_image_proc.launch.py left_namespace:=bcr_bot/stereo_camera/left right_namespace:=bcr_bot/stereo_camera/right
-```
-2. Harmonic support is not available in the bcr_bot binaries yet.
-
-**Warning:**  `gz-harmonic` cannot be installed alongside gazebo-classic (eg. gazebo11) since both use the `gz` command line tool.
-
-### Humble + Isaac Sim (Ubuntu 22.04)
-
-### Dependencies
-
-In addition to ROS2 Humble [Isaac Sim installation](https://docs.omniverse.nvidia.com/isaacsim/latest/installation/index.html) with ROS2 extension is required. Remainder of bcr_bot specific dependencies can be installed with [rosdep](http://wiki.ros.org/rosdep)
-
-```bash
-# From the root directory of the workspace. This will install everything mentioned in package.xml
-rosdep install --from-paths src --ignore-src -r -y
-```
-
-### Build
-
-```bash
-colcon build --packages-select bcr_bot
-```
-
-### Run
-
-To launch the robot in Isaac Sim:
-- Open Isaac Sim and load the `warehouse_scene.usd` or `scene.usd` from [here](usd). 
-- Add in extra viewports for different camera views.
-- Start the Simulation: Run the simulation directly within Isaac Sim.
-- The following USDs are included in the package:
-	- `warehouse_scene.usd` - Warehouse scene with a robot.
-	- `scene.usd` - Scene with a robot in a empty world.
-	- `bcr_bot.usd` - Robot model that can be imported into any scene.
-	- `ActionGraphFull.usd` - Action graph for the robot to publish all the required topics.
-
-To view in rviz:
-```bash
-ros2 launch bcr_bot rviz.launch.py
-```
-NOTE: The command to run mapping and navigation is common between all versions of gazebo and Isaac sim see [here](#mapping-with-slam-toolbox).
-
-### Mapping with SLAM Toolbox
-
-SLAM Toolbox is an open-source package designed to map the environment using laser scans and odometry, generating a map for autonomous navigation.
-
-NOTE: The command to run mapping is common between all versions of gazebo.
-
-To start mapping:
 ```bash
 ros2 launch bcr_bot mapping.launch.py
 ```
 
-Use the teleop twist keyboard to control the robot and map the area:
-```bash
-ros2 run teleop_twist_keyboard teleop_twist_keyboard cmd_vel:=/bcr_bot/cmd_vel
-```
+---
 
-To save the map:
-```bash
-cd src/bcr_bot/config
-ros2 run nav2_map_server map_saver_cli -f bcr_map
-```
+# Navigation (Nav2)
 
-### Using Nav2 with bcr_bot
+Launch Nav2:
 
-Nav2 is an open-source navigation package that enables a robot to navigate through an environment easily. It takes laser scan and odometry data, along with the map of the environment, as inputs.
-
-NOTE: The command to run navigation is common between all versions of gazebo and Isaac sim.
-
-To run Nav2 on bcr_bot:
 ```bash
 ros2 launch bcr_bot nav2.launch.py
 ```
 
-### Simulation and Visualization
-1. Gz Sim (Ignition Gazebo) (small_warehouse World):
-	![](res/gz.jpg)
+---
 
-2. Isaac Sim:
-	![](res/isaac.jpg) 
+# PointCloud to LaserScan Conversion
 
-3. Rviz (Depth camera) (small_warehouse World):
-	![](res/rviz.jpg)
+The rover uses a 3D LiDAR. Since SLAM Toolbox and Nav2 primarily operate on LaserScan data, PointCloud2 data is converted into a virtual 2D scan using the following node:
+
+```bash
+ros2 run pointcloud_to_laserscan pointcloud_to_laserscan_node \
+--ros-args \
+-p target_frame:=base_footprint \
+-p transform_tolerance:=0.05 \
+-p min_height:=0.4 \
+-p max_height:=2.0 \
+-p angle_min:=-3.14159 \
+-p angle_max:=3.14159 \
+-p angle_increment:=0.00872665 \
+-p scan_time:=0.3 \
+-p range_min:=0.1 \
+-p range_max:=200.0 \
+-p use_inf:=true \
+-p inf_epsilon:=1.0 \
+-p queue_size:=50 \
+-p use_sim_time:=true \
+-p qos_overrides./bcr_bot/scan.publisher.reliability:=best_effort \
+-r cloud_in:=/points
+```
+
+---
+
+# Complete Startup Sequence
+
+## Terminal 1 – Gazebo
+
+```bash
+ros2 launch bcr_bot gazebo.launch.py
+```
+
+## Terminal 2 – PointCloud Conversion
+
+```bash
+ros2 run pointcloud_to_laserscan pointcloud_to_laserscan_node \
+--ros-args \
+-p target_frame:=base_footprint \
+-p transform_tolerance:=0.05 \
+-p min_height:=0.4 \
+-p max_height:=2.0 \
+-p angle_min:=-3.14159 \
+-p angle_max:=3.14159 \
+-p angle_increment:=0.00872665 \
+-p scan_time:=0.3 \
+-p range_min:=0.1 \
+-p range_max:=200.0 \
+-p use_inf:=true \
+-p inf_epsilon:=1.0 \
+-p queue_size:=50 \
+-p use_sim_time:=true \
+-p qos_overrides./bcr_bot/scan.publisher.reliability:=best_effort \
+-r cloud_in:=/points
+```
+
+## Terminal 3 – Mapping
+
+```bash
+ros2 launch bcr_bot mapping.launch.py
+```
+
+## Terminal 4 – Navigation
+
+```bash
+ros2 launch bcr_bot nav2.launch.py
+```
+
+---
+
+# Notes
+
+- This simulation is intended to closely resemble the real UAS-DTU rover hardware.
+- Navigation parameters are identical to those deployed on the physical rover.
+- Sensor update frequencies are reduced to realistic hardware rates rather than ideal simulation rates.
+- Slightly non-smooth or jittery motion in simulation is expected and reflects real-world operating conditions.
+- The stack is designed for testing SLAM, localization, path planning, and autonomous navigation before deployment on the physical rover.
+
+---
+
+# Technology Stack
+
+- ROS2 Humble
+- Gazebo Classic
+- Nav2
+- SLAM Toolbox
+- Robot Localization
+- PointCloud to LaserScan
+- RViz2
+- 3D LiDAR-based Perception
+
+This version clearly explains why this fork exists, what has been changed from the original BCR Bot project, and how the simulation environment closely matches the actual UAS-DTU rover hardware.

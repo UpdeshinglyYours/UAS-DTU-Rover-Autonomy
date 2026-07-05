@@ -36,19 +36,18 @@ def generate_launch_description():
 
     return LaunchDescription([
     
-        SetParameter(name='use_sim_time', value=False), #extra addition, meine kiya 
         
         Node(
             package='tf2_ros',
             executable='static_transform_publisher',
-            arguments=['0', '0', '0.5', '0', '0', '0', 'base_footprint', 'lidar'],
+            arguments=['0', '0', '0.5', '0', '0', '0', 'base_link', 'lidar'],
             parameters=[{'use_sim_time': False}], #False
             name='static_tf_lidar'
         ),
         Node(
             package='tf2_ros',
             executable='static_transform_publisher',
-            arguments=['0', '0', '0', '1.5708', '0', '0', 'base_footprint', 'base_link'],
+            arguments=['0', '0', '0', '1.5708', '0', '0', 'base_link', 'base_footprint'],
             parameters=[{'use_sim_time': False}], #False
             # name='static_tf_lidar' both same name??
             name = 'static_tf_basefootprint'
@@ -65,7 +64,7 @@ def generate_launch_description():
             executable='pointcloud_to_laserscan_node',
             name='pointcloud_to_laserscan',
             parameters=[{
-                'target_frame': 'base_footprint',
+                'target_frame': 'base_link',
                 'transform_tolerance': 0.05, #0.5,
                 'min_height': 0.2 , #-0.3,
                 'max_height': 1.0 , #1.0,
@@ -96,19 +95,19 @@ def generate_launch_description():
         #     executable='mavros_bridge',
         #     name='mavros_bridge',
         #     output='screen',
-        #     parameters=[{'use_sim_time':True}] #False
+        #     parameters=[{'use_sim_time':False}] #False
         # ),
         # THE MISSING ENGINE: Start GenZ-ICP to generate odometry from the bag
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(
-                os.path.join(get_package_share_directory('genz_icp'), 'launch', 'odometry.launch.py') # Make sure this filename is correct!
-            ),
-            launch_arguments={
-                # 'topic': '/bf_lidar/point_cloud_out', # <--- REPLACE WITH YOUR BAG'S PC2 TOPIC
-                # 'publish_odom_tf': 'False',            # Let EKF handle the TF
-                'use_sim_time': 'False'
-            }.items()
-        ),
+        # IncludeLaunchDescription(
+        #     PythonLaunchDescriptionSource(
+        #         os.path.join(get_package_share_directory('genz_icp'), 'launch', 'odometry.launch.py') # Make sure this filename is correct!
+        #     ),
+        #     launch_arguments={
+        #         # 'topic': '/bf_lidar/point_cloud_out', # <--- REPLACE WITH YOUR BAG'S PC2 TOPIC
+        #         'publish_odom_tf': 'false',            # Let EKF handle the TF
+        #         'use_sim_time': 'false'
+        #     }.items()
+        # ),
         #vins
         # IncludeLaunchDescription(
         # PythonLaunchDescriptionSource(
@@ -120,21 +119,22 @@ def generate_launch_description():
         # }.items()
         # ), 
         
-        # Node(
-        # package='robot_localization',
-        # executable='ekf_node',
-        # name='ekf_filter_node',
-        # output='screen',
-        # parameters=[os.path.join(
-        #     get_package_share_directory(namePackage),
-        #     'config', 'localization.yaml')],
-        # ),
+        Node(
+        package='robot_localization',
+        executable='ekf_node',
+        name='ekf_filter_node',
+        output='screen',
+        parameters=[os.path.join(
+            get_package_share_directory(namePackage),
+            'config', 'localization.yaml')],
+        ),
+        
         # Node(
         #     package='lirovo',
         #     executable='navigator',
         #     name='navigator',
         #     output='screen',
-        #     parameters=[{'use_sim_time':True}] #False
+        #     parameters=[{'use_sim_time':False}] #False
         # ),
         # Node(
         #     package='lirovo',
@@ -154,7 +154,10 @@ def generate_launch_description():
         #             parameters=[slam_params_path],
         #         ),
         #     ]
-        # ),        
+        # ),      
+        # 
+        SetParameter(name='use_sim_time', value=False), #extra addition, meine kiya 
+  
             TimerAction(
         period=1.0,
         actions=[

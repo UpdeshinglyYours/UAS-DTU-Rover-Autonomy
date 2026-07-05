@@ -2,7 +2,7 @@
 ekf_filter_node:
     ros__parameters:
 
-        use_sim_time: true
+        use_sim_time: false
 
         
 # The frequency, in Hz, at which the filter will output a position estimate. Note that the filter will not begin
@@ -43,7 +43,7 @@ ekf_filter_node:
         debug_out_file: /path/to/debug/file.txt
 
 # Whether to broadcast the transformation over the /tf topic. Defaults to true if unspecified.
-        publish_tf: false
+        publish_tf: true
 
 # Whether to publish the acceleration state. Defaults to false if unspecified.
         publish_acceleration: false
@@ -72,7 +72,7 @@ ekf_filter_node:
 #         estimation node from robot_localization! However, that instance should *not* fuse the global data.
         #map_frame: map                   # Defaults to "map" if unspecified
         odom_frame: odom                 # Defaults to "odom" if unspecified
-        base_link_frame: base_footprint # Defaults to "base_link" if unspecified
+        base_link_frame: base_link  # Defaults to "base_link" if unspecified
         world_frame: odom                # Defaults to the value of odom_frame if unspecified
 
 # The filter accepts an arbitrary number of inputs from each input message type (nav_msgs/Odometry,
@@ -89,11 +89,11 @@ ekf_filter_node:
 # do not provide some of the state variables estimated by the filter. For example, a TwistWithCovarianceStamped message
 # has no pose information, so the first six values would be meaningless in that case. Each vector defaults to all false
 # if unspecified, effectively making this parameter required for each sensor.
-        odom0_config: [true, true, false,
+        odom0_config: [true, true, true,
                        false, false, true,
-                       true,  true,  true,
+                       false,  false,  false,
                        false, false, true,
-                       false, false, true]
+                       false, false, false]
 
         #        [x_pos   , y_pos    , z_pos,
         #         roll    , pitch    , yaw,
@@ -118,7 +118,7 @@ ekf_filter_node:
 # data is converted to velocity data by differentiating the absolute pose measurements. These velocities are then
 # integrated as usual. NOTE: this only applies to sensors that provide pose measurements; setting differential to true
 # for twist measurements has no effect.
-        odom0_differential: true
+        odom0_differential: false
 
 # [ADVANCED] When the node starts, if this parameter is true, then the first measurement is treated as a "zero point"
 # for all future measurements. While you can achieve the same effect with the differential paremeter, the key
@@ -132,119 +132,67 @@ ekf_filter_node:
 # required. Data is specified at the level of pose and twist variables, rather than for each variable in isolation.
 # For messages that have both pose and twist data, the parameter specifies to which part of the message we are applying
 # the thresholds.
-        odom0_pose_rejection_threshold: 5.0
+        odom0_pose_rejection_threshold: 3.0
         odom0_twist_rejection_threshold: 1.0
 
-#         odom1: /mavros/global_position/local
+        odom1: /mavros/wheel_odometry/odom
 
-# # Each sensor reading updates some or all of the filter's state. These options give you greater control over which
-# # values from each measurement are fed to the filter. For example, if you have an odometry message as input, but only
-# # want to use its Z position value, then set the entire vector to false, except for the third entry. The order of the
-# # values is x, y, z, roll, pitch, yaw, vx, vy, vz, vroll, vpitch, vyaw, ax, ay, az. Note that not some message types
-# # do not provide some of the state variables estimated by the filter. For example, a TwistWithCovarianceStamped message
-# # has no pose information, so the first six values would be meaningless in that case. Each vector defaults to all false
-# # if unspecified, effectively making this parameter required for each sensor.
-#         odom1_config: [true, true, true,
-#                        false, false, false,
-#                        true,  true,  true,
-#                        false, false, true,
-#                        false, false, false]
+# Each sensor reading updates some or all of the filter's state. These options give you greater control over which
+# values from each measurement are fed to the filter. For example, if you have an odometry message as input, but only
+# want to use its Z position value, then set the entire vector to false, except for the third entry. The order of the
+# values is x, y, z, roll, pitch, yaw, vx, vy, vz, vroll, vpitch, vyaw, ax, ay, az. Note that not some message types
+# do not provide some of the state variables estimated by the filter. For example, a TwistWithCovarianceStamped message
+# has no pose information, so the first six values would be meaningless in that case. Each vector defaults to all false
+# if unspecified, effectively making this parameter required for each sensor.
+        odom1_config: [false, false, false,
+                       false, false, false,
+                       true,  true,  false,
+                       false, false, true,
+                       false, false, false]
 
-#         #        [x_pos   , y_pos    , z_pos,
-#         #         roll    , pitch    , yaw,
-#         #         x_vel   , y_vel    , z_vel,
-#         #         roll_vel, pitch_vel, yaw_vel,
-#         #         x_accel , y_accel  , z_accel]
+        #        [x_pos   , y_pos    , z_pos,
+        #         roll    , pitch    , yaw,
+        #         x_vel   , y_vel    , z_vel,
+        #         roll_vel, pitch_vel, yaw_vel,
+        #         x_accel , y_accel  , z_accel]
 
-# # If you have high-frequency data or are running with a low frequency parameter value, then you may want to increase
-# # the size of the subscription queue so that more measurements are fused.
-#         odom1_queue_size: 2
+# If you have high-frequency data or are running with a low frequency parameter value, then you may want to increase
+# the size of the subscription queue so that more measurements are fused.
+        odom1_queue_size: 4
 
-# # [ADVANCED] Large messages in ROS can exhibit strange behavior when they arrive at a high frequency. This is a result
-# # of Nagle's algorithm. This option tells the ROS subscriber to use the tcpNoDelay option, which disables Nagle's
-# # algorithm.
-#         odom1_nodelay: false
+# [ADVANCED] Large messages in ROS can exhibit strange behavior when they arrive at a high frequency. This is a result
+# of Nagle's algorithm. This option tells the ROS subscriber to use the tcpNoDelay option, which disables Nagle's
+# algorithm.
+        odom1_nodelay: false
 
-# # [ADVANCED] When measuring one pose variable with two sensors, a situation can arise in which both sensors under-
-# # report their covariances. This can lead to the filter rapidly jumping back and forth between each measurement as they
-# # arrive. In these cases, it often makes sense to (a) correct the measurement covariances, or (b) if velocity is also
-# # measured by one of the sensors, let one sensor measure pose, and the other velocity. However, doing (a) or (b) isn't
-# # always feasible, and so we expose the differential parameter. When differential mode is enabled, all absolute pose
-# # data is converted to velocity data by differentiating the absolute pose measurements. These velocities are then
-# # integrated as usual. NOTE: this only applies to sensors that provide pose measurements; setting differential to true
-# # for twist measurements has no effect.
-#         odom1_differential: false
+# [ADVANCED] When measuring one pose variable with two sensors, a situation can arise in which both sensors under-
+# report their covariances. This can lead to the filter rapidly jumping back and forth between each measurement as they
+# arrive. In these cases, it often makes sense to (a) correct the measurement covariances, or (b) if velocity is also
+# measured by one of the sensors, let one sensor measure pose, and the other velocity. However, doing (a) or (b) isn't
+# always feasible, and so we expose the differential parameter. When differential mode is enabled, all absolute pose
+# data is converted to velocity data by differentiating the absolute pose measurements. These velocities are then
+# integrated as usual. NOTE: this only applies to sensors that provide pose measurements; setting differential to true
+# for twist measurements has no effect.
+        odom1_differential: false
 
-# # [ADVANCED] When the node starts, if this parameter is true, then the first measurement is treated as a "zero point"
-# # for all future measurements. While you can achieve the same effect with the differential paremeter, the key
-# # difference is that the relative parameter doesn't cause the measurement to be converted to a velocity before
-# # integrating it. If you simply want your measurements to start at 0 for a given sensor, set this to true.
-#         odom1_relative: true
+# [ADVANCED] When the node starts, if this parameter is true, then the first measurement is treated as a "zero point"
+# for all future measurements. While you can achieve the same effect with the differential paremeter, the key
+# difference is that the relative parameter doesn't cause the measurement to be converted to a velocity before
+# integrating it. If you simply want your measurements to start at 0 for a given sensor, set this to true.
+        odom1_relative: false
 
-# # [ADVANCED] If your data is subject to outliers, use these threshold settings, expressed as Mahalanobis distances, to
-# # control how far away from the current vehicle state a sensor measurement is permitted to be. Each defaults to
-# # numeric_limits<double>::max() if unspecified. It is strongly recommended that these parameters be removed if not
-# # required. Data is specified at the level of pose and twist variables, rather than for each variable in isolation.
-# # For messages that have both pose and twist data, the parameter specifies to which part of the message we are applying
-# # the thresholds.
-#         odom1_pose_rejection_threshold: 5.0
-#         odom1_twist_rejection_threshold: 1.0
-
-        
-
-#         imu0: imu/data
-#         imu0_config: [false, false, false,
-#                       true,  true,  true,
-#                       false, false, false,
-#                       true,  true,  true,
-#                       true,  true,  true]
-
-#         #        [x_pos   , y_pos    , z_pos,
-#         #         roll    , pitch    , yaw,
-#         #         x_vel   , y_vel    , z_vel,
-#         #         roll_vel, pitch_vel, yaw_vel,
-#         #         x_accel , y_accel  , z_accel]
-        
-#         imu0_nodelay: false
-#         imu0_differential: false
-#         imu0_relative: true
-#         imu0_queue_size: 7
-#         imu0_pose_rejection_threshold: 0.8                 # Note the difference in parameter names
-#         imu0_twist_rejection_threshold: 0.8                #
-#         imu0_linear_acceleration_rejection_threshold: 0.8  #
-
-# # [ADVANCED] Some IMUs automatically remove acceleration due to gravity, and others don't. If yours doesn't, please set
-# # this to true, and *make sure* your data conforms to REP-103, specifically, that the data is in ENU frame.
-#         imu0_remove_gravitational_acceleration: true
+# [ADVANCED] If your data is subject to outliers, use these threshold settings, expressed as Mahalanobis distances, to
+# control how far away from the current vehicle state a sensor measurement is permitted to be. Each defaults to
+# numeric_limits<double>::max() if unspecified. It is strongly recommended that these parameters be removed if not
+# required. Data is specified at the level of pose and twist variables, rather than for each variable in isolation.
+# For messages that have both pose and twist data, the parameter specifies to which part of the message we are applying
+# the thresholds.
+        odom1_pose_rejection_threshold: 2.0
+        odom1_twist_rejection_threshold: 1.0
 
 
-#         imu1: camera/camera/imu
-#         imu1_config: [false, false, false,
-#                       true,  true,  true,
-#                       false, false, false,
-#                       true,  true,  true,
-#                       true,  true,  true]
-
-#         #        [x_pos   , y_pos    , z_pos,
-#         #         roll    , pitch    , yaw,
-#         #         x_vel   , y_vel    , z_vel,
-#         #         roll_vel, pitch_vel, yaw_vel,
-#         #         x_accel , y_accel  , z_accel]
-        
-#         imu1_nodelay: false
-#         imu1_differential: false
-#         imu1_relative: false
-#         imu1_queue_size: 7
-#         imu1_pose_rejection_threshold: 0.8                 # Note the difference in parameter names
-#         imu1_twist_rejection_threshold: 0.8                #
-#         imu1_linear_acceleration_rejection_threshold: 0.8  #
-
-# # [ADVANCED] Some IMUs automatically remove acceleration due to gravity, and others don't. If yours doesn't, please set
-# # this to true, and *make sure* your data conforms to REP-103, specifically, that the data is in ENU frame.
-#         imu1_remove_gravitational_acceleration: true
-
-
-        
+# [ADVANCED] Some IMUs automatically remove acceleration due to gravity, and others don't. If yours doesn't, please set
+# this to true, and *make sure* your data conforms to REP-103, specifically, that the data is in ENU frame.
 
 # [ADVANCED]  The EKF and UKF models follow a standard predict/correct cycle. During prediction, if there is no
 # acceleration reference, the velocity at time t+1 is simply predicted to be the same as the velocity at time t. During

@@ -25,8 +25,8 @@
             <command_topic>cmd_vel</command_topic>
             <odometry_topic>$(arg wheel_odom_topic)</odometry_topic>
             <odometry_frame>odom</odometry_frame>
-            <publish_odom_tf>$(arg publish_wheel_odom_tf)</publish_odom_tf>
-            <publish_wheel_tf>false</publish_wheel_tf>
+            <publish_odom_tf>true</publish_odom_tf>
+            <publish_wheel_tf>true</publish_wheel_tf>
             <publish_odom>true</publish_odom>
             <publish_rate>7.0</publish_rate>
             <max_wheel_acceleration>5.0</max_wheel_acceleration>

@@ -48,13 +48,13 @@ def generate_launch_description():
     )
 
     # Static transform publisher
-    static_transform_publisher_node = Node(
-        package='tf2_ros',
-        executable='static_transform_publisher',
-        name='map_to_odom',
-        output='screen',
-        arguments=['0', '0', '0', '0', '0', '0', 'map', 'odom']
-    )
+    # static_transform_publisher_node = Node(
+    #     package='tf2_ros',
+    #     executable='static_transform_publisher',
+    #     name='map_to_odom',
+    #     output='screen',
+    #     arguments=['0', '0', '0', '0', '0', '0', 'map', 'odom']
+    # )
 
     # Create launch description and add actions
     ld = LaunchDescription()
@@ -63,7 +63,7 @@ def generate_launch_description():
     ld.add_action(declare_autostart)
     ld.add_action(slam_toolbox_launch_cmd)
     ld.add_action(rviz_launch_cmd)
-    ld.add_action(static_transform_publisher_node)
+    # ld.add_action(static_transform_publisher_node)
 
     return ld
 

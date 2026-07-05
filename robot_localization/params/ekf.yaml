@@ -90,7 +90,7 @@ ekf_filter_node:
 # has no pose information, so the first six values would be meaningless in that case. Each vector defaults to all false
 # if unspecified, effectively making this parameter required for each sensor.
         odom0_config: [true, true, true,
-                       false, false, false,
+                       false, false, true,
                        true,  true,  true,
                        false, false, true,
                        false, false, false]
@@ -132,10 +132,10 @@ ekf_filter_node:
 # required. Data is specified at the level of pose and twist variables, rather than for each variable in isolation.
 # For messages that have both pose and twist data, the parameter specifies to which part of the message we are applying
 # the thresholds.
-        odom0_pose_rejection_threshold: 5.0
+        odom0_pose_rejection_threshold: 3.0
         odom0_twist_rejection_threshold: 1.0
 
-        odom1: /mavros/local_position/odom
+        odom1: /mavros/wheel_odometry/odom
 
 # Each sensor reading updates some or all of the filter's state. These options give you greater control over which
 # values from each measurement are fed to the filter. For example, if you have an odometry message as input, but only
@@ -144,9 +144,9 @@ ekf_filter_node:
 # do not provide some of the state variables estimated by the filter. For example, a TwistWithCovarianceStamped message
 # has no pose information, so the first six values would be meaningless in that case. Each vector defaults to all false
 # if unspecified, effectively making this parameter required for each sensor.
-        odom1_config: [true, true, true,
+        odom1_config: [false, false, false,
                        false, false, false,
-                       true,  true,  true,
+                       true,  true,  false,
                        false, false, true,
                        false, false, false]
 
@@ -158,7 +158,7 @@ ekf_filter_node:
 
 # If you have high-frequency data or are running with a low frequency parameter value, then you may want to increase
 # the size of the subscription queue so that more measurements are fused.
-        odom1_queue_size: 2
+        odom1_queue_size: 4
 
 # [ADVANCED] Large messages in ROS can exhibit strange behavior when they arrive at a high frequency. This is a result
 # of Nagle's algorithm. This option tells the ROS subscriber to use the tcpNoDelay option, which disables Nagle's
@@ -187,35 +187,12 @@ ekf_filter_node:
 # required. Data is specified at the level of pose and twist variables, rather than for each variable in isolation.
 # For messages that have both pose and twist data, the parameter specifies to which part of the message we are applying
 # the thresholds.
-        odom1_pose_rejection_threshold: 5.0
+        odom1_pose_rejection_threshold: 2.0
         odom1_twist_rejection_threshold: 1.0
 
-        
-
-        imu0: imu/data
-        imu0_config: [false, false, false,
-                      true,  true,  true,
-                      false, false, false,
-                      true,  true,  true,
-                      true,  true,  true]
-
-        #        [x_pos   , y_pos    , z_pos,
-        #         roll    , pitch    , yaw,
-        #         x_vel   , y_vel    , z_vel,
-        #         roll_vel, pitch_vel, yaw_vel,
-        #         x_accel , y_accel  , z_accel]
-        
-        imu0_nodelay: false
-        imu0_differential: false
-        imu0_relative: true
-        imu0_queue_size: 7
-        imu0_pose_rejection_threshold: 0.8                 # Note the difference in parameter names
-        imu0_twist_rejection_threshold: 0.8                #
-        imu0_linear_acceleration_rejection_threshold: 0.8  #
 
 # [ADVANCED] Some IMUs automatically remove acceleration due to gravity, and others don't. If yours doesn't, please set
 # this to true, and *make sure* your data conforms to REP-103, specifically, that the data is in ENU frame.
-        imu0_remove_gravitational_acceleration: true
 
 # [ADVANCED]  The EKF and UKF models follow a standard predict/correct cycle. During prediction, if there is no
 # acceleration reference, the velocity at time t+1 is simply predicted to be the same as the velocity at time t. During
@@ -290,4 +267,3 @@ ekf_filter_node:
                                       0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,     0.0,     0.0,     1e-9,   0.0,    0.0,
                                       0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,     0.0,     0.0,     0.0,    1e-9,   0.0,
                                       0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,     0.0,     0.0,     0.0,    0.0,    1e-9]
-

@@ -9,6 +9,8 @@
 
 #include "estimator.h"
 #include "../utility/visualization.h"
+#include <fstream>
+#include <iomanip>
 
 Estimator::Estimator(): f_manager{Rs}
 {
@@ -1002,7 +1004,16 @@ void Estimator::double2vector()
     f_manager.setDepth(dep);
 
     if(USE_IMU)
+    {
         td = para_Td[0][0];
+
+        static std::ofstream td_file("/tmp/vins_td.txt", std::ios::app);
+
+        td_file << std::fixed << std::setprecision(6)
+                << td << " "
+                << td * 1000.0
+                << std::endl;
+    }
 
 }
 
