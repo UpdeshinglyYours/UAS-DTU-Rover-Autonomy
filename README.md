@@ -100,15 +100,16 @@ mode GUIDED
 If operating without a GPS fix or when required by your localization pipeline, set the EKF origin.
 
 Example using MAVProxy:
-
-```text
-set origin <LATITUDE> <LONGITUDE> <ALTITUDE>
+module load message 
+```
+message COMMAND_INT 0 0 0 179 0 0 0 0 0 0 -353630000 1491650000 575
+message COMMAND_LONG 0 0 179 0 0 0 0 0 -35.363 149.165 575
+message SET_GPS_GLOBAL_ORIGIN 0 -353621474 1491651746 600000 0
 ```
 
 Example:
 
 ```text
-set origin 28.749000 77.117000 215
 ```
 
 Alternatively, use Mission Planner's **Set EKF Origin** functionality if supported.
@@ -127,15 +128,7 @@ ros2 topic echo /mavros/local_position/odom
 ros2 launch genz_icp bf_lidar_genz_pipeline.launch.py use_sim_time:=false
 ```
 
-Verify:
 
-```bash
-ros2 topic list
-```
-
-Check that odometry and map topics are available.
-
----
 
 # 6. Start Lirovo
 
@@ -143,7 +136,6 @@ Check that odometry and map topics are available.
 ros2 launch lirovo lirovo.launch.py
 ```
 
-Verify localization outputs and TF tree.
 
 ---
 
