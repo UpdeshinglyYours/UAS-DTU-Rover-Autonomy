@@ -78,12 +78,12 @@
         min_linear_vel: -0.5
         #max_angular_vel: 2.5
         min_angular_vel: -0.1
-        max_angular_vel: 0.8
+        # max_angular_vel: 0.8
 
-        max_linear_accel: 2.5
-        max_linear_decel: -2.5
-        max_angular_accel: 3.2
-        max_angular_decel: -3.2
+        max_linear_accel: 6.5
+        max_linear_decel: -6.5
+        max_angular_accel: 6.5
+        max_angular_decel: -6.5
         allow_reversing: False
 
         use_regulated_linear_velocity_scaling: True
@@ -107,7 +107,7 @@
         width: 5
         height: 5
         resolution: 0.02
-        robot_radius: 0.6
+        robot_radius: 1.0
         plugins: ["obstacle_layer", "inflation_layer"]
         obstacle_layer:
           plugin: "nav2_costmap_2d::ObstacleLayer"
@@ -126,7 +126,7 @@
         inflation_layer:
           plugin: "nav2_costmap_2d::InflationLayer"
           cost_scaling_factor: 5.0
-          inflation_radius: 0.4
+          inflation_radius: 0.6
         always_send_full_costmap: true
 
   global_costmap:
@@ -192,7 +192,7 @@
         inflation_layer:
           plugin: "nav2_costmap_2d::InflationLayer"
           cost_scaling_factor: 3.0 #8.0
-          inflation_radius: 0.6 #0.7
+          inflation_radius: 0.7 #0.7
         always_send_full_costmap: True
 
   map_saver:
@@ -277,7 +277,7 @@
         feedback: "OPEN_LOOP"
         max_velocity: [0.75, 0.0, 0.8]
         min_velocity: [-0.75, 0.0, -0.8]
-        deadband_velocity: [0.0, 0.0, 0.0]
+        deadband_velocity: [0.1, 0.0, 0.2]
         velocity_timeout: 1.0
         max_accel: [4.0, 4.0, 6.0]
         max_decel: [-4.0, -4.0, -6.0]
