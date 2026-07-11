@@ -7,7 +7,7 @@ import rclpy
 from action_msgs.msg import GoalStatus
 from geometry_msgs.msg import PoseStamped, Quaternion
 from nav2_msgs.action import NavigateToPose
-from nav_msgs.msg import OccupancyGrid
+from nav_msgs.msg import OccupancyGrid, Odometry
 from rclpy.action import ActionClient
 from rclpy.duration import Duration
 from rclpy.node import Node
@@ -16,6 +16,7 @@ from rclpy.qos import (
     HistoryPolicy,
     QoSProfile,
     ReliabilityPolicy,
+    qos_profile_sensor_data,
 )
 from rclpy.time import Time
 from tf2_ros import Buffer, TransformException, TransformListener
@@ -237,6 +238,12 @@ class TargetExplorerNode(Node):
             self._costmap_callback,
             10,
         )
+        self.odometry_sub = self.create_subscription(
+            Odometry,
+            '/genz/odometry',
+            self._odometry_callback,
+            qos_profile_sensor_data,
+        )
 
         self.blacklisted_goals = set()
         self._navigation_active = False
@@ -299,6 +306,49 @@ class TargetExplorerNode(Node):
                 'Received /global_costmap/costmap: {}x{} cells'
                 .format(msg.info.width, msg.info.height)
             )
+
+    def _odometry_callback(self, _msg: Odometry) -> None:
+        """Advance from an intermediate goal as soon as the robot is near it."""
+        if (
+            not self._navigation_active
+            or self._active_goal_pose is None
+            or self.goal_reached_distance <= 0.0
+        ):
+            return
+
+        robot_pose = self._lookup_robot_pose()
+        if robot_pose is None:
+            return
+
+        robot_x, robot_y = robot_pose
+        goal_position = self._active_goal_pose.pose.position
+        goal_distance = self._distance(
+            robot_x,
+            robot_y,
+            goal_position.x,
+            goal_position.y,
+        )
+        if goal_distance > self.goal_reached_distance:
+            return
+
+        was_recovery = self._active_goal_is_recovery
+        self._store_breadcrumb_from_active_goal()
+        self._consecutive_nav_failures = 0
+        if was_recovery:
+            self._mark_active_recovery_reached()
+            self._consecutive_no_goal_cycles = 0
+            self._recovery_mode = False
+
+        if self._goal_handle is not None:
+            self._goal_handle.cancel_goal_async()
+
+        self.get_logger().info(
+            'Robot is {:.2f} m from intermediate goal (threshold {:.2f} m); '
+            'selecting the next goal early.'
+            .format(goal_distance, self.goal_reached_distance)
+        )
+        self._clear_active_navigation()
+        self._timer_callback()
 
     def _timer_callback(self) -> None:
         if self._target_reached:
