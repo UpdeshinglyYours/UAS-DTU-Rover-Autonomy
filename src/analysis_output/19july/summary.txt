@@ -1,0 +1,193 @@
+TARGET_EXPLORER ROS 2 BAG ENGINEERING SUMMARY
+======================================================
+Bag: /home/aryaman/UAS-DTU-Rover-Autonomy/19july.bag
+Duration: 325.620031 s
+Messages: 5126787
+Recorded topics: 144
+Timestamps: valid message/header stamps used; bag timestamps used as fallback.
+Trajectories: recorded frames preserved; no coordinate alignment applied.
+
+ODOMETRY SOURCES
+------------------------------------------------------
+/genz/odometry: 3621/3621 valid; frame_id=['odom']; child_frame_id=['base_link']
+  timestamps header=3621, fallback=0; invalid removed=0; out-of-order=0
+/mavros/global_position/local: 130727/130727 valid; frame_id=['map']; child_frame_id=['base_link']
+  timestamps header=130727, fallback=0; invalid removed=0; out-of-order=0
+/mavros/local_position/odom: 130754/130754 valid; frame_id=['map']; child_frame_id=['base_link']
+  timestamps header=130754, fallback=0; invalid removed=0; out-of-order=0
+/mavros/odometry/in: 0 valid messages
+/odometry/filtered: 9769/9769 valid; frame_id=['odom']; child_frame_id=['base_link']
+  timestamps header=9769, fallback=0; invalid removed=0; out-of-order=0
+WARNING: Odometry topics use different frame/child-frame pairs.
+
+ODOMETRY / TF JUMPS
+------------------------------------------------------
+ODOM /genz/odometry at 288.814399 s: translation=0.686022 m, yaw=+5.926328 deg
+ODOM /genz/odometry at 289.081341 s: translation=0.692469 m, yaw=-9.363874 deg
+ODOM /genz/odometry at 289.531354 s: translation=0.594846 m, yaw=+5.802278 deg
+ODOM /genz/odometry at 289.714346 s: translation=0.783744 m, yaw=+11.110148 deg
+ODOM /genz/odometry at 293.934421 s: translation=0.521086 m, yaw=+10.946069 deg
+ODOM /mavros/global_position/local at 16.502568 s: translation=7.752362 m, yaw=-0.006864 deg
+ODOM /odometry/filtered at 291.092980 s: translation=1.515697 m, yaw=+21.357416 deg
+ODOM /odometry/filtered at 293.523966 s: translation=0.774131 m, yaw=-22.104742 deg
+ODOM /odometry/filtered at 295.588959 s: translation=1.776728 m, yaw=+21.018976 deg
+TF map → odom: 2714 sample(s), 0 threshold jump(s), max consecutive translation=0.000000 m, yaw=0.000000 deg
+TF odom → base_link: 9770 sample(s), 3 threshold jump(s), max consecutive translation=1.776728 m, yaw=22.104742 deg
+TF odom → base_link at 291.092980 s: translation=1.515697 m, yaw=+21.357416 deg
+TF odom → base_link at 293.523966 s: translation=0.774131 m, yaw=-22.104742 deg
+TF odom → base_link at 295.588959 s: translation=1.776728 m, yaw=+21.018976 deg
+
+TOPICS USED FOR PAUSE DIAGNOSIS
+------------------------------------------------------
+/goal_pose: 0 message(s)
+/goal_pose_custom: missing
+/goal_update: missing
+/plan: 213 message(s)
+/plan_smoothed: 0 message(s)
+/received_global_plan: 3883 message(s)
+/cmd_vel_nav: 3917 message(s)
+/cmd_vel: 6438 message(s)
+/lookahead_point: 3883 message(s)
+/lookahead_collision_arc: 3882 message(s)
+/target_explorer/selected_goal: 20 message(s)
+/target_explorer/diagnostics: missing
+/behavior_tree_log: 685 message(s)
+/planner_server/transition_event: 0 message(s)
+/controller_server/transition_event: 0 message(s)
+/bt_navigator/transition_event: 0 message(s)
+/waypoint_follower/transition_event: 0 message(s)
+/tf: 12484 message(s)
+/tf_static: 4 message(s)
+/map: 1802 message(s)
+/scan: 3623 message(s)
+
+GENZ VS FILTERED
+------------------------------------------------------
+Synchronized samples:       9762
+Comparison duration:        325.366 s
+Common-range candidates:    9762
+Rejected for >0.25 s gap:   0
+
+Axis       bias [m]       RMSE [m]
+x       -0.010905     0.134519
+y       -0.004184     0.065290
+z       -1.259436     1.410898
+
+Planar RMSE:               0.149526 m
+Median planar error:       0.011426 m
+95th-percentile planar:    0.049417 m
+Maximum planar error:      1.897189 m
+
+Yaw bias:                  -0.152810 deg
+Yaw RMSE:                  2.412828 deg
+Maximum absolute yaw:      28.615630 deg
+
+Planar error < 0.05 m:     95.08%
+Planar error < 0.10 m:     98.12%
+Planar error < 0.25 m:     98.49%
+Planar error < 0.50 m:     98.65%
+
+Conclusion: filtered Odometry closely followed GenZ in planar position and yaw for most samples, but not in z; the maxima also show brief planar/yaw outliers.
+Removed comparison samples: 0 rejected for interpolation gap; invalid core samples were removed per-topic above.
+
+COVARIANCE
+------------------------------------------------------
+/genz/odometry
+  pose diagonal          mean variance        max variance
+  x                1.060175e-03        1.101867e-02
+  y                5.155153e-05        3.157899e-04
+  z                4.067657e-04        2.093806e-03
+  roll             8.870962e-08        3.626762e-07
+  pitch            2.641410e-07        2.113971e-06
+  yaw              1.602857e-07        7.138940e-07
+  twist diagonal         mean variance        max variance
+  x                2.500000e-01        2.500000e-01
+  y                2.500000e-01        2.500000e-01
+  z                2.500000e-01        2.500000e-01
+  roll             2.500000e-01        2.500000e-01
+  pitch            2.500000e-01        2.500000e-01
+  yaw              2.500000e-01        2.500000e-01
+
+/odometry/filtered
+  pose diagonal          mean variance        max variance
+  x                5.980914e-03        6.421322e-01
+  y                4.990746e-03        6.436750e-01
+  z                9.742220e-07        9.983389e-07
+  roll             9.664308e-07        9.966886e-07
+  pitch            9.664308e-07        9.966886e-07
+  yaw              3.896347e-03        1.079398e-01
+  twist diagonal         mean variance        max variance
+  x                6.514506e-02        3.028082e-01
+  y                6.454330e-02        2.969239e-01
+  z                9.702870e-07        9.975124e-07
+  roll             9.380678e-07        9.901931e-07
+  pitch            9.380678e-07        9.901931e-07
+  yaw              1.193289e-07        1.217729e-07
+  pose note: 2 negative covariance diagonal value(s) excluded from statistics/plots
+
+
+PAUSE DETECTION AND ATTRIBUTION
+------------------------------------------------------
+Actual-speed source: /odometry/filtered; minimum pause=1.00 s; actual planar speed<0.050 m/s; command linear<0.030 m/s and angular<0.050 rad/s.
+Explorer evidence: 20 parsed selected-goal log(s), 19 parsed intermediate-goal reach log(s), 20 goal publication(s), 213 primary plan publication(s).
+Final target reached log at 311.002 s for target (15.00, 120.00) m.
+Complete intermediate-goal cycles measured: 19
+  target_explorer goal selection  total= 91.207 s  median= 4.679 s  max= 8.128 s
+  Nav2 planning                   total=  0.084 s  median= 0.003 s  max= 0.016 s
+  controller/command start        total=  1.529 s  median= 0.081 s  max= 0.125 s
+
+Pause 1: 9.450–11.050 s (1.600 s)
+  reached intermediate goal: yes at 8.195 s
+  next goal update: 10.987 s; reached/stop→goal delay=2.791 s
+  next plan: 10.988 s; goal→plan delay=0.002 s
+  cmd_vel restart: 11.050 s; plan→command delay=0.062 s
+  physical motion restart: 11.500 s
+  likely bottleneck: target_explorer
+Pause 2: 167.400–169.600 s (2.200 s)
+  reached intermediate goal: yes at 161.362 s
+  next goal update: 169.490 s; reached/stop→goal delay=8.128 s
+  next plan: 169.492 s; goal→plan delay=0.002 s
+  cmd_vel restart: 169.600 s; plan→command delay=0.108 s
+  physical motion restart: 170.000 s
+  likely bottleneck: target_explorer
+Pause 3: 190.800–191.950 s (1.150 s)
+  reached intermediate goal: yes at 184.263 s
+  next goal update: 191.832 s; reached/stop→goal delay=7.569 s
+  next plan: 191.835 s; goal→plan delay=0.002 s
+  cmd_vel restart: 191.950 s; plan→command delay=0.115 s
+  physical motion restart: 192.400 s
+  likely bottleneck: target_explorer
+Pause 4: 305.750–307.850 s (2.100 s)
+  reached intermediate goal: yes at 300.028 s
+  next goal update: 307.709 s; reached/stop→goal delay=7.681 s
+  next plan: 307.725 s; goal→plan delay=0.016 s
+  cmd_vel restart: 307.850 s; plan→command delay=0.125 s
+  physical motion restart: 308.200 s
+  likely bottleneck: target_explorer
+
+OVERALL PAUSE CONCLUSION
+------------------------------------------------------
+Main measured delay stage: target_explorer.
+The pauses were mainly on the target_explorer side: the long gap occurred after an intermediate goal was declared reached and before the next selected goal was published. Once published, Nav2 generally produced a plan and commands much sooner.
+
+GENERATED PNG FILES
+------------------------------------------------------
+/home/aryaman/UAS-DTU-Rover-Autonomy/src/analysis_output/19july/01_xy_all_odometry.png
+/home/aryaman/UAS-DTU-Rover-Autonomy/src/analysis_output/19july/02_position_vs_time.png
+/home/aryaman/UAS-DTU-Rover-Autonomy/src/analysis_output/19july/03_orientation_vs_time.png
+/home/aryaman/UAS-DTU-Rover-Autonomy/src/analysis_output/19july/04_linear_velocity_vs_time.png
+/home/aryaman/UAS-DTU-Rover-Autonomy/src/analysis_output/19july/05_angular_velocity_vs_time.png
+/home/aryaman/UAS-DTU-Rover-Autonomy/src/analysis_output/19july/06_genz_pose_covariance.png
+/home/aryaman/UAS-DTU-Rover-Autonomy/src/analysis_output/19july/07_genz_twist_covariance.png
+/home/aryaman/UAS-DTU-Rover-Autonomy/src/analysis_output/19july/08_filtered_pose_covariance.png
+/home/aryaman/UAS-DTU-Rover-Autonomy/src/analysis_output/19july/09_filtered_twist_covariance.png
+/home/aryaman/UAS-DTU-Rover-Autonomy/src/analysis_output/19july/10_genz_vs_filtered_xy.png
+/home/aryaman/UAS-DTU-Rover-Autonomy/src/analysis_output/19july/11_genz_vs_filtered_position_error.png
+/home/aryaman/UAS-DTU-Rover-Autonomy/src/analysis_output/19july/12_genz_vs_filtered_orientation_error.png
+/home/aryaman/UAS-DTU-Rover-Autonomy/src/analysis_output/19july/13_goal_and_motion_timeline.png
+/home/aryaman/UAS-DTU-Rover-Autonomy/src/analysis_output/19july/14_pause_diagnosis_timeline.png
+/home/aryaman/UAS-DTU-Rover-Autonomy/src/analysis_output/19july/15_goal_progress_over_time.png
+/home/aryaman/UAS-DTU-Rover-Autonomy/src/analysis_output/19july/16_plans_and_cmdvel_timeline.png
+/home/aryaman/UAS-DTU-Rover-Autonomy/src/analysis_output/19july/17_tf_jump_summary.png
+/home/aryaman/UAS-DTU-Rover-Autonomy/src/analysis_output/19july/18_covariance_summary_text.png
+/home/aryaman/UAS-DTU-Rover-Autonomy/src/analysis_output/19july/19_odometry_comparison_summary_text.png

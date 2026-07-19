@@ -37,6 +37,8 @@ class Candidate:
     progress: float = 0.0
     alignment: float = 0.0
     step_distance: float = 0.0
+    obstacle_cost: float = 0.0
+    turning_cost: float = 0.0
 
 
 @dataclass
@@ -92,7 +94,7 @@ class TargetExplorerNode(Node):
             'base_footprint',
         )
         self.target_x = self._declare_float('target_x', 0.0)
-        self.target_y = self._declare_float('target_y', 10.0)
+        self.target_y = self._declare_float('target_y', 40.0)
         self.target_tolerance = self._declare_float('target_tolerance', 1.0)
 
         self.step_min = self._declare_float('step_min', 1.0)
@@ -124,7 +126,23 @@ class TargetExplorerNode(Node):
         self.safety_margin = self._declare_float('safety_margin', 0.20)
         self.use_global_costmap_check = self._declare_bool(
             'use_global_costmap_check',
-            False,
+            True,
+        )
+        self.odometry_topic = self._declare_string(
+            'odometry_topic',
+            '/odometry/filtered',
+        )
+        self.goal_progress_weight = self._declare_float(
+            'candidate_scoring.goal_progress_weight',
+            1.0,
+        )
+        self.obstacle_cost_weight = self._declare_float(
+            'candidate_scoring.obstacle_cost_weight',
+            10.0,
+        )
+        self.turning_cost_weight = self._declare_float(
+            'candidate_scoring.turning_cost_weight',
+            1.0,
         )
         self.require_positive_progress = self._declare_bool(
             'require_positive_progress',
@@ -203,6 +221,7 @@ class TargetExplorerNode(Node):
 
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
+        self._last_robot_yaw = 0.0
         self.nav_client = ActionClient(
             self,
             NavigateToPose,
@@ -240,7 +259,7 @@ class TargetExplorerNode(Node):
         )
         self.odometry_sub = self.create_subscription(
             Odometry,
-            '/genz/odometry',
+            self.odometry_topic,
             self._odometry_callback,
             qos_profile_sensor_data,
         )
@@ -493,7 +512,8 @@ class TargetExplorerNode(Node):
         self.get_logger().info(
             'Selected goal: R=({:.2f}, {:.2f}), T=({:.2f}, {:.2f}), '
             'C=({:.2f}, {:.2f}), step={:.2f}, progress={:.2f}, '
-            'alignment={:.2f}, score={:.2f}, source={}, '
+            'alignment={:.2f}, obstacle_cost={:.2f}, turn_cost={:.2f}, '
+            'score={:.2f}, source={}, '
             'global_costmap_check={}'
             .format(
                 robot_x,
@@ -505,6 +525,8 @@ class TargetExplorerNode(Node):
                 selected.step_distance,
                 selected.progress,
                 selected.alignment,
+                selected.obstacle_cost,
+                selected.turning_cost,
                 selected.score,
                 selected.source,
                 str(self.use_global_costmap_check).lower(),
@@ -530,6 +552,9 @@ class TargetExplorerNode(Node):
             return None
 
         translation = transform.transform.translation
+        self._last_robot_yaw = self._quaternion_to_yaw(
+            transform.transform.rotation
+        )
         return translation.x, translation.y
 
     def _handle_target_reached(
@@ -816,8 +841,19 @@ class TargetExplorerNode(Node):
         )
         if reject_reason is None:
             candidate.valid = True
+            candidate.obstacle_cost = self._normalized_global_costmap_cost(
+                candidate.x,
+                candidate.y,
+            )
+            turn_delta = math.atan2(
+                math.sin(candidate.theta - self._last_robot_yaw),
+                math.cos(candidate.theta - self._last_robot_yaw),
+            )
+            candidate.turning_cost = abs(turn_delta) / math.pi
             candidate.score = (
-                3.0 * candidate.progress
+                self.goal_progress_weight * candidate.progress
+                - self.obstacle_cost_weight * candidate.obstacle_cost
+                - self.turning_cost_weight * candidate.turning_cost
                 + 1.0 * candidate.alignment
                 + 0.2 * candidate.step_distance
             )
@@ -1150,6 +1186,8 @@ class TargetExplorerNode(Node):
             - self.recovery_distance_penalty_weight * candidate.step_distance
             + self.recovery_alignment_weight * candidate.alignment
             + self.recovery_recency_weight * recency
+            - self.obstacle_cost_weight * candidate.obstacle_cost
+            - self.turning_cost_weight * candidate.turning_cost
         )
 
     def _send_nav_goal(
@@ -1462,6 +1500,19 @@ class TargetExplorerNode(Node):
 
         value = self._grid_value(self.costmap_msg, coords[0], coords[1])
         return 0 <= value < 80
+
+    def _normalized_global_costmap_cost(self, x: float, y: float) -> float:
+        if not self.use_global_costmap_check or self.costmap_msg is None:
+            return 0.0
+
+        coords = self._world_to_grid(self.costmap_msg, x, y)
+        if coords is None:
+            return 1.0
+
+        value = self._grid_value(self.costmap_msg, coords[0], coords[1])
+        if value < 0:
+            return 1.0
+        return max(0.0, min(1.0, value / 100.0))
 
     def _world_to_grid(
         self,

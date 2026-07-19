@@ -1,19 +1,20 @@
 target_explorer_node:
   ros__parameters:
-    use_sim_time: true
+    use_sim_time: false
     global_frame: "map"
     robot_base_frame: "base_footprint"
 
-    target_x: 40.0
-    target_y: 0.0
+    # A fresh Y-forward GenZ map advances along absolute map +Y.
+    target_x: 0.0
+    target_y: 40.0
     target_tolerance: 1.0
 
     step_min: 1.0
-    step_max: 4.0
-    step_resolution: 0.5
+    step_max: 10.0
+    step_resolution: 0.25
 
     fan_angle_deg: 70.0
-    fan_angle_step_deg: 10.0
+    fan_angle_step_deg: 7.0
     use_ray_backoff_goal_generation: true
     ray_step_resolution: 0.05
     min_frontier_goal_distance: 0.5
@@ -21,7 +22,14 @@ target_explorer_node:
 
     robot_radius: 0.60
     safety_margin: 0.20
-    use_global_costmap_check: false
+    use_global_costmap_check: true
+    odometry_topic: "/odometry/filtered"
+
+    candidate_scoring:
+      goal_progress_weight: 0.50
+      obstacle_cost_weight: 30.0
+      # 0 is straight ahead and 1 is a 180-degree turn.
+      turning_cost_weight: 1.0
 
     require_positive_progress: true
     goal_reached_distance: 0.75
@@ -42,4 +50,4 @@ target_explorer_node:
     min_recovery_goal_distance: 1.0
     visited_goal_radius: 0.75
 
-    loop_rate_hz: 5.0
+    loop_rate_hz: 7.5
