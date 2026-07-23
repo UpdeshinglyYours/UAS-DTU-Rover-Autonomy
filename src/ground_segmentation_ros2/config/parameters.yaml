@@ -1,0 +1,37 @@
+ground_segmentation:
+  ros__parameters:
+    robot_frame: "base_link"
+
+    # Limit processing to the useful rover area.
+    maxX: 20.0
+    minX: -3.0
+    maxY: 12.0
+    minY: -12.0
+    maxZ: 2.5
+    minZ: -1.0
+
+    downsample: false
+    downsample_resolution: 0.05
+
+    # Ground is approximately 0.60 m below your LiDAR.
+    lidar_to_ground: -0.60
+    transform_tolerance: 0.1
+
+    # Smaller cells than the SemanticKITTI defaults so curbs survive.
+    cellSizeX: 0.60
+    cellSizeY: 0.60
+    cellSizeZ: 4.0
+    cellSizeZPhase2: 0.25
+
+    slopeThresholdDegrees: 15.0
+
+    # Critical for curb retention.
+    groundInlierThreshold: 0.08
+    maxGroundHeightDeviation: 0.10
+
+    centroidSearchRadius: 2.0
+
+    # Start without IMU; enable after basic segmentation works.
+    use_imu_orientation: false
+
+    show_benchmark: false

@@ -7,11 +7,20 @@
   <maintainer email="abhimanyu@todo.todo">abhimanyu</maintainer>
   <license>TODO: License declaration</license>
   <depend>robot_localization</depend>
+  <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>nav2_bringup</exec_depend>
+  <exec_depend>nav2_costmap_2d</exec_depend>
   <exec_depend>nav2_theta_star_planner</exec_depend>
+  <exec_depend>pointcloud_to_laserscan</exec_depend>
   <exec_depend>rclpy</exec_depend>
   <exec_depend>geometry_msgs</exec_depend>
   <exec_depend>nav_msgs</exec_depend>
   <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>slam_toolbox</exec_depend>
+  <exec_depend>spatio_temporal_voxel_layer</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>
   <test_depend>ament_pep257</test_depend>

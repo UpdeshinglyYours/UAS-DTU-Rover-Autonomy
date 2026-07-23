@@ -24,7 +24,6 @@ src/pointcloud_to_laserscan/
 *.tlog.raw
 # Maps (optional - include only if needed)
 *.pgm
-*.yaml
 
 # Generated files
 *.pdf
@@ -36,3 +35,4 @@ __pycache__/
 
 # IDE
 .vscode/
+*.mcap

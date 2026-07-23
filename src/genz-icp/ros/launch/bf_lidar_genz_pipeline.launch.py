@@ -154,7 +154,7 @@ def generate_launch_description():
             # Make these match your physical lidar mounting.
             DeclareLaunchArgument("lidar_tf_x", default_value="0.11"),
             DeclareLaunchArgument("lidar_tf_y", default_value="0.30"),
-            DeclareLaunchArgument("lidar_tf_z", default_value="0.60"),
+            DeclareLaunchArgument("lidar_tf_z", default_value="0.0"),
             DeclareLaunchArgument("lidar_tf_yaw", default_value="0.0"),
             DeclareLaunchArgument("lidar_tf_pitch", default_value="0.0"),
             DeclareLaunchArgument("lidar_tf_roll", default_value="0.0"),

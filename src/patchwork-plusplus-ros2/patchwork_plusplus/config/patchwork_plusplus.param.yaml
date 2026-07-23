@@ -1,0 +1,45 @@
+/**:
+  ros__parameters:
+    save_flag: true
+
+    sensor_height: 0.1
+
+    mode: "czm"
+    verbose: false
+    visualize: true
+
+    num_iter: 3
+    num_lpr: 10
+    num_min_pts: 5
+
+    # Stricter ground-plane fitting
+    th_seeds: 0.04
+    th_dist: 0.03
+
+    # Keep vertical-structure handling
+    th_seeds_v: 0.25
+    th_dist_v: 0.12
+
+    max_range: 30.0
+    min_range: 1.5
+
+    uprightness_thr: 0.93
+    adaptive_seed_selection_margin: -1.2
+
+    num_zones: 4
+    num_sectors_each_zone: [16, 32, 54, 32]
+
+    # Keep this misspelling: this ROS2 fork actually expects "mum"
+    mum_rings_each_zone: [2, 4, 4, 4]
+
+    elevation_thresholds: [0.0, 0.0, 0.0, 0.0]
+    flatness_thresholds: [0.0, 0.0, 0.0, 0.0]
+
+    enable_RNR: false
+    enable_RVPF: true
+
+    # Important: prevents rejected elevated patches being restored as ground
+    enable_TGR: false
+
+    RNR_ver_angle_thr: -15.0
+    RNR_intensity_thr: 0.2
