@@ -10,7 +10,7 @@ from launch_ros.parameter_descriptions import ParameterValue
 
 def generate_launch_description():
     package_share = get_package_share_directory('target_explorer')
-    params_file = os.path.join(
+    default_params_file = os.path.join(
         package_share,
         'config',
         'target_explorer_params.yaml',
@@ -18,9 +18,14 @@ def generate_launch_description():
 
     return LaunchDescription([
         DeclareLaunchArgument(
+            'params_file',
+            default_value=default_params_file,
+            description='Target Explorer parameter YAML file.',
+        ),
+        DeclareLaunchArgument(
             'goal_mode',
             default_value='local',
-            description='Compatibility selector; this launch runs local mode.',
+            description='Final-target input mode (currently local only).',
         ),
         DeclareLaunchArgument(
             'local_goal_x',
@@ -38,8 +43,9 @@ def generate_launch_description():
             name='target_explorer_node',
             output='screen',
             parameters=[
-                params_file,
+                LaunchConfiguration('params_file'),
                 {
+                    'goal_mode': LaunchConfiguration('goal_mode'),
                     'target_x': ParameterValue(
                         LaunchConfiguration('local_goal_x'),
                         value_type=float,
@@ -48,7 +54,6 @@ def generate_launch_description():
                         LaunchConfiguration('local_goal_y'),
                         value_type=float,
                     ),
-                    'use_sim_time': False,
                 },
             ],
         ),

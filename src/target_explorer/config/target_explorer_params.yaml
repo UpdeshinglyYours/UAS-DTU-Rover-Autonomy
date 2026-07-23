@@ -1,53 +1,41 @@
 target_explorer_node:
   ros__parameters:
     use_sim_time: false
+
+    # The final destination and all dispatched goals use this map frame.
+    goal_mode: "local"
     global_frame: "map"
     robot_base_frame: "base_footprint"
-
-    # A fresh Y-forward GenZ map advances along absolute map +Y.
     target_x: 0.0
     target_y: 40.0
     target_tolerance: 1.0
 
-    step_min: 1.0
-    step_max: 10.0
-    step_resolution: 0.25
+    map_topic: "/map"
+    global_costmap_topic: "/global_costmap/costmap"
+    navigate_to_pose_action: "/navigate_to_pose"
+    compute_path_to_pose_action: "/compute_path_to_pose"
 
-    fan_angle_deg: 70.0
-    fan_angle_step_deg: 7.0
-    use_ray_backoff_goal_generation: true
-    ray_step_resolution: 0.05
-    min_frontier_goal_distance: 0.5
-    frontier_backoff_distance: 0.30
+    # score = progress_weight * progress
+    #       + alignment_weight * alignment
+    #       - path_cost_weight * Nav2 path length
+    goal_progress_weight: 1.0
+    target_alignment_weight: 1.0
+    path_cost_weight: 0.10
 
-    robot_radius: 0.60
-    safety_margin: 0.20
-    use_global_costmap_check: true
-    odometry_topic: "/odometry/filtered"
+    minimum_target_progress_m: 0.0
+    allow_negative_progress_recovery: true
 
-    candidate_scoring:
-      goal_progress_weight: 0.50
-      obstacle_cost_weight: 30.0
-      # 0 is straight ahead and 1 is a 180-degree turn.
-      turning_cost_weight: 1.0
+    # Unknown and inflation-gradient cells are excluded from this physical
+    # obstacle clearance measurement.
+    goal_obstacle_clearance_m: 0.1
+    map_occupied_threshold: 65
+    costmap_lethal_threshold: 100
+    active_goal_safety_check_period_sec: 0.5
 
-    require_positive_progress: true
-    goal_reached_distance: 0.75
-    nav_goal_timeout_sec: 45.0
+    minimum_frontier_distance_from_robot: 0.5
+    minimum_frontier_size_m: 0.5
+    maximum_goal_samples_per_frontier: 12
 
-    enable_backtracking: true
-    stuck_attempt_threshold: 3
-    nav_failure_threshold: 2
-    memory_candidate_min_separation: 0.75
-    max_memory_candidates: 100
-    max_breadcrumbs: 100
-    max_branch_candidates_per_cycle: 5
-    allow_negative_progress_in_recovery: true
-    recovery_target_progress_weight: 2.0
-    recovery_distance_penalty_weight: 0.5
-    recovery_alignment_weight: 0.5
-    recovery_recency_weight: 0.1
-    min_recovery_goal_distance: 1.0
-    visited_goal_radius: 0.75
-
-    loop_rate_hz: 7.5
+    planner_timeout_sec: 2.0
+    tf_timeout_sec: 0.3
+    persistent_tf_failure_timeout_sec: 3.0
