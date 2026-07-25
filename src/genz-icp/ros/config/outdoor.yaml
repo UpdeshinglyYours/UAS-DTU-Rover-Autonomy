@@ -2,7 +2,7 @@
 # If this config doesn't work stably in your env., please refer to parameter tuning guide in README.md
 
 # topic: (set in launch file or command line)
-publish_odom_tf: true
+publish_odom_tf: false
 deskew: false
 max_range: 75.0
 min_range: 1.50
