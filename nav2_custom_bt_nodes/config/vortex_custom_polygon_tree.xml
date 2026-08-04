@@ -1,0 +1,165 @@
+<?xml version="1.0"?>
+<root main_tree_to_execute="MainTree">
+  <BehaviorTree ID="MainTree">
+  
+    <ForceSuccess name="ForceMissionSuccess">
+      <ReactiveFallback name="InterruptSystem">
+
+        <!-- BRANCH 1: The Interrupt -->
+        <!-- Listens to /wait_trigger. Returns RUNNING for the duration, then returns FAILURE to resume mission -->
+        <DynamicWaitAction name="EmergencyWait"/>
+        
+        <!-- BRANCH 2: Your Actual Mission -->
+        <KeepRunningUntilFailure name="LoopThroughCasualties">
+          <Sequence name="ProcessSingleCasualty">
+ 
+            <!-- 
+              1. POP TARGET: 
+              Grabs the next casualty (X,Y) from the Blackboard array.
+              If the array is empty, this returns FAILURE, which breaks the loop above it. 
+            -->
+            <PopNextGoal input_goals="{goals}" output_goals="{goals}" output_goal="{casualty_center}"/>
+            
+            <!-- 
+              2. THE CASUALTY SKIPPER (Safety Net):
+              If the robot gets stuck in a ditch or surrounded by rocks while trying to reach 
+              this specific casualty, the 'DrivingLogic' sequence below will FAIL.
+              This ForceSuccess catches that failure, prevents the whole mission from dying, 
+              and forces the loop to restart so we safely move on to Casualty #2!
+            -->
+            <ForceSuccess name="SkipBlockedCasualty">
+              <Sequence name="DrivingLogic">
+                
+                <!-- MATH: Calculates a target exactly 3.5m away from the casualty center -->
+                <CalculateApproachPose center="{casualty_center}" radius="3.5" output_pose="{approach_pose}"/>
+
+                <!-- ==================================================================== -->
+                <!-- PHASE 1: THE APPROACH (Nav2 Default Robust Navigation)               -->
+                <!-- ==================================================================== -->
+                <RecoveryNode number_of_retries="6" name="ApproachRecoveryManager">
+                  
+                  <PipelineSequence name="ApproachPipeline">
+                    
+                    <!-- PLANNER: Draws the global path (A*) at 1 Hz to save CPU -->
+                    <RateController hz="1.0">
+                      <RecoveryNode number_of_retries="1" name="PlannerRecovery">
+                        <ComputePathToPose goal="{approach_pose}" path="{approach_path}" planner_id="GridBased"/>
+                        <!-- If planning fails, clear the global windshield and try once more -->
+                        <ClearEntireCostmap name="ClearGlobalCostmap-Planner" service_name="global_costmap/clear_entirely_global_costmap"/>
+                      </RecoveryNode>
+                    </RateController>
+                    
+                    <!-- CONTROLLER: MPPI follows the path -->
+                    <RecoveryNode number_of_retries="1" name="ControllerRecovery">
+                      <FollowPath path="{approach_path}" controller_id="FollowPath" goal_checker_id="general_goal_checker"/>
+                      <!-- If MPPI panics, clear the local windshield and try once more -->
+                      <ClearEntireCostmap name="ClearLocalCostmap-Controller" service_name="local_costmap/clear_entirely_local_costmap"/>
+                    </RecoveryNode>
+                    
+                  </PipelineSequence>
+                  
+                  <!-- ESCALATED RECOVERIES: If the Pipeline completely fails, do these physical moves -->
+                  <ReactiveFallback name="PhysicalRecoveryFallback">
+                    <!-- If a new goal is sent, stop recovering and go to it -->
+                    <GoalUpdated/>
+                    
+                    <!-- Cycle through these moves one by one each time we get stuck -->
+                    <RoundRobin name="PhysicalRecoveryActions">
+                      <Sequence name="DeepClearingSequence">
+                        <ClearEntireCostmap name="ClearLocalCostmap-Deep" service_name="local_costmap/clear_entirely_local_costmap"/>
+                        <ClearEntireCostmap name="ClearGlobalCostmap-Deep" service_name="global_costmap/clear_entirely_global_costmap"/>
+                      </Sequence>
+                      <Spin spin_dist="1.57" name="SpinRecovery"/>
+                      <Wait wait_duration="5.0" name="WaitRecovery"/>
+                      <BackUp backup_dist="0.30" backup_speed="0.05" name="BackupRecovery"/>
+                    </RoundRobin>
+                  </ReactiveFallback>
+                  
+                </RecoveryNode>
+
+                <!-- ==================================================================== -->
+                <!-- PHASE 2: THE 360-DEGREE POLYGON ORBIT                                -->
+                <!-- ==================================================================== -->
+                <Sequence name="PolygonOrbitPhase">
+                  
+                  <!-- MATH: Calculates 8 perfectly spaced dots around the casualty in a 3.5m radius.
+                       Crucially, Dot 1 is placed EXACTLY where the robot is currently parked 
+                       so it doesn't try to cut across the circle! -->
+                  <GenerateOrbitWaypoints center="{casualty_center}" radius="3.5" num_waypoints="8" output_goals="{orbit_waypoints}"/>
+                  
+                  <!-- 
+                    THE HARDWARE KILL-SWITCH:
+                    ReactiveSequence checks its children left-to-right at 100Hz.
+                    If the robot ever drifts closer than 2.0m, the Inverter turns it into a FAILURE,
+                    instantly aborting the FollowPath action!
+                  -->
+                  <ReactiveSequence name="StrictKeepoutWatchdog">
+                    <Inverter name="WatchdogInverter">
+                      <IsGoalCloserThan distance="2.0" goal="{casualty_center}"/>
+                    </Inverter>
+                    
+                    <!-- 
+                      THE ORBIT SKIPPER (Safety Net):
+                      When the 8-dot array empties, KeepRunning fails. 
+                      If the Watchdog trips, it fails.
+                      ForceSuccess catches ALL of this, allowing the robot to gracefully 
+                      exit the orbit phase and move on to data transmission!
+                    -->
+                    <ForceSuccess name="FinishOrAbortOrbit">
+                      <KeepRunningUntilFailure name="LoopThroughPolygonDots">
+                        <Sequence name="ProcessSinglePolygonDot">
+                          
+                          <!-- POP DOT: Fails when the 8 dots are done, breaking the loop -->
+                          <PopNextGoal input_goals="{orbit_waypoints}" output_goals="{orbit_waypoints}" output_goal="{current_dot}"/>
+                          
+                          <!-- 
+                            THE ROCK SKIPPER (Safety Net):
+                            If Dot #3 happens to be blocked by a rock, FollowPath will fail.
+                            ForceSuccess catches it, so we safely skip Dot #3 and drive to Dot #4!
+                          -->
+                          <ForceSuccess name="SkipBlockedDot">
+                            <Sequence name="FlyByNavigation">
+                              
+                              <PipelineSequence name="OrbitPipeline">
+                                <RateController hz="1.0">
+                                  <ComputePathToPose goal="{current_dot}" path="{waypoint_path}" planner_id="GridBased"/>
+                                </RateController>
+                                <!-- Drive to the dot using the general goal checker -->
+                                <FollowPath path="{waypoint_path}" controller_id="OrbitController" goal_checker_id="general_goal_checker"/>
+                              </PipelineSequence>
+                              
+                              <!-- 
+                                THE "FLY-BY" HACK:
+                                Wait 0.0 seconds so the BT immediately grabs the next dot 
+                                and calculates the next path without pausing the software loop.
+                                (server_timeout=1000.0 gives the CPU time to respond without crashing)
+                              -->
+                              <Wait wait_duration="0.0" server_timeout="1000.0" name="ZeroSecondWait"/>
+                              
+                            </Sequence>
+                          </ForceSuccess>
+                          
+                        </Sequence>
+                      </KeepRunningUntilFailure>
+                    </ForceSuccess>
+
+                  </ReactiveSequence>
+                </Sequence>
+                
+                <!-- ==================================================================== -->
+                <!-- PHASE 3: DATA TRANSMISSION                                           -->
+                <!-- ==================================================================== -->
+                <!-- Orbit complete! Wait here for 5 seconds to process camera feeds / transmit data -->
+                <Wait wait_duration="5.0" server_timeout="1000.0" name="FinalTransmissionWait"/>
+                
+              </Sequence>
+            </ForceSuccess>
+
+          </Sequence>
+        </KeepRunningUntilFailure>
+
+      </ReactiveFallback>
+    </ForceSuccess>
+
+  </BehaviorTree>
+</root>
