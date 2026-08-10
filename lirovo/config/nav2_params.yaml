@@ -1,0 +1,1053 @@
+  # amcl:
+  #   ros__parameters:
+  #     use_sim_time: True #False
+  #     alpha1: 0.2
+  #     alpha2: 0.2
+  #     alpha3: 0.2
+  #     alpha4: 0.2
+  #     alpha5: 0.2
+  #     base_frame_id: "base_footprint"
+  #     beam_skip_distance: 0.5
+  #     beam_skip_error_threshold: 0.9
+  #     beam_skip_threshold: 0.3
+  #     do_beamskip: false
+  #     global_frame_id: "map"
+  #     lambda_short: 0.1
+  #     laser_likelihood_max_dist: 2.0
+  #     laser_max_range: 100.0
+  #     laser_min_range: -1.0
+  #     laser_model_type: "likelihood_field"
+  #     max_beams: 60
+  #     max_particles: 2000
+  #     min_particles: 500
+  #     odom_frame_id: "odom"
+  #     pf_err: 0.05
+  #     pf_z: 0.99
+  #     recovery_alpha_fast: 0.0
+  #     recovery_alpha_slow: 0.0
+  #     resample_interval: 1
+  #     robot_model_type: "nav2_amcl::OmniMotionModel"
+  #     save_pose_rate: 0.5
+  #     sigma_hit: 0.2
+  #     tf_broadcast: true
+  #     transform_tolerance: 0.3
+  #     update_min_a: 0.2
+  #     update_min_d: 0.25
+  #     z_hit: 0.5
+  #     z_max: 0.05
+  #     z_rand: 0.5
+  #     z_short: 0.05
+  #     scan_topic: /scan
+
+  # amcl_map_client:
+  #   ros__parameters:
+  #     use_sim_time: False #False
+
+  # amcl_rclcpp_node:
+  #   ros__parameters:
+  #     use_sim_time: False #False
+
+#upar ke param kabhi use hi nhi honge kyuki amcl nhi use kr rhe
+
+  bt_navigator:
+    ros__parameters:
+      use_sim_time: True #False
+      global_frame: map
+      robot_base_frame: base_footprint #base_footprint #base_footprint
+      odom_topic: /bcr_bot/odom #/genz/odometry
+      bt_loop_duration: 10
+      default_server_timeout: 20
+      default_nav_through_poses_bt_xml: "/home/vortex/uas_nav/src/UAS-DTU-navigation-simulation/nav2_custom_bt_nodes/config/vortex_custom_polygon_tree.xml" #meine add kara #ADD YOUR OWN PATH HERE
+      plugin_lib_names:
+      - nav2_compute_path_to_pose_action_bt_node
+      - nav2_compute_path_through_poses_action_bt_node
+      - nav2_follow_path_action_bt_node
+      - nav2_back_up_action_bt_node
+      - nav2_spin_action_bt_node
+      - nav2_wait_action_bt_node
+      - nav2_clear_costmap_service_bt_node
+      - nav2_is_stuck_condition_bt_node
+      - nav2_goal_reached_condition_bt_node
+      - nav2_goal_updated_condition_bt_node
+      - nav2_initial_pose_received_condition_bt_node
+      - nav2_reinitialize_global_localization_service_bt_node
+      - nav2_rate_controller_bt_node
+      - nav2_distance_controller_bt_node
+      - nav2_speed_controller_bt_node
+      - nav2_truncate_path_action_bt_node
+      - nav2_goal_updater_node_bt_node
+      - nav2_recovery_node_bt_node
+      - nav2_pipeline_sequence_bt_node
+      - nav2_round_robin_node_bt_node
+      - nav2_transform_available_condition_bt_node
+      - nav2_time_expired_condition_bt_node
+      - nav2_distance_traveled_condition_bt_node
+      - nav2_single_trigger_bt_node
+      - nav2_is_battery_low_condition_bt_node
+      - nav2_navigate_through_poses_action_bt_node
+      - nav2_navigate_to_pose_action_bt_node
+      - nav2_remove_passed_goals_action_bt_node
+      - nav2_planner_selector_bt_node
+      - nav2_controller_selector_bt_node
+      - nav2_goal_checker_selector_bt_node
+      - nav2_custom_bt_nodes                    # meine add kara
+
+  controller_server:
+    ros__parameters:
+      use_sim_time: True 
+      controller_frequency: 20.0
+      min_x_velocity_threshold: 0.001
+      min_y_velocity_threshold: 0.1
+      min_theta_velocity_threshold: 0.001
+      failure_tolerance: 0.3
+      progress_checker_plugin: "progress_checker"
+      goal_checker_plugins: ["general_goal_checker"] #, "sloppy_goal_checker"]
+      progress_checker:
+        plugin: "nav2_controller::SimpleProgressChecker"
+        required_movement_radius: 0.5
+        movement_time_allowance: 10.0
+      general_goal_checker:
+        stateful: True
+        plugin: "nav2_controller::SimpleGoalChecker"
+        xy_goal_tolerance: 0.5 #0.25
+        yaw_goal_tolerance: 6.28
+      #ye niche wala meine add kiya
+      sloppy_goal_checker:
+        plugin: "nav2_controller::SimpleGoalChecker"
+        xy_goal_tolerance: 1.0   
+        yaw_goal_tolerance: 6.28
+      
+      controller_plugins: ["FollowPath", "OrbitController"] #orbit controller meine add kiya
+
+      FollowPath:
+        plugin: "nav2_mppi_controller::MPPIController"
+        time_steps: 56 #56
+        model_dt: 0.05
+        batch_size: 5000 #2000 #2000 pf #1500
+        vx_std: 0.3 #0.3 perfect follow #0.2
+        vy_std: 0.0
+        wz_std: 0.3 #0.3 pf #0.4
+        vx_max: 1.0 #0.5 pf
+        vx_min: -0.2 #-0.3 pf
+        vy_max: 0.0
+        wz_max: 0.9 #1.0
+        iteration_count: 1
+        prune_distance: 4.0 #1.0 #1.7 pf
+        transform_tolerance: 0.1
+        temperature: 0.2 #0.2 #0.4 fpf #0.3
+        gamma: 0.015 #0.015
+        motion_model: "DiffDrive"
+        visualize: False #True
+        
+        TrajectoryVisualizer:
+          trajectory_step: 5
+          time_step: 3
+
+        # CRITICAL FIX: critics must be an array of strings!
+        critics: ["ConstraintCritic", "ObstaclesCritic", "GoalCritic", "GoalAngleCritic", "PathAlignCritic", "PathFollowCritic", "PathAngleCritic", "PreferForwardCritic", "VelocityDeadbandCritic"]
+        
+        # The configs must be SIBLINGS to the critics list, not nested inside it!
+        ConstraintCritic:
+          cost_weight: 7.0 #4.0 pf
+        ObstaclesCritic:
+          repulsion_weight: 4.0 #2.5 #1.5        # The strength of the magnetic push away from walls
+          critical_weight: 30.0 #20.0        # Heavy penalty for getting dangerously close
+          consider_footprint: true #false    # Keep false to save CPU (uses center point instead of full chassis)
+          collision_cost: 100000.0
+          collision_margin_distance: 0.3 #0.1 # 10cm safety bubble
+          near_goal_distance: 0.5
+        GoalCritic:
+          cost_weight: 5.0
+          threshold_to_consider: 1.4    #important ..goal critic is off until you are within the threshold
+        PreferForwardCritic:
+          enabled: true
+          cost_weight: 25.0 #5.0
+        GoalAngleCritic:
+          cost_weight: 3.0
+          threshold_to_consider: 0.5
+        PathAlignCritic:
+          cost_weight: 12.0 #10.0 #12.0 pf #14.0
+        PathFollowCritic:
+          cost_weight: 8.0 #6.0 #8.0 pf #5.0
+        PathAngleCritic:
+          cost_weight: 2.0
+        VelocityDeadbandCritic:
+          cost_weight: 20.0 #35.0
+          # [vx, vy, wz] -> Skid-steer rovers require more torque to turn than to drive straight!
+          # If forward movement requires 0.2 m/s, turning likely requires ~0.3 rad/s to break friction.
+          deadband_velocities: [0.2, 0.0, 0.0] 
+
+        # plugin: "nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController"
+
+        # desired_linear_vel: 0.5 #1.0
+
+        # # Lookahead (stable straight motion)
+        # lookahead_dist: 1.0 #2.0
+        # min_lookahead_dist: 0.9 #1.5
+        # max_lookahead_dist: 1.2 #2.2 #1.8
+        # use_velocity_scaled_lookahead_dist: True #False
+        # #max_angular_vel: 0.8 #0.1
+        # use_rotate_to_heading: False
+        # rotate_to_heading_angular_vel: 0.2  
+        # max_linear_vel: 0.5
+        # min_linear_vel: -0.5
+        # #max_angular_vel: 2.5
+        # min_angular_vel: -0.1
+        # max_linear_accel: 2.5
+        # max_linear_decel: -2.5
+        # max_angular_accel: 3.2
+        # max_angular_decel: -3.2
+        # allow_reversing: False #True
+
+        # use_regulated_linear_velocity_scaling: True
+        # regulated_linear_scaling_min_radius: 0.2
+        # use_cost_regulated_linear_velocity_scaling: True #False
+        # use_collision_detection: True #False
+
+        # min_approach_linear_velocity: 0.2
+        # approach_velocity_scaling_dist: 0.2
+
+        # transform_tolerance: 0.3
+
+      #MPPIController:
+        # plugin: "nav2_mppi_controller::MPPIController"
+        # time_steps: 56
+        # model_dt: 0.05
+        # batch_size: 2000 #1500
+        # vx_std: 0.4 #0.4 #0.3 #0.2
+        # vy_std: 0.0
+        # wz_std: 0.2 #0.3 #0.4
+        # vx_max: 0.7 #0.5
+        # vx_min: -0.3
+        # wz_max: 1.2 #1.0
+        # iteration_count: 1
+        # prune_distance: 1.7
+        # transform_tolerance: 0.1
+        # temperature: 0.4 #0.3
+        # gamma: 0.015
+        # motion_model: "DiffDrive"
+        # visualize: True
+        
+        # TrajectoryVisualizer:
+        #   trajectory_step: 5
+        #   time_step: 3
+          
+        # # CRITICAL FIX: critics must be an array of strings!
+        # critics: ["ConstraintCritic", "GoalCritic", "GoalAngleCritic", "PathAlignCritic", "PathFollowCritic", "PathAngleCritic"]
+        
+        # # The configs must be SIBLINGS to the critics list, not nested inside it!
+        # ConstraintCritic:
+        #   cost_weight: 6.0 #4.0
+        # GoalCritic:
+        #   cost_weight: 5.0
+        #   threshold_to_consider: 1.4
+        # GoalAngleCritic:
+        #   cost_weight: 3.0
+        #   threshold_to_consider: 0.5
+        # PathAlignCritic:
+        #   cost_weight: 14.0
+        # PathFollowCritic:
+        #   cost_weight: 6.0 #5.0
+        # PathAngleCritic:
+        #   cost_weight: 2.0
+
+    #orbit controller meine add kiya---------------------------------------------------------
+      OrbitController:
+        # plugin: "nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController"
+        # desired_linear_vel: 0.5 #0.3                   # Drive slower (0.3 m/s) to ensure smooth camera framing
+
+        # #max_robot_pose_search_dist: 1.5
+
+        # lookahead_dist: 0.9 #1.5 #0.4                       # Very short lookahead (0.4m) prevents corner-cutting inward
+        # min_lookahead_dist: 0.8
+        # max_lookahead_dist: 1.1
+        # use_velocity_scaled_lookahead_dist: False # Disable dynamic lookahead scaling to lock to the tight path
+        # use_rotate_to_heading: False              # Let RPP steer smoothly along the arc without pausing to rotate
+        # max_linear_vel: 0.5 #0.3
+        # min_linear_vel: -0.5 #-0.3
+        # min_angular_vel: -0.1
+        # max_linear_accel: 2.0
+        # max_linear_decel: -2.0
+        # max_angular_accel: 3.0
+        # max_angular_decel: -3.0
+        # allow_reversing: False
+        # use_regulated_linear_velocity_scaling: True
+        # regulated_linear_scaling_min_radius: 0.2
+        # use_cost_regulated_linear_velocity_scaling: False # Disabled so proximity to center doesn't arbitrarily throttle speed
+        # use_collision_detection: True             # Keeps active footprint collision checking enabled
+        # transform_tolerance: 0.3
+
+      #MPPIController:
+        plugin: "nav2_mppi_controller::MPPIController"
+        time_steps: 56 #56
+        model_dt: 0.05
+        batch_size: 5000 #2000 #2000 pf #1500
+        vx_std: 0.3 #0.3 perfect follow #0.2
+        vy_std: 0.0
+        wz_std: 0.3 #0.3 pf #0.4
+        vx_max: 1.0 #0.6 #0.5 pf
+        vx_min: -0.2 #-0.3 pf
+        vy_max: 0.0
+        wz_max: 0.9 #1.0
+        iteration_count: 1
+        prune_distance: 4.0 #1.0 #1.7 pf
+        transform_tolerance: 0.1
+        temperature: 0.2 #0.2 #0.4 fpf #0.3
+        gamma: 0.015 #0.015
+        motion_model: "DiffDrive"
+        visualize: False #True
+        
+        TrajectoryVisualizer:
+          trajectory_step: 5
+          time_step: 3
+
+        # CRITICAL FIX: critics must be an array of strings!
+        critics: ["ConstraintCritic", "ObstaclesCritic", "GoalCritic", "GoalAngleCritic", "PathAlignCritic", "PathAngleCritic", "PreferForwardCritic", "VelocityDeadbandCritic"]
+        #critics: ["ConstraintCritic", "ObstaclesCritic", "GoalAngleCritic", "PathAlignCritic", "PathFollowCritic", "PathAngleCritic", "PreferForwardCritic"]
+
+        # The configs must be SIBLINGS to the critics list, not nested inside it!
+        ConstraintCritic:
+          cost_weight: 7.0 #4.0 pf
+        ObstaclesCritic:
+          repulsion_weight: 4.0 #1.5        # The strength of the magnetic push away from walls
+          critical_weight: 30.0 #20.0        # Heavy penalty for getting dangerously close
+          consider_footprint: true #false    # Keep false to save CPU (uses center point instead of full chassis)
+          collision_cost: 100000.0
+          collision_margin_distance: 0.2 #0.1 # 10cm safety bubble
+          near_goal_distance: 0.5
+        GoalCritic:
+          cost_weight: 5.0
+          threshold_to_consider: 4.0 #1.4    #important ..goal critic is off until you are within the threshold
+        PreferForwardCritic:
+          enabled: true
+          cost_weight: 25.0 #5.0
+        GoalAngleCritic:
+          cost_weight: 3.0
+          threshold_to_consider: 0.5
+        PathAlignCritic:
+          cost_weight: 12.0 #10.0 #12.0 pf #14.0
+        PathFollowCritic:
+          cost_weight: 6.0 #8.0 pf #5.0
+        PathAngleCritic:
+          cost_weight: 2.0
+        VelocityDeadbandCritic:
+          cost_weight: 20.0 #35.0
+          # [vx, vy, wz] -> Skid-steer rovers require more torque to turn than to drive straight!
+          # If forward movement requires 0.2 m/s, turning likely requires ~0.3 rad/s to break friction.
+          deadband_velocities: [0.2, 0.0, 0.0] 
+
+
+  local_costmap:
+    local_costmap:
+      ros__parameters:
+        update_frequency: 25.0 #20.0
+        publish_frequency: 10.0
+        global_frame: map
+        robot_base_frame: base_footprint #base_footprint #base_footprint
+        use_sim_time: True #False
+        rolling_window: true
+        width: 8 #5
+        height: 8 #5
+        resolution: 0.04 #0.02
+        #robot_radius: 1.0 #0.2
+        footprint: "[ [0.50, 0.45], [-0.50, 0.45], [-0.50, -0.45], [0.50, -0.45] ]"
+
+        plugins: ["obstacle_layer", "casualty_layer", "inflation_layer"]
+
+        #casualty layer meine add kari -----------------------------------
+        casualty_layer:
+          plugin: "nav2_costmap_2d::ObstacleLayer"
+          enabled: true
+          observation_sources: casualty_ring
+          casualty_ring:
+            data_type: PointCloud2
+            topic: /casualty_keepout
+            marking: true
+            clearing: false        # <-- CRITICAL: Prevents your real LiDAR from erasing the rings
+            obstacle_max_range: 100.0  # (Use obstacle_max_range and raytrace_max_range for Foxy/Humble)
+            raytrace_max_range: 100.0
+            min_obstacle_height: 0.2
+            max_obstacle_height: 1.0
+            inf_is_valid: false
+
+        obstacle_layer:
+          plugin: "nav2_costmap_2d::ObstacleLayer"
+          enabled: true
+          observation_sources: scan
+          scan:
+            topic: /scan
+            raytrace_max_range: 20.0 #6
+            obstacle_max_range: 20.0 #6
+            obstacle_min_range: 0.1
+            min_obstacle_height: 0.0 #new addition
+            max_obstacle_height: 1.0 #2.0
+            clearing: true
+            marking: true
+            inf_is_valid: true
+            data_type: "LaserScan"
+            
+        inflation_layer:
+          plugin: "nav2_costmap_2d::InflationLayer"
+          cost_scaling_factor: 3.0 #5.0
+          inflation_radius: 0.8 #0.5 #0.5 #0.6
+        always_send_full_costmap: true
+
+  global_costmap:
+    global_costmap:
+      ros__parameters:
+        update_frequency: 5.0 #4.0 #2.5 #5.0
+        publish_frequency: 2.0
+        global_frame: map
+        #width: 10 #new addition
+        #height: 10 #new addition
+        robot_base_frame: base_footprint #base_footprint #base_footprint
+        use_sim_time: True #False
+        #robot_radius: 1.0 #0.2
+        footprint: "[ [0.50, 0.45], [-0.50, 0.45], [-0.50, -0.45], [0.50, -0.45] ]"
+        resolution: 0.04
+        track_unknown_space: true
+
+        #plugins: ["static_layer", "stvl_layer", "casualty_layer", "inflation_layer"]
+        plugins: ["new_static_layer", "obstacle_layer", "casualty_layer", "inflation_layer"]
+
+        #global costmap mein obstacle layer maine add kari ..local costmap mein pehle se thi
+        obstacle_layer:
+          plugin: "nav2_costmap_2d::ObstacleLayer"
+          enabled: true
+          observation_sources: scan
+          scan:
+            topic: /scan
+            raytrace_max_range: 30.0 
+            obstacle_max_range: 30.0 
+            obstacle_min_range: 0.1
+            min_obstacle_height: 0.0 #new addition
+            max_obstacle_height: 1.0 
+            clearing: true
+            marking: true
+            inf_is_valid: true
+            data_type: "LaserScan"
+
+        #casualty_layer meine add kari -------------------------
+        casualty_layer:
+          plugin: "nav2_costmap_2d::ObstacleLayer"
+          enabled: true
+          observation_sources: casualty_ring
+          casualty_ring:
+            data_type: PointCloud2
+            topic: /casualty_keepout
+            marking: true
+            clearing: false        # <-- CRITICAL: Prevents your real LiDAR from erasing the rings
+            obstacle_max_range: 100.0  # (Use obstacle_max_range and raytrace_max_range for Foxy/Humble)
+            raytrace_max_range: 100.0
+            min_obstacle_height: 0.2
+            max_obstacle_height: 1.0
+            inf_is_valid: false
+
+        stvl_layer:
+          plugin: "nav2_costmap_2d::ObstacleLayer"
+
+          enabled:                  true
+          voxel_decay:              2.5 #0.5
+          decay_model:              0
+          voxel_size:               0.05
+          track_unknown_space:      true
+          mark_threshold:           0
+          update_footprint_enabled: true
+          combination_method:       1
+          origin_z:                 0.0
+          publish_voxel_map:        true
+          transform_tolerance:      0.3
+          mapping_mode:             false
+          map_save_duration:        60.0
+          observation_sources:      livox_mark livox_clear
+          livox_mark:
+            data_type: PointCloud2
+            topic: /livox/lidar #/segmentation/obstacle
+            marking: true
+            clearing: false
+            obstacle_range: 3.0
+            min_obstacle_height: -0.4
+            max_obstacle_height: 1.0 #2.0
+            expected_update_rate: 11.1 #0.0
+            observation_persistence: 0.0
+            inf_is_valid: false
+            filter: "voxel"
+            voxel_min_points: 0
+            clear_after_reading: true
+          livox_clear:
+            enabled: true
+            data_type: PointCloud2
+            topic: /livox/lidar #/segmentation/obstacle
+            marking: false
+            clearing: true
+            max_z: 8.0
+            min_z: 1.0
+            vertical_fov_angle: 1.029
+            vertical_fov_padding: 0.05
+            horizontal_fov_angle: 1.22 #6.29
+            decay_acceleration: 5.0
+            model_type: 1
+        static_layer:
+          plugin: "nav2_costmap_2d::StaticLayer"
+          footprint_clearing_enabled: True
+          map_subscribe_transient_local: True
+        new_static_layer:
+          plugin: "nav2_costmap_2d::StaticLayer"
+          footprint_clearing_enabled: True
+          map_subscribe_transient_local: True
+          map_topic: /map_expanded
+        inflation_layer:
+          plugin: "nav2_costmap_2d::InflationLayer"
+          cost_scaling_factor: 3.0 #8.0
+          inflation_radius: 0.8 #0.5 #0.7
+        always_send_full_costmap: True
+
+  map_saver:
+    ros__parameters:
+      use_sim_time: True #False
+      save_map_timeout: 5.0
+      free_thresh_default: 0.25
+      occupied_thresh_default: 0.65
+      map_subscribe_transient_local: True
+
+  planner_server:
+    ros__parameters:
+      expected_planner_frequency: 5.0
+      use_sim_time: True #False
+      planner_plugins: ["GridBased"]
+      GridBased:
+        plugin: "nav2_navfn_planner/NavfnPlanner"
+        tolerance: 0.5
+        use_astar: true #false
+        allow_unknown: true
+        
+        # plugin: "nav2_smac_planner/SmacPlanner2D"
+        # tolerance: 0.5
+        # allow_unknown: true
+        
+        # Smac 2D Specific Magic:
+        downsample_costmap: False       # Set to True if your CPU is lagging!
+        downsampling_factor: 2          # How much to downsample if True
+        cost_travel_multiplier: 3.0 #2.0     # Higher = Stays further away from obstacles
+        use_final_approach_orientation: True # Smoothly points the nose at the final goal
+        smoother_max_iterations: 1000   # Guarantees a buttery-smooth curve for MPPI
+
+  behavior_server:
+    ros__parameters:
+      use_sim_time: True
+
+      local_costmap_topic: local_costmap/costmap_raw
+      global_costmap_topic: global_costmap/costmap_raw
+
+      local_footprint_topic: local_costmap/published_footprint
+      global_footprint_topic: global_costmap/published_footprint
+
+      cycle_frequency: 10.0
+
+      behavior_plugins:
+        - spin
+        - backup
+        - wait
+
+      spin:
+        plugin: "nav2_behaviors/Spin"
+
+      backup:
+        plugin: "nav2_behaviors/BackUp"
+
+      wait:
+        plugin: "nav2_behaviors/Wait"
+
+      local_frame: odom
+      global_frame: map
+      robot_base_frame: base_footprint #base_footprint
+
+      transform_tolerance: 0.3
+      simulate_ahead_time: 1.0
+
+      max_rotational_vel: 0.8
+      min_rotational_vel: 0.2
+      rotational_acc_lim: 2.0
+
+  # recoveries_server:
+  #   ros__parameters:
+  #     costmap_topic: local_costmap/costmap_raw
+  #     footprint_topic: local_costmap/published_footprint
+  #     cycle_frequency: 2.0
+  #     recovery_plugins: ["spin", "backup"]
+  #     spin:
+  #       plugin: "nav2_recoveries/Spin"
+  #     backup:
+  #       plugin: "nav2_recoveries/BackUp"
+  #     global_frame: odom
+  #     robot_base_frame: base_footprint
+  #     transform_timeout: 0.1
+  #     use_sim_time: True #False
+  #     simulate_ahead_time: 1.0
+  #     max_rotational_vel: 3.0
+  #     min_rotational_vel: 0.4
+  #     rotational_acc_lim: 3.0
+
+  map_server:
+    ros__parameters:
+      use_sim_time: True #False
+      yaml_filename: ""
+
+    # velocity_smoother:
+    #   ros__parameters:
+    #     smoothing_frequency: 20.0
+    #     scale_velocities: False
+    #     feedback: "CLOSED_LOOP"
+    #     max_velocity: [0.8, 0.8, 0.8]
+    #     min_velocity: [-0.8, -0.8, -0.8]
+    #     deadband_velocity: [0.0, 0.0, 0.0]
+    #     velocity_timeout: 1.0
+    #     max_accel: [4.0, 4.0, 6.0]
+    #     max_decel: [-4.0, -4.0, -6.0]
+    #     odom_topic: /odometry/filtered #/genz/odometry
+    #     odom_duration: 0.1
+
+  velocity_smoother:
+    ros__parameters:
+      smoothing_frequency: 20.0
+      scale_velocities: False
+      feedback: "OPEN_LOOP"
+      max_velocity: [1.2, 0.0, 1.2] #[2.0, 2.0, 3.0]
+      min_velocity: [-1.2, 0.0, -1.2] #[-2.0, -2.0, -3.0]
+      deadband_velocity: [0.0, 0.0, 0.4]
+      velocity_timeout: 1.0
+      max_accel: [4.0, 4.0, 6.0]
+      max_decel: [-4.0, -4.0, -6.0]
+      odom_topic: /bcr_bot/odom #/genz/odometry
+      odom_duration: 0.1
+
+# # amcl:
+# #   ros__parameters:
+# #     use_sim_time: True
+# #     ... (kept commented out as you are likely using slam_toolbox) ...
+
+# bt_navigator:
+#   ros__parameters:
+#     use_sim_time: True
+#     global_frame: map
+#     robot_base_frame: base_footprint
+#     odom_topic: /bcr_bot/odom
+#     bt_loop_duration: 10
+#     default_server_timeout: 20
+#     default_nav_through_poses_bt_xml: "/home/vortex/uas_nav/src/UAS-DTU-navigation-simulation/nav2_custom_bt_nodes/config/vortex_custom_polygon_tree.xml"
+#     plugin_lib_names:
+#     - nav2_compute_path_to_pose_action_bt_node
+#     - nav2_compute_path_through_poses_action_bt_node
+#     - nav2_follow_path_action_bt_node
+#     - nav2_back_up_action_bt_node
+#     - nav2_spin_action_bt_node
+#     - nav2_wait_action_bt_node
+#     - nav2_clear_costmap_service_bt_node
+#     - nav2_is_stuck_condition_bt_node
+#     - nav2_goal_reached_condition_bt_node
+#     - nav2_goal_updated_condition_bt_node
+#     - nav2_initial_pose_received_condition_bt_node
+#     - nav2_reinitialize_global_localization_service_bt_node
+#     - nav2_rate_controller_bt_node
+#     - nav2_distance_controller_bt_node
+#     - nav2_speed_controller_bt_node
+#     - nav2_truncate_path_action_bt_node
+#     - nav2_goal_updater_node_bt_node
+#     - nav2_recovery_node_bt_node
+#     - nav2_pipeline_sequence_bt_node
+#     - nav2_round_robin_node_bt_node
+#     - nav2_transform_available_condition_bt_node
+#     - nav2_time_expired_condition_bt_node
+#     - nav2_distance_traveled_condition_bt_node
+#     - nav2_single_trigger_bt_node
+#     - nav2_is_battery_low_condition_bt_node
+#     - nav2_navigate_through_poses_action_bt_node
+#     - nav2_navigate_to_pose_action_bt_node
+#     - nav2_remove_passed_goals_action_bt_node
+#     - nav2_planner_selector_bt_node
+#     - nav2_controller_selector_bt_node
+#     - nav2_goal_checker_selector_bt_node
+#     - nav2_custom_bt_nodes
+
+# controller_server:
+#   ros__parameters:
+#     use_sim_time: True 
+#     controller_frequency: 20.0
+#     min_x_velocity_threshold: 0.001
+#     min_y_velocity_threshold: 0.1
+#     min_theta_velocity_threshold: 0.001
+#     failure_tolerance: 0.3
+#     progress_checker_plugin: "progress_checker"
+#     goal_checker_plugins: ["general_goal_checker"]
+#     progress_checker:
+#       plugin: "nav2_controller::SimpleProgressChecker"
+#       required_movement_radius: 0.5
+#       movement_time_allowance: 10.0
+#     general_goal_checker:
+#       stateful: True
+#       plugin: "nav2_controller::SimpleGoalChecker"
+#       xy_goal_tolerance: 0.5 #0.25
+#       yaw_goal_tolerance: 6.28
+#     sloppy_goal_checker:
+#       plugin: "nav2_controller::SimpleGoalChecker"
+#       xy_goal_tolerance: 1.0   
+#       yaw_goal_tolerance: 6.28
+    
+#     controller_plugins: ["FollowPath", "OrbitController"]
+
+#     FollowPath:
+#       plugin: "nav2_mppi_controller::MPPIController"
+#       time_steps: 56
+#       model_dt: 0.05
+#       batch_size: 2000 #1500
+#       vx_std: 0.3
+#       vy_std: 0.0
+#       wz_std: 0.3
+#       vx_max: 1.0 #0.6
+#       vx_min: -0.2
+#       vy_max: 0.0
+#       wz_max: 1.2 #1.0
+#       iteration_count: 1
+#       prune_distance: 4.0 #1.0
+#       transform_tolerance: 0.1
+#       temperature: 0.12 #0.2
+#       gamma: 0.014 #0.015
+#       motion_model: "DiffDrive"
+#       visualize: False
+      
+#       TrajectoryVisualizer:
+#         trajectory_step: 5
+#         time_step: 3
+
+#       critics: ["ConstraintCritic", "ObstaclesCritic", "GoalCritic", "GoalAngleCritic", "PathAlignCritic", "PathFollowCritic", "PathAngleCritic", "PreferForwardCritic", "VelocityDeadbandCritic"]
+      
+#       ConstraintCritic:
+#         cost_weight: 7.0
+#       ObstaclesCritic:
+#         repulsion_weight: 4.0 #4.0
+#         critical_weight: 20.0 #30.0
+#         consider_footprint: true
+#         collision_cost: 100000.0
+#         collision_margin_distance: 0.4
+#         near_goal_distance: 0.5
+#       GoalCritic:
+#         cost_weight: 5.0
+#         threshold_to_consider: 1.4
+#       PreferForwardCritic:
+#         enabled: true
+#         cost_weight: 10.0 #5.0
+#       GoalAngleCritic:
+#         cost_weight: 3.0
+#         threshold_to_consider: 0.5
+#       PathAlignCritic:
+#         cost_weight: 14.0 #10.0
+#       PathFollowCritic:
+#         cost_weight: 6.0
+#       PathAngleCritic:
+#         cost_weight: 2.0
+#       VelocityDeadbandCritic:
+#         cost_weight: 20.0 #35.0
+#         deadband_velocities: [0.15, 0.0, 0.0] 
+
+#     OrbitController:
+#       plugin: "nav2_mppi_controller::MPPIController"
+#       time_steps: 56
+#       model_dt: 0.05
+#       batch_size: 2000 #1500
+#       vx_std: 0.3
+#       vy_std: 0.0
+#       wz_std: 0.3
+#       vx_max: 1.0 #0.6
+#       vx_min: -0.2
+#       vy_max: 0.0
+#       wz_max: 1.2 #1.0
+#       iteration_count: 2 #1
+#       prune_distance: 4.0 #1.0
+#       transform_tolerance: 0.1
+#       temperature: 0.1 #0.2
+#       gamma: 0.015
+#       motion_model: "DiffDrive"
+#       visualize: False
+      
+#       TrajectoryVisualizer:
+#         trajectory_step: 5
+#         time_step: 3
+
+#       critics: ["ConstraintCritic", "ObstaclesCritic", "GoalCritic", "GoalAngleCritic", "PathAlignCritic", "PathAngleCritic", "PreferForwardCritic", "VelocityDeadbandCritic"]
+      
+#       ConstraintCritic:
+#         cost_weight: 7.0
+#       ObstaclesCritic:
+#         repulsion_weight: 4.0 #1.5
+#         critical_weight: 25.0 #20.0
+#         consider_footprint: true
+#         collision_cost: 100000.0
+#         collision_margin_distance: 0.2 #0.1
+#         near_goal_distance: 0.5
+#       GoalCritic:
+#         cost_weight: 5.0
+#         threshold_to_consider: 4.0 #1.4
+#       PreferForwardCritic:
+#         enabled: true
+#         cost_weight: 10.0 #5.0
+#       GoalAngleCritic:
+#         cost_weight: 3.0
+#         threshold_to_consider: 0.5
+#       PathAlignCritic:
+#         cost_weight: 12.0 #10.0
+#       PathFollowCritic:
+#         cost_weight: 6.0
+#         threshold_to_consider: 3.5 #new addition
+#       PathAngleCritic:
+#         cost_weight: 2.0
+#       VelocityDeadbandCritic:
+#         cost_weight: 20.0 #35.0
+#         deadband_velocities: [0.15, 0.0, 0.0] 
+
+ 
+# local_costmap:
+#   local_costmap:
+#     ros__parameters:
+#       update_frequency: 25.0
+#       publish_frequency: 10.0
+#       global_frame: map
+#       robot_base_frame: base_footprint
+#       use_sim_time: True
+#       rolling_window: true
+#       width: 8
+#       height: 8
+#       resolution: 0.04
+#       footprint: "[ [0.50, 0.45], [-0.50, 0.45], [-0.50, -0.45], [0.50, -0.45] ]" #"[ [0.50, 0.40], [-0.50, 0.40], [-0.50, -0.40], [0.50, -0.40] ]" # Swapped bcr_bot circular radius
+
+#       plugins: ["obstacle_layer", "casualty_layer", "inflation_layer"] # Removed casualty_layer
+
+#       casualty_layer:
+#         plugin: "nav2_costmap_2d::ObstacleLayer"
+#         enabled: true
+#         observation_sources: casualty_ring
+#         casualty_ring:
+#           data_type: PointCloud2
+#           topic: /casualty_keepout
+#           marking: true
+#           clearing: false        # <-- CRITICAL: Prevents your real LiDAR from erasing the rings
+#           obstacle_max_range: 100.0  # (Use obstacle_max_range and raytrace_max_range for Foxy/Humble)
+#           raytrace_max_range: 100.0
+#           min_obstacle_height: 0.2
+#           max_obstacle_height: 1.0
+#           inf_is_valid: false
+
+#       obstacle_layer:
+#         plugin: "nav2_costmap_2d::ObstacleLayer"
+#         enabled: true
+#         observation_sources: scan
+#         scan:
+#           topic: /bcr_bot/scan # Updated topic
+#           raytrace_max_range: 20.0
+#           obstacle_max_range: 20.0
+#           obstacle_min_range: 0.1
+#           min_obstacle_height: 0.0
+#           max_obstacle_height: 0.1
+#           clearing: true
+#           marking: true
+#           inf_is_valid: true
+#           data_type: "LaserScan"
+#       inflation_layer:
+#         plugin: "nav2_costmap_2d::InflationLayer"
+#         cost_scaling_factor: 5.0
+#         inflation_radius: 0.5
+#       always_send_full_costmap: true
+
+# global_costmap:
+#   global_costmap:
+#     ros__parameters:
+#       update_frequency: 4.0
+#       publish_frequency: 2.0
+#       global_frame: map
+#       robot_base_frame: base_footprint
+#       use_sim_time: True
+#       footprint: "[ [0.50, 0.45], [-0.50, 0.45], [-0.50, -0.45], [0.50, -0.45] ]" #"[ [0.50, 0.40], [-0.50, 0.40], [-0.45, -0.40], [0.50, -0.40] ]" 
+#       resolution: 0.04
+#       track_unknown_space: true
+
+#       #plugins: ["static_layer", "obstacle_layer", "casualty_layer", "inflation_layer"] # Added standard obstacle layer, removed Livox/Casualty
+#       plugins: ["static_layer", "obstacle_layer", "casualty_layer", "inflation_layer"] # Added standard obstacle layer, removed Livox/Casualty
+
+
+#       casualty_layer:
+#         plugin: "nav2_costmap_2d::ObstacleLayer"
+#         enabled: true
+#         observation_sources: casualty_ring
+#         casualty_ring:
+#           data_type: PointCloud2
+#           topic: /casualty_keepout
+#           marking: true
+#           clearing: false        # <-- CRITICAL: Prevents your real LiDAR from erasing the rings
+#           obstacle_max_range: 100.0  # (Use obstacle_max_range and raytrace_max_range for Foxy/Humble)
+#           raytrace_max_range: 100.0
+#           min_obstacle_height: 0.2
+#           max_obstacle_height: 1.0
+#           inf_is_valid: false
+
+#       # stvl_layer:
+#       #   plugin: "nav2_costmap_2d::ObstacleLayer"
+#       #   enabled: false # Disabled for simulation
+#       stvl_layer:
+#         plugin: "spatio_temporal_voxel_layer/SpatioTemporalVoxelLayer"
+
+#         enabled:                  true
+#         voxel_decay:              10000.0 #2.5 #0.5
+#         decay_model:              0
+#         voxel_size:               0.05
+#         track_unknown_space:      true
+#         mark_threshold:           0
+#         update_footprint_enabled: true
+#         combination_method:       1
+#         origin_z:                 0.0
+#         publish_voxel_map:        true
+#         transform_tolerance:      0.3
+#         mapping_mode:             false
+#         map_save_duration:        60.0
+#         observation_sources:      livox_mark livox_clear
+#         livox_mark:
+#           data_type: PointCloud2
+#           topic: /bf_lidar/point_cloud_out  #/segmentation/obstacle
+#           marking: true
+#           clearing: false
+#           obstacle_range: 50.0 #20.0 #3.0
+#           min_obstacle_height: 0.0 #0.2
+#           max_obstacle_height: 0.5 #2.0
+#           expected_update_rate: 7.9 #0.0
+#           observation_persistence: 0.0
+#           inf_is_valid: false
+#           filter: "voxel"
+#           voxel_min_points: 0
+#           clear_after_reading: true
+#         livox_clear:
+#           enabled: true #true
+#           data_type: PointCloud2
+#           topic: /bf_lidar/point_cloud_out #/segmentation/obstacle
+#           marking: false
+#           clearing: true
+#           max_z: 50.0
+#           min_z: 0.0
+#           vertical_fov_angle: 0.576 #1.029
+#           vertical_fov_padding: 0.05
+#           horizontal_fov_angle: 1.222 #6.29 #1.22 #6.29
+#           decay_acceleration: 5.0
+#           model_type: 1
+
+#       obstacle_layer:
+#         plugin: "nav2_costmap_2d::ObstacleLayer"
+#         enabled: true
+#         observation_sources: scan
+#         scan:
+#           topic: /bcr_bot/scan # Bcr_bot 2D scan used to avoid dynamic objects globally
+#           raytrace_max_range: 20.0
+#           obstacle_max_range: 20.0
+#           obstacle_min_range: 0.1
+#           min_obstacle_height: 0.0 #keep min height 0.0 otherwise obstalce layer cant work with any laserscan
+#           max_obstacle_height: 0.1
+#           clearing: true
+#           marking: true
+#           inf_is_valid: true
+#           data_type: "LaserScan"
+
+#       static_layer:
+#         plugin: "nav2_costmap_2d::StaticLayer"
+#         footprint_clearing_enabled: True
+#         map_subscribe_transient_local: True
+#       inflation_layer:
+#         plugin: "nav2_costmap_2d::InflationLayer"
+#         cost_scaling_factor: 4.0 #3.0
+#         inflation_radius: 0.7 #0.5
+#       always_send_full_costmap: True
+#       new_static_layer:
+#         plugin: "nav2_costmap_2d::StaticLayer"
+#         footprint_clearing_enabled: True
+#         map_subscribe_transient_local: True
+#         map_topic: /map_expanded
+
+
+# map_saver:
+#   ros__parameters:
+#     use_sim_time: True
+#     save_map_timeout: 5.0
+#     free_thresh_default: 0.25
+#     occupied_thresh_default: 0.65
+#     map_subscribe_transient_local: True
+
+# planner_server:
+#   ros__parameters:
+#     expected_planner_frequency: 5.0
+#     use_sim_time: True
+#     planner_plugins: ["GridBased"]
+#     GridBased:
+#       plugin: "nav2_navfn_planner/NavfnPlanner"
+#       tolerance: 0.5
+#       use_astar: true #false
+#       allow_unknown: true
+#       # plugin: "nav2_smac_planner/SmacPlanner2D"
+#       # tolerance: 0.5
+#       # allow_unknown: true
+#       # downsample_costmap: False
+#       # downsampling_factor: 2
+#       # cost_travel_multiplier: 2.0
+#       # use_final_approach_orientation: True
+#       # smoother_max_iterations: 1000
+
+# behavior_server:
+#   ros__parameters:
+#     use_sim_time: True
+
+#     local_costmap_topic: local_costmap/costmap_raw
+#     global_costmap_topic: global_costmap/costmap_raw
+
+#     local_footprint_topic: local_costmap/published_footprint
+#     global_footprint_topic: global_costmap/published_footprint
+
+#     cycle_frequency: 10.0
+
+#     behavior_plugins:
+#       - spin
+#       - backup
+#       - wait
+
+#     spin:
+#       plugin: "nav2_behaviors/Spin"
+
+#     backup:
+#       plugin: "nav2_behaviors/BackUp"
+
+#     wait:
+#       plugin: "nav2_behaviors/Wait"
+
+#     local_frame: map #odom temporary
+#     global_frame: map
+#     robot_base_frame: base_footprint
+
+#     transform_tolerance: 0.3
+#     simulate_ahead_time: 1.0
+
+#     max_rotational_vel: 0.8
+#     min_rotational_vel: 0.2
+#     rotational_acc_lim: 2.0
+
+# map_server:
+#   ros__parameters:
+#     use_sim_time: True
+#     yaml_filename: ""
+
+# velocity_smoother:
+#   ros__parameters:
+#     use_sim_time: True
+#     smoothing_frequency: 20.0
+#     scale_velocities: False
+#     feedback: "OPEN_LOOP"
+#     max_velocity: [1.4, 0.0, 1.4] #[0.6, 0.0, 1.0] # Matched strictly to MPPI's vx_max and wz_max
+#     min_velocity: [-1.4, 0.0, -1.4] #[-0.6, 0.0, -1.0]
+#     deadband_velocity: [0.0, 0.0, 0.25]
+#     velocity_timeout: 1.0
+#     max_accel: [4.0, 4.0, 6.0]
+#     max_decel: [-4.0, -4.0, -6.0]
+#     odom_topic: /bcr_bot/odom # Updated topic
+#     odom_duration: 0.1

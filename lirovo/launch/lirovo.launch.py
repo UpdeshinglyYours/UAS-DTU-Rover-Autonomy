@@ -73,7 +73,7 @@ def generate_launch_description():
                  #'angle_max': +3.14159,
                  'angle_increment': 0.00872665,
                  'scan_time': 0.125, #0.8, #0.07, #0.8,
-                 'range_min': 1.499, #0.2,
+                 'range_min': 1.5, #0.2,
                  'range_max': 41.0, #100.0,
                  'use_inf': True,
                  'inf_epsilon': 1.0,
@@ -82,7 +82,7 @@ def generate_launch_description():
              }],
              remappings=[
                  ('cloud_in', '/livox/lidar'),
-                 ('scan', '/bcr_bot/scan'),
+                 ('scan', '/scan'),
              ],
              ),
         
@@ -193,7 +193,7 @@ def generate_launch_description():
                 {'use_sim_time':True} # This MUST be a separate dictionary entry
              ],
              # HARD OVERRIDE: Force it at the command line level
-             arguments=['--ros-args', '-p', 'use_sim_time:=false'] 
+             arguments=['--ros-args', '-p', 'use_sim_time:=true'] 
         ),
      ]
      ),

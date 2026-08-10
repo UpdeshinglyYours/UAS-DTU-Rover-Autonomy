@@ -13,7 +13,7 @@ class AdaptiveVelocityController(Node):
         qos=QoSProfile(reliability=ReliabilityPolicy.BEST_EFFORT,
                        history=HistoryPolicy.KEEP_LAST,depth=10)
         self.create_subscription(Twist,"/cmd_vel",self.cmd_callback,10)
-        self.create_subscription(Odometry,"/odometry/filtered",self.odom_callback,qos)
+        self.create_subscription(Odometry,"/mavros/local_position/odom",self.odom_callback,qos)
         self.pub=self.create_publisher(Twist,"/mavros/setpoint_velocity/cmd_vel_unstamped",10)
 
         self.cmd=Twist()
@@ -29,11 +29,11 @@ class AdaptiveVelocityController(Node):
         self.prev_des_w = 0.0
 
         self.initial_gain_v = 0.75
-        self.initial_gain_left = 0.55
-        self.initial_gain_right = 0.55
+        self.initial_gain_left = 0.75
+        self.initial_gain_right = 0.75
 
         self.reset_threshold_v = 0.4      # m/s
-        self.reset_threshold_w = 0.4      # rad/s
+        self.reset_threshold_w = 0.2      # rad/s
 
         # Initialize gains
         self.gain_v = self.initial_gain_v
@@ -42,11 +42,11 @@ class AdaptiveVelocityController(Node):
 
         self.lr=0.02
         self.dead_v=0.04
-        self.dead_w=0.04
+        self.dead_w=0.2
         self.min_gain=0.2
-        self.max_gain=2.0
+        self.max_gain=3.0
         self.max_v=2.0
-        self.max_w=1.5
+        self.max_w=2.5
         self.prev_v=0.0
         self.prev_w=0.0
         self.dv_lim=0.05
