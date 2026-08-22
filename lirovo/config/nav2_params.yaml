@@ -41,7 +41,7 @@
 
   # amcl_map_client:
   #   ros__parameters:
-  #     use_sim_time: False #False
+  #     use_sim_time: True #False
 
   # amcl_rclcpp_node:
   #   ros__parameters:
@@ -51,10 +51,10 @@
 
   bt_navigator:
     ros__parameters:
-      use_sim_time: True #False
+      use_sim_time: False #False
       global_frame: map
-      robot_base_frame: base_footprint #base_footprint #base_footprint
-      odom_topic: /bcr_bot/odom #/genz/odometry
+      robot_base_frame: base_link #base_link #base_link
+      odom_topic: /odometry/filtered #/genz/odometry
       bt_loop_duration: 10
       default_server_timeout: 20
       default_nav_through_poses_bt_xml: "/home/vortex/uas_nav/src/UAS-DTU-navigation-simulation/nav2_custom_bt_nodes/config/vortex_custom_polygon_tree.xml" #meine add kara #ADD YOUR OWN PATH HERE
@@ -94,7 +94,7 @@
 
   controller_server:
     ros__parameters:
-      use_sim_time: True 
+      use_sim_time: False 
       controller_frequency: 20.0
       min_x_velocity_threshold: 0.001
       min_y_velocity_threshold: 0.1
@@ -123,19 +123,19 @@
         plugin: "nav2_mppi_controller::MPPIController"
         time_steps: 56 #56
         model_dt: 0.05
-        batch_size: 5000 #2000 #2000 pf #1500
+        batch_size: 2000 #2000 #2000 pf #1500
         vx_std: 0.3 #0.3 perfect follow #0.2
         vy_std: 0.0
         wz_std: 0.3 #0.3 pf #0.4
-        vx_max: 1.0 #0.5 pf
+        vx_max: 0.9 #0.5 pf
         vx_min: -0.2 #-0.3 pf
         vy_max: 0.0
         wz_max: 0.9 #1.0
         iteration_count: 1
-        prune_distance: 4.0 #1.0 #1.7 pf
+        prune_distance: 2.5 #1.0 #1.7 pf
         transform_tolerance: 0.1
         temperature: 0.2 #0.2 #0.4 fpf #0.3
-        gamma: 0.015 #0.015
+        gamma: 0.018 #0.015
         motion_model: "DiffDrive"
         visualize: False #True
         
@@ -151,10 +151,10 @@
           cost_weight: 7.0 #4.0 pf
         ObstaclesCritic:
           repulsion_weight: 4.0 #2.5 #1.5        # The strength of the magnetic push away from walls
-          critical_weight: 30.0 #20.0        # Heavy penalty for getting dangerously close
+          critical_weight: 25.0 #20.0        # Heavy penalty for getting dangerously close
           consider_footprint: true #false    # Keep false to save CPU (uses center point instead of full chassis)
           collision_cost: 100000.0
-          collision_margin_distance: 0.3 #0.1 # 10cm safety bubble
+          collision_margin_distance: 0.25 #0.1 # 10cm safety bubble
           near_goal_distance: 0.5
         GoalCritic:
           cost_weight: 5.0
@@ -281,19 +281,19 @@
         plugin: "nav2_mppi_controller::MPPIController"
         time_steps: 56 #56
         model_dt: 0.05
-        batch_size: 5000 #2000 #2000 pf #1500
+        batch_size: 2000 #2000 #2000 pf #1500
         vx_std: 0.3 #0.3 perfect follow #0.2
         vy_std: 0.0
         wz_std: 0.3 #0.3 pf #0.4
-        vx_max: 1.0 #0.6 #0.5 pf
+        vx_max: 0.9 #0.6 #0.5 pf
         vx_min: -0.2 #-0.3 pf
         vy_max: 0.0
         wz_max: 0.9 #1.0
         iteration_count: 1
-        prune_distance: 4.0 #1.0 #1.7 pf
+        prune_distance: 2.5 #1.0 #1.7 pf
         transform_tolerance: 0.1
         temperature: 0.2 #0.2 #0.4 fpf #0.3
-        gamma: 0.015 #0.015
+        gamma: 0.018 #0.015
         motion_model: "DiffDrive"
         visualize: False #True
         
@@ -302,7 +302,7 @@
           time_step: 3
 
         # CRITICAL FIX: critics must be an array of strings!
-        critics: ["ConstraintCritic", "ObstaclesCritic", "GoalCritic", "GoalAngleCritic", "PathAlignCritic", "PathAngleCritic", "PreferForwardCritic", "VelocityDeadbandCritic"]
+        critics: ["ConstraintCritic", "ObstaclesCritic", "GoalCritic", "GoalAngleCritic", "PathFollowCritic", "PathAlignCritic", "PathAngleCritic", "PreferForwardCritic", "VelocityDeadbandCritic"]
         #critics: ["ConstraintCritic", "ObstaclesCritic", "GoalAngleCritic", "PathAlignCritic", "PathFollowCritic", "PathAngleCritic", "PreferForwardCritic"]
 
         # The configs must be SIBLINGS to the critics list, not nested inside it!
@@ -310,14 +310,14 @@
           cost_weight: 7.0 #4.0 pf
         ObstaclesCritic:
           repulsion_weight: 4.0 #1.5        # The strength of the magnetic push away from walls
-          critical_weight: 30.0 #20.0        # Heavy penalty for getting dangerously close
+          critical_weight: 25.0 #20.0        # Heavy penalty for getting dangerously close
           consider_footprint: true #false    # Keep false to save CPU (uses center point instead of full chassis)
           collision_cost: 100000.0
-          collision_margin_distance: 0.2 #0.1 # 10cm safety bubble
+          collision_margin_distance: 0.15 #0.1 # 10cm safety bubble
           near_goal_distance: 0.5
         GoalCritic:
           cost_weight: 5.0
-          threshold_to_consider: 4.0 #1.4    #important ..goal critic is off until you are within the threshold
+          threshold_to_consider: 1.4 #4.0 #1.4    #important ..goal critic is off until you are within the threshold
         PreferForwardCritic:
           enabled: true
           cost_weight: 25.0 #5.0
@@ -327,7 +327,7 @@
         PathAlignCritic:
           cost_weight: 12.0 #10.0 #12.0 pf #14.0
         PathFollowCritic:
-          cost_weight: 6.0 #8.0 pf #5.0
+          cost_weight: 8.0 #6.0 #8.0 pf #5.0
         PathAngleCritic:
           cost_weight: 2.0
         VelocityDeadbandCritic:
@@ -343,8 +343,8 @@
         update_frequency: 25.0 #20.0
         publish_frequency: 10.0
         global_frame: map
-        robot_base_frame: base_footprint #base_footprint #base_footprint
-        use_sim_time: True #False
+        robot_base_frame: base_link #base_link #base_link
+        use_sim_time: False #False
         rolling_window: true
         width: 8 #5
         height: 8 #5
@@ -376,15 +376,22 @@
           observation_sources: scan
           scan:
             topic: /scan
-            raytrace_max_range: 20.0 #6
+            raytrace_max_range: 15.0 #20.0 #6
+            raytrace_min_range: 1.5 #0.55 #new addition # actually exact 43cm hai
             obstacle_max_range: 20.0 #6
-            obstacle_min_range: 0.1
+            obstacle_min_range: 1.5 #0.2 #0.1
             min_obstacle_height: 0.0 #new addition
             max_obstacle_height: 1.0 #2.0
             clearing: true
             marking: true
             inf_is_valid: true
             data_type: "LaserScan"
+            
+        new_static_layer:
+          plugin: "nav2_costmap_2d::StaticLayer"
+          footprint_clearing_enabled: True
+          map_subscribe_transient_local: True
+          map_topic: /map_expanded
             
         inflation_layer:
           plugin: "nav2_costmap_2d::InflationLayer"
@@ -398,17 +405,19 @@
         update_frequency: 5.0 #4.0 #2.5 #5.0
         publish_frequency: 2.0
         global_frame: map
-        #width: 10 #new addition
-        #height: 10 #new addition
-        robot_base_frame: base_footprint #base_footprint #base_footprint
-        use_sim_time: True #False
+        width: 600 #new addition
+        height: 600 #new addition
+        origin_x: -300.0
+        origin_y: -300.0
+        robot_base_frame: base_link #base_link #base_link
+        use_sim_time: False #False
         #robot_radius: 1.0 #0.2
         footprint: "[ [0.50, 0.45], [-0.50, 0.45], [-0.50, -0.45], [0.50, -0.45] ]"
-        resolution: 0.04
-        track_unknown_space: true
+        resolution: 0.1 #0.04
+        track_unknown_space: false #true
 
         #plugins: ["static_layer", "stvl_layer", "casualty_layer", "inflation_layer"]
-        plugins: ["new_static_layer", "obstacle_layer", "casualty_layer", "inflation_layer"]
+        plugins: ["obstacle_layer", "casualty_layer", "inflation_layer"]
 
         #global costmap mein obstacle layer maine add kari ..local costmap mein pehle se thi
         obstacle_layer:
@@ -417,9 +426,10 @@
           observation_sources: scan
           scan:
             topic: /scan
-            raytrace_max_range: 30.0 
+            raytrace_max_range: 30.0 #15.0 #30.0 
+            raytrace_min_range: 1.5 #0.55 #new addition  # actually exact 43cm hai
             obstacle_max_range: 30.0 
-            obstacle_min_range: 0.1
+            obstacle_min_range: 1.5 #0.2 #0.1
             min_obstacle_height: 0.0 #new addition
             max_obstacle_height: 1.0 
             clearing: true
@@ -444,11 +454,11 @@
             inf_is_valid: false
 
         stvl_layer:
-          plugin: "nav2_costmap_2d::ObstacleLayer"
+          plugin: "spatio_temporal_voxel_layer/SpatioTemporalVoxelLayer"
 
           enabled:                  true
-          voxel_decay:              2.5 #0.5
-          decay_model:              0
+          voxel_decay:              3600.0 #2.5 #0.5
+          decay_model:              0 #2 .. persistent #-1 #0
           voxel_size:               0.05
           track_unknown_space:      true
           mark_threshold:           0
@@ -459,34 +469,39 @@
           transform_tolerance:      0.3
           mapping_mode:             false
           map_save_duration:        60.0
+          publish_z_max:            2.0 #new addition
           observation_sources:      livox_mark livox_clear
           livox_mark:
             data_type: PointCloud2
-            topic: /livox/lidar #/segmentation/obstacle
+            topic: /bf_lidar/point_cloud_out #/segmentation/obstacle
             marking: true
             clearing: false
-            obstacle_range: 3.0
-            min_obstacle_height: -0.4
-            max_obstacle_height: 1.0 #2.0
-            expected_update_rate: 11.1 #0.0
+            obstacle_range: 15.0 #3.0 
+            obstacle_min_range: 1.5 #new addition
+            min_obstacle_height: 0.15 #0.1 #-0.4
+            max_obstacle_height: 1.2 #2.0
+            expected_update_rate: 3600.0 #0.3 #seconds #0.0
             observation_persistence: 0.0
             inf_is_valid: false
             filter: "voxel"
-            voxel_min_points: 0
+            voxel_min_points: 3 #2 #0
             clear_after_reading: true
           livox_clear:
             enabled: true
             data_type: PointCloud2
-            topic: /livox/lidar #/segmentation/obstacle
+            topic: /bf_lidar/point_cloud_out #/segmentation/obstacle
             marking: false
             clearing: true
-            max_z: 8.0
-            min_z: 1.0
-            vertical_fov_angle: 1.029
+            max_z: 15.0 #8.0
+            min_z: 1.5 #1.0
+            expected_update_rate: 3600.0 #0.3 #seconds # new addition
+            vertical_fov_angle: 0.576 #1.029
             vertical_fov_padding: 0.05
-            horizontal_fov_angle: 1.22 #6.29
-            decay_acceleration: 5.0
+            horizontal_fov_angle: 1.221 #6.29
+            decay_acceleration: 2400.0 #5.0
             model_type: 1
+            clear_after_reading: true #new addition
+
         static_layer:
           plugin: "nav2_costmap_2d::StaticLayer"
           footprint_clearing_enabled: True
@@ -504,7 +519,7 @@
 
   map_saver:
     ros__parameters:
-      use_sim_time: True #False
+      use_sim_time: False #False
       save_map_timeout: 5.0
       free_thresh_default: 0.25
       occupied_thresh_default: 0.65
@@ -512,29 +527,33 @@
 
   planner_server:
     ros__parameters:
-      expected_planner_frequency: 5.0
-      use_sim_time: True #False
+      expected_planner_frequency: 5.0 #5.0
+      use_sim_time: False #False
       planner_plugins: ["GridBased"]
       GridBased:
-        plugin: "nav2_navfn_planner/NavfnPlanner"
+        #plugin: "nav2_navfn_planner/NavfnPlanner"
+        #tolerance: 0.5
+        #use_astar: true #false
+        #allow_unknown: true
+        
+        plugin: "nav2_smac_planner/SmacPlanner2D"
         tolerance: 0.5
-        use_astar: true #false
         allow_unknown: true
         
-        # plugin: "nav2_smac_planner/SmacPlanner2D"
-        # tolerance: 0.5
-        # allow_unknown: true
-        
         # Smac 2D Specific Magic:
-        downsample_costmap: False       # Set to True if your CPU is lagging!
+        downsample_costmap: True #False       # Set to True if your CPU is lagging!
         downsampling_factor: 2          # How much to downsample if True
-        cost_travel_multiplier: 3.0 #2.0     # Higher = Stays further away from obstacles
+        cost_travel_multiplier: 4.0 #3.0 #2.0     # Higher = Stays further away from obstacles
         use_final_approach_orientation: True # Smoothly points the nose at the final goal
-        smoother_max_iterations: 1000   # Guarantees a buttery-smooth curve for MPPI
+        smoother_max_iterations: 1000   # Guarantees a buttery-smooth curve for MPPI #param should be inside smoother: .. and is max_iteration
+        
+
+        
+          
 
   behavior_server:
     ros__parameters:
-      use_sim_time: True
+      use_sim_time: False #False
 
       local_costmap_topic: local_costmap/costmap_raw
       global_costmap_topic: global_costmap/costmap_raw
@@ -560,7 +579,7 @@
 
       local_frame: odom
       global_frame: map
-      robot_base_frame: base_footprint #base_footprint
+      robot_base_frame: base_link #base_link
 
       transform_tolerance: 0.3
       simulate_ahead_time: 1.0
@@ -580,9 +599,9 @@
   #     backup:
   #       plugin: "nav2_recoveries/BackUp"
   #     global_frame: odom
-  #     robot_base_frame: base_footprint
+  #     robot_base_frame: base_link
   #     transform_timeout: 0.1
-  #     use_sim_time: True #False
+  #     use_sim_time: False #False
   #     simulate_ahead_time: 1.0
   #     max_rotational_vel: 3.0
   #     min_rotational_vel: 0.4
@@ -590,7 +609,7 @@
 
   map_server:
     ros__parameters:
-      use_sim_time: True #False
+      use_sim_time: False #False
       yaml_filename: ""
 
     # velocity_smoother:
@@ -614,11 +633,11 @@
       feedback: "OPEN_LOOP"
       max_velocity: [1.2, 0.0, 1.2] #[2.0, 2.0, 3.0]
       min_velocity: [-1.2, 0.0, -1.2] #[-2.0, -2.0, -3.0]
-      deadband_velocity: [0.0, 0.0, 0.4]
+      deadband_velocity: [0.0, 0.0, 0.3]
       velocity_timeout: 1.0
       max_accel: [4.0, 4.0, 6.0]
       max_decel: [-4.0, -4.0, -6.0]
-      odom_topic: /bcr_bot/odom #/genz/odometry
+      odom_topic: /odometry/filtered #/genz/odometry
       odom_duration: 0.1
 
 # # amcl:
@@ -630,7 +649,7 @@
 #   ros__parameters:
 #     use_sim_time: True
 #     global_frame: map
-#     robot_base_frame: base_footprint
+#     robot_base_frame: base_link
 #     odom_topic: /bcr_bot/odom
 #     bt_loop_duration: 10
 #     default_server_timeout: 20
@@ -671,7 +690,7 @@
 
 # controller_server:
 #   ros__parameters:
-#     use_sim_time: True 
+#     use_sim_time: False 
 #     controller_frequency: 20.0
 #     min_x_velocity_threshold: 0.001
 #     min_y_velocity_threshold: 0.1
@@ -811,7 +830,7 @@
 #       update_frequency: 25.0
 #       publish_frequency: 10.0
 #       global_frame: map
-#       robot_base_frame: base_footprint
+#       robot_base_frame: base_link
 #       use_sim_time: True
 #       rolling_window: true
 #       width: 8

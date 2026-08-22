@@ -35,7 +35,7 @@ def generate_launch_description():
 
     return LaunchDescription([
     
-        SetParameter(name='use_sim_time', value=True), #extra addition, meine kiya 
+        SetParameter(name='use_sim_time', value=False), #extra addition, meine kiya 
         
          #Node(
          #    package='tf2_ros',
@@ -63,7 +63,7 @@ def generate_launch_description():
              executable='pointcloud_to_laserscan_node',
              name='pointcloud_to_laserscan',
              parameters=[{
-                 'target_frame': 'base_footprint',
+                 'target_frame': 'base_link',
                  'transform_tolerance': 0.05, #0.5,
                  'min_height': 0.2, #0.0 , #-0.3, # bcr bot 3d lidar is 40.5 cm above ground
                  'max_height': 1.0, #0.7 , #1.0,
@@ -72,26 +72,26 @@ def generate_launch_description():
                  #'angle_min': -3.14159,
                  #'angle_max': +3.14159,
                  'angle_increment': 0.00872665,
-                 'scan_time': 0.125, #0.8, #0.07, #0.8,
+                 'scan_time': 0.1, #0.8, #0.07, #0.8,
                  'range_min': 1.5, #0.2,
                  'range_max': 41.0, #100.0,
                  'use_inf': True,
                  'inf_epsilon': 1.0,
                  'queue_size': 50,
-                 'use_sim_time':True, #False,
+                 'use_sim_time':False, #False,
              }],
              remappings=[
-                 ('cloud_in', '/livox/lidar'),
+                 ('cloud_in', '/bf_lidar/point_cloud_out'),
                  ('scan', '/scan'),
              ],
              ),
         
-        #Node(
-        #     package='tf2_ros',
-        #     executable='static_transform_publisher',
-        #     arguments=['0', '0', '0', '0', '0', '0', 'map', 'odom'],
-        #     name='static_tf_odom'
-        # ),
+        Node(
+             package='tf2_ros',
+             executable='static_transform_publisher',
+             arguments=['0', '0', '0', '0', '0', '0', 'map', 'odom'],
+             name='static_tf_odom'
+         ),
         # Node(
         #     package='lirovo',
         #     executable='mavros_bridge',
@@ -121,15 +121,15 @@ def generate_launch_description():
         # }.items()
         # ), 
         
-         #Node(
-         #package='robot_localization',
-         #executable='ekf_node',
-         #name='ekf_filter_node',
-         #output='screen',
-         #parameters=[os.path.join(
-         #    get_package_share_directory(namePackage),
-         #    'config', 'ekf_localization.yaml')],
-         #),
+         Node(
+         package='robot_localization',
+         executable='ekf_node',
+         name='ekf_filter_node',
+         output='screen',
+         parameters=[os.path.join(
+             get_package_share_directory(namePackage),
+             'config', 'ekf_localization.yaml')],
+         ),
          
          #..............................
          #TimerAction(
@@ -173,30 +173,30 @@ def generate_launch_description():
         #     ]
         # ),
 	
-        Node( #bcr bot ke liye add kiya
-        package='bcr_bot',
-        executable='remapper.py',
-        name='remapper',
-        output='screen',
-       ),        
-             TimerAction(
-        period=3.0, #10.0,
-         actions=[
-        Node(
-             package='slam_toolbox',
-             executable='async_slam_toolbox_node',
-             name='slam_toolbox',
-             output='screen',
-             # We separate the YAML and the explicit dictionary
-             parameters=[
-                 slam_params_path, 
-                {'use_sim_time':True} # This MUST be a separate dictionary entry
-             ],
-             # HARD OVERRIDE: Force it at the command line level
-             arguments=['--ros-args', '-p', 'use_sim_time:=true'] 
-        ),
-     ]
-     ),
+        #Node( #bcr bot ke liye add kiya
+        #package='bcr_bot',
+        #executable='remapper.py',
+        #name='remapper',
+        #output='screen',
+       #),        
+        #     TimerAction(
+        #period=3.0, #10.0,
+        # actions=[
+        #Node(
+        #     package='slam_toolbox',
+        #     executable='async_slam_toolbox_node',
+        #     name='slam_toolbox',
+        #     output='screen',
+        #     # We separate the YAML and the explicit dictionary
+        #     parameters=[
+        #         slam_params_path, 
+        #        {'use_sim_time':True} # This MUST be a separate dictionary entry
+        #     ],
+        #     # HARD OVERRIDE: Force it at the command line level
+        #     arguments=['--ros-args', '-p', 'use_sim_time:=true'] 
+        #),
+     #]
+     #),
      
      #Node(
 	#    package='octomap_server',

@@ -198,7 +198,7 @@ BT::NodeStatus GenerateOrbitWaypoints::tick()
   std::vector<geometry_msgs::msg::PoseStamped> waypoints;
   double angle_step = (2.0 * M_PI) / num_waypoints;
 
-  for (int i = 0; i < num_waypoints; ++i) {
+  for (int i = 0; i <= num_waypoints; ++i) {
     double angle = start_angle + (i * angle_step);
     
     geometry_msgs::msg::PoseStamped p;

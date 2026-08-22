@@ -11,8 +11,8 @@ class ContinuousMapExpander(Node):
         super().__init__('map_expander')
         
         # ROS 2 Parameters
-        self.declare_parameter('target_width_m', 100.0)
-        self.declare_parameter('target_height_m', 100.0)
+        self.declare_parameter('target_width_m', 400.0)
+        self.declare_parameter('target_height_m', 400.0)
         self.declare_parameter('fill_value', 0) # 0 = Free space
         
         # QoS TRANSIENT_LOCAL is crucial for maps. 

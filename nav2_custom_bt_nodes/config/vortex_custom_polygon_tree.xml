@@ -85,7 +85,7 @@
                   <!-- MATH: Calculates 8 perfectly spaced dots around the casualty in a 3.5m radius.
                        Crucially, Dot 1 is placed EXACTLY where the robot is currently parked 
                        so it doesn't try to cut across the circle! -->
-                  <GenerateOrbitWaypoints center="{casualty_center}" radius="3.5" num_waypoints="8" output_goals="{orbit_waypoints}"/>
+                  <GenerateOrbitWaypoints center="{casualty_center}" radius="3.5" num_waypoints="3" output_goals="{orbit_waypoints}"/>
                   
                   <!-- 
                     THE HARDWARE KILL-SWITCH:

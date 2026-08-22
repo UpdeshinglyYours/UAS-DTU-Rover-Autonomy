@@ -169,10 +169,10 @@ def main(args=None):
 
     # The actual mission coordinates to investigate.
     # The dispatcher will draw 3.0m Keepout Zones around ALL of these immediately!
-    casualty_locations = [ (-1.0, -4.5), #(3.0, 0.0) #, (6.0, 2.0), (3.0, 0.0)
-        #(-1.0, -4.0),
-        #(15.0, -1.0),
-        #(10.0, 5.0),
+    casualty_locations = [ #(225.0, -114.0), #(3.0, 0.0) #, (6.0, 2.0), (3.0, 0.0)
+        #(100.0, 0.0),
+        #(274.0, -5.0),
+        (7.0, 0.0),
     ]
 
     dispatcher.send_mission(casualty_locations)
