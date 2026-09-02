@@ -1,0 +1,5 @@
+# Load after the standard MAVROS APM configuration. This labels the raw GPS
+# fix with the physical antenna frame whose lever arm is published in TF.
+/**/global_position:
+  ros__parameters:
+    frame_id: gps_antenna

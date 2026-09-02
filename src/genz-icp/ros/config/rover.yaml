@@ -14,7 +14,7 @@ twist_angular_covariance: 0.25
 max_range: 60.0
 min_range: 1.0
 voxel_size: 0.55
-desired_num_voxelized_points: 2500
+desired_num_voxelized_points: 5500
 planarity_threshold: 0.2
 max_points_per_voxel: 3
 initial_threshold: 2.0
@@ -36,10 +36,10 @@ imu_prediction_point_time_field: auto
 imu_prediction_point_time_unit: nanoseconds
 imu_prediction_cloud_stamp_location: end
 imu_prediction_deskew_reference: middle
-imu_angular_velocity_scale: 0.017453292519943295
-enable_imu_prediction_gyro_bias_calibration: true
-imu_prediction_gyro_bias_calibration_seconds: 2.0
-imu_prediction_gyro_bias_min_samples: 50
+imu_angular_velocity_scale: 1.0 # or 1.0
+enable_imu_prediction_gyro_bias_calibration: false
+imu_prediction_gyro_bias_calibration_seconds: 10.0
+imu_prediction_gyro_bias_min_samples: 500
 imu_prediction_gyro_bias: []
 imu_prediction_max_gap_seconds: 0.06
 imu_prediction_max_age_seconds: 0.60
@@ -47,7 +47,7 @@ imu_prediction_max_rejected_frame_age_seconds: 2.0
 imu_prediction_rotation_only: true
 imu_prediction_debug: true
 enable_yaw_search_initializer: true
-yaw_search_degrees: [-12.0, -8.0, -4.0, 0.0, 4.0, 8.0, 12.0]
+yaw_search_degrees: [-6.0, -4.0, -2.0, 0.0, 2.0, 4.0, 6.0]
 yaw_search_score_max_correspondence_distance: 1.5
 yaw_search_min_correspondences: 500
 yaw_search_use_weighted_rmse: true

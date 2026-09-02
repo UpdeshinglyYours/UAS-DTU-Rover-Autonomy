@@ -1,0 +1,563 @@
+{
+  "bag_filtering": {
+    "original_size_bytes": 9500510470,
+    "filtered_size_bytes": 86331991,
+    "original_size_gib": 8.84803987108171,
+    "filtered_size_mib": 82.33260250091553,
+    "reduction_pct": 99.09129102828092,
+    "filtered_topic_count": 27,
+    "filtered_nonempty_topic_count": 23,
+    "filtered_message_count": 86019,
+    "duration_s": 126.423503795,
+    "start_ns": 1788003588505532088,
+    "end_ns": 1788003714929035883,
+    "retained_topics": [
+      {
+        "name": "/cmd_vel",
+        "type": "geometry_msgs/msg/Twist",
+        "message_count": 1914
+      },
+      {
+        "name": "/cmd_vel_nav",
+        "type": "geometry_msgs/msg/Twist",
+        "message_count": 1896
+      },
+      {
+        "name": "/dtu_centerline_filter_info",
+        "type": "nav2_msgs/msg/CostmapFilterInfo",
+        "message_count": 1
+      },
+      {
+        "name": "/dtu_reference_route",
+        "type": "nav_msgs/msg/Path",
+        "message_count": 2
+      },
+      {
+        "name": "/genz/non_planar_points",
+        "type": "sensor_msgs/msg/PointCloud2",
+        "message_count": 843
+      },
+      {
+        "name": "/genz/odometry",
+        "type": "nav_msgs/msg/Odometry",
+        "message_count": 843
+      },
+      {
+        "name": "/goal_pose",
+        "type": "geometry_msgs/msg/PoseStamped",
+        "message_count": 0
+      },
+      {
+        "name": "/gps/filtered",
+        "type": "sensor_msgs/msg/NavSatFix",
+        "message_count": 3382
+      },
+      {
+        "name": "/local_costmap/costmap",
+        "type": "nav_msgs/msg/OccupancyGrid",
+        "message_count": 1055
+      },
+      {
+        "name": "/local_costmap/published_footprint",
+        "type": "geometry_msgs/msg/PolygonStamped",
+        "message_count": 3160
+      },
+      {
+        "name": "/mavros/global_position/compass_hdg",
+        "type": "std_msgs/msg/Float64",
+        "message_count": 27140
+      },
+      {
+        "name": "/mavros/global_position/raw/fix",
+        "type": "sensor_msgs/msg/NavSatFix",
+        "message_count": 127
+      },
+      {
+        "name": "/mavros/global_position/raw/gps_vel",
+        "type": "geometry_msgs/msg/TwistStamped",
+        "message_count": 127
+      },
+      {
+        "name": "/mavros/global_position/raw/satellites",
+        "type": "std_msgs/msg/UInt32",
+        "message_count": 127
+      },
+      {
+        "name": "/mavros/gpsstatus/gps1/raw",
+        "type": "mavros_msgs/msg/GPSRAW",
+        "message_count": 127
+      },
+      {
+        "name": "/mavros/gpsstatus/gps1/rtk",
+        "type": "mavros_msgs/msg/GPSRTK",
+        "message_count": 0
+      },
+      {
+        "name": "/mavros/gpsstatus/gps2/raw",
+        "type": "mavros_msgs/msg/GPSRAW",
+        "message_count": 127
+      },
+      {
+        "name": "/mavros/imu/data",
+        "type": "sensor_msgs/msg/Imu",
+        "message_count": 27134
+      },
+      {
+        "name": "/odometry/filtered",
+        "type": "nav_msgs/msg/Odometry",
+        "message_count": 5054
+      },
+      {
+        "name": "/odometry/global",
+        "type": "nav_msgs/msg/Odometry",
+        "message_count": 3792
+      },
+      {
+        "name": "/odometry/gps",
+        "type": "nav_msgs/msg/Odometry",
+        "message_count": 127
+      },
+      {
+        "name": "/plan",
+        "type": "nav_msgs/msg/Path",
+        "message_count": 93
+      },
+      {
+        "name": "/plan_smoothed",
+        "type": "nav_msgs/msg/Path",
+        "message_count": 0
+      },
+      {
+        "name": "/scan",
+        "type": "sensor_msgs/msg/LaserScan",
+        "message_count": 0
+      },
+      {
+        "name": "/tf",
+        "type": "tf2_msgs/msg/TFMessage",
+        "message_count": 8850
+      },
+      {
+        "name": "/tf_static",
+        "type": "tf2_msgs/msg/TFMessage",
+        "message_count": 5
+      },
+      {
+        "name": "/unsmoothed_plan",
+        "type": "nav_msgs/msg/Path",
+        "message_count": 93
+      }
+    ],
+    "start_utc": "2026-08-29T11:39:48.505532+00:00",
+    "end_utc": "2026-08-29T11:41:54.929036+00:00"
+  },
+  "centerline_tracking": {
+    "minimum": 0.0007506622257306515,
+    "mean": 0.8104939620524401,
+    "median": 0.4919684206115564,
+    "p95": 2.208189185602846,
+    "maximum": 3.523817638038573,
+    "within_0_5_m_pct": 50.73839662447257,
+    "within_1_0_m_pct": 70.22679324894516,
+    "within_1_5_m_pct": 82.46308016877637,
+    "within_2_0_m_pct": 88.50210970464136,
+    "signed_median_m": 0.20423264032271793,
+    "signed_mean_m": -0.06311191112505095,
+    "positive_side_pct": 60.52215189873418,
+    "worst_sustained_gt_2m": {
+      "start_index": 2621,
+      "end_index": 2925,
+      "start_s": 87.40457463264465,
+      "end_s": 97.53776478767395,
+      "duration_s": 10.133190155029297,
+      "mean_error_m": 2.3156789403485343,
+      "max_error_m": 3.391978387221679
+    },
+    "rtk_fixed": {
+      "minimum": 0.001655307200644465,
+      "mean": 0.3850300696199513,
+      "median": 0.23918821238842658,
+      "p95": 0.9446679629227378,
+      "maximum": 2.2307053588353942
+    },
+    "rtk_float": {
+      "minimum": 0.0007506622257306515,
+      "mean": 1.0430068559592651,
+      "median": 0.7421016030067296,
+      "p95": 2.5134909919664272,
+      "maximum": 3.523817638038573
+    },
+    "active_navigation": {
+      "minimum": 0.0007506622257306515,
+      "mean": 0.9668661079115651,
+      "median": 0.716523020947446,
+      "p95": 2.4105248948509437,
+      "maximum": 3.523817638038573
+    },
+    "hard_turn": {
+      "minimum": 0.0007506622257306515,
+      "mean": 0.9943056494401151,
+      "median": 0.706064946921885,
+      "p95": 2.499491286599501,
+      "maximum": 3.391978387221679
+    },
+    "straight": {
+      "minimum": 0.0008033967718411144,
+      "mean": 0.9509952348046798,
+      "median": 0.8232611167962486,
+      "p95": 2.0652897647098225,
+      "maximum": 3.523817638038573
+    },
+    "correlation_abs_cmd_wz": 0.026799801574230613
+  },
+  "planned_path_centerline": {
+    "minimum": 0.00014749302398868675,
+    "mean": 0.13643230438592063,
+    "median": 0.0381852783061188,
+    "p95": 0.704649531368077,
+    "maximum": 3.3092421438741892,
+    "within_0_5_m_pct": 92.96859949913312
+  },
+  "topic_rates": {
+    "/genz/odometry": {
+      "message_count": 843,
+      "mean_hz": 6.6753452004516625,
+      "median_interval_s": 0.14842259883880615,
+      "p95_interval_s": 0.17374669313430785,
+      "worst_gap_s": 0.1969761848449707,
+      "gaps_gt_0_05_s": 842,
+      "gaps_gt_0_10_s": 842,
+      "gaps_gt_0_20_s": 0,
+      "gaps_gt_0_50_s": 0
+    },
+    "/odometry/filtered": {
+      "message_count": 5054,
+      "mean_hz": 39.99913008977728,
+      "median_interval_s": 0.02499866485595703,
+      "p95_interval_s": 0.025902509689331055,
+      "worst_gap_s": 0.03463268280029297,
+      "gaps_gt_0_05_s": 0,
+      "gaps_gt_0_10_s": 0,
+      "gaps_gt_0_20_s": 0,
+      "gaps_gt_0_50_s": 0
+    },
+    "/odometry/gps": {
+      "message_count": 127,
+      "mean_hz": 1.000008410948395,
+      "median_interval_s": 1.000016450881958,
+      "p95_interval_s": 1.0335972905158997,
+      "worst_gap_s": 1.0351252555847168,
+      "gaps_gt_0_05_s": 126,
+      "gaps_gt_0_10_s": 126,
+      "gaps_gt_0_20_s": 126,
+      "gaps_gt_0_50_s": 126
+    },
+    "/odometry/global": {
+      "message_count": 3792,
+      "mean_hz": 29.999993347425033,
+      "median_interval_s": 0.03333473205566406,
+      "p95_interval_s": 0.03417205810546875,
+      "worst_gap_s": 0.043221473693847656,
+      "gaps_gt_0_05_s": 0,
+      "gaps_gt_0_10_s": 0,
+      "gaps_gt_0_20_s": 0,
+      "gaps_gt_0_50_s": 0
+    },
+    "/mavros/imu/data": {
+      "message_count": 27134,
+      "mean_hz": 214.69918889439035,
+      "median_interval_s": 0.004221439361572266,
+      "p95_interval_s": 0.007837295532226559,
+      "worst_gap_s": 0.02932596206665039,
+      "gaps_gt_0_05_s": 0,
+      "gaps_gt_0_10_s": 0,
+      "gaps_gt_0_20_s": 0,
+      "gaps_gt_0_50_s": 0
+    },
+    "/scan": {
+      "message_count": 0,
+      "mean_hz": 0.0,
+      "median_interval_s": null,
+      "p95_interval_s": null,
+      "worst_gap_s": null,
+      "gaps_gt_0_05_s": 0,
+      "gaps_gt_0_10_s": 0,
+      "gaps_gt_0_20_s": 0,
+      "gaps_gt_0_50_s": 0
+    },
+    "/cmd_vel_nav": {
+      "message_count": 1896,
+      "mean_hz": 20.010338440369,
+      "median_interval_s": 0.04973483085632324,
+      "p95_interval_s": 0.0627183198928833,
+      "worst_gap_s": 0.07521224021911621,
+      "gaps_gt_0_05_s": 946,
+      "gaps_gt_0_10_s": 0,
+      "gaps_gt_0_20_s": 0,
+      "gaps_gt_0_50_s": 0
+    },
+    "/cmd_vel": {
+      "message_count": 1914,
+      "mean_hz": 20.000272675805427,
+      "median_interval_s": 0.049999237060546875,
+      "p95_interval_s": 0.05066757202148437,
+      "worst_gap_s": 0.058098793029785156,
+      "gaps_gt_0_05_s": 940,
+      "gaps_gt_0_10_s": 0,
+      "gaps_gt_0_20_s": 0,
+      "gaps_gt_0_50_s": 0
+    },
+    "/local_costmap/costmap": {
+      "message_count": 1055,
+      "mean_hz": 8.338152761747985,
+      "median_interval_s": 0.12001430988311768,
+      "p95_interval_s": 0.12379000186920165,
+      "worst_gap_s": 0.1360456943511963,
+      "gaps_gt_0_05_s": 1053,
+      "gaps_gt_0_10_s": 1053,
+      "gaps_gt_0_20_s": 0,
+      "gaps_gt_0_50_s": 0
+    },
+    "/genz/non_planar_points": {
+      "message_count": 843,
+      "mean_hz": 6.674417093293752,
+      "median_interval_s": 0.14780306816101074,
+      "p95_interval_s": 0.18187792301177977,
+      "worst_gap_s": 0.20947790145874023,
+      "gaps_gt_0_05_s": 842,
+      "gaps_gt_0_10_s": 841,
+      "gaps_gt_0_20_s": 3,
+      "gaps_gt_0_50_s": 0
+    },
+    "/plan": {
+      "message_count": 93,
+      "mean_hz": 0.9711885040483049,
+      "median_interval_s": 1.029929757118225,
+      "p95_interval_s": 1.0328178644180297,
+      "worst_gap_s": 1.0463674068450928,
+      "gaps_gt_0_05_s": 92,
+      "gaps_gt_0_10_s": 92,
+      "gaps_gt_0_20_s": 92,
+      "gaps_gt_0_50_s": 92
+    }
+  },
+  "localization": {
+    "global_to_gps_m": {
+      "minimum": 0.002109567779178567,
+      "mean": 0.32154126045113895,
+      "median": 0.22922109248719297,
+      "p95": 0.9538922091023749,
+      "maximum": 1.3907141041698703,
+      "timestamp_alignment_p95_s": 0.005137014389038084,
+      "rtk_fixed": {
+        "minimum": 0.002109567779178567,
+        "mean": 0.1951530865384308,
+        "median": 0.07740926493870641,
+        "p95": 0.7607512542303061,
+        "maximum": 0.9598448061869038
+      },
+      "rtk_float": {
+        "minimum": 0.0029789682145311886,
+        "mean": 0.3909006241837226,
+        "median": 0.29087860959182177,
+        "p95": 1.0054946612310665,
+        "maximum": 1.3907141041698703
+      }
+    },
+    "global_position_step_m": {
+      "minimum": 3.965293397426729e-06,
+      "mean": 0.03691665416558622,
+      "median": 0.024629760406623652,
+      "p95": 0.08150342647086548,
+      "maximum": 1.3481779797575835
+    },
+    "global_steps_gt_0_5_m": 34,
+    "global_steps_gt_0_5_m_within_0_1_s_of_gps": 33,
+    "gps_position_step_m": {
+      "minimum": 0.0,
+      "mean": 0.508604323127164,
+      "median": 0.5100418599101088,
+      "p95": 1.1539191790640466,
+      "maximum": 1.662558531703729
+    },
+    "global_heading_step_deg": {
+      "minimum": 0.0001171835058727423,
+      "mean": 0.681873204392971,
+      "median": 0.2673966461430338,
+      "p95": 1.9493913936890228,
+      "maximum": 4.372559614704785
+    },
+    "global_reported_xy_sigma_m": {
+      "minimum": 0.055084146754725526,
+      "mean": 0.22366271086459527,
+      "median": 0.23443655298437227,
+      "p95": 0.3183614254621274,
+      "maximum": 0.34943360643217347,
+      "first": 0.27076068447675383,
+      "last": 0.11210121731108875
+    },
+    "global_reported_yaw_sigma_rad": {
+      "minimum": 0.12046966954267682,
+      "mean": 0.1286997171288646,
+      "median": 0.1289940039111019,
+      "p95": 0.1324473245760885,
+      "maximum": 0.13822542812659203,
+      "first": 0.12229560653234477,
+      "last": 0.13244817243040946
+    },
+    "gps1_fix_type_counts": {
+      "no_fix_or_unknown_0": 0,
+      "rtk_float_5": 82,
+      "rtk_fixed_6": 45
+    },
+    "rtk_fixed_pct": 35.43307086614173,
+    "rtk_float_pct": 64.56692913385827,
+    "gps1_satellites": {
+      "minimum": 29.0,
+      "mean": 31.181102362204726,
+      "median": 31.0,
+      "p95": 32.0,
+      "maximum": 32.0
+    },
+    "gps1_horizontal_accuracy_mm": {
+      "minimum": 13.0,
+      "mean": 26.88976377952756,
+      "median": 20.0,
+      "p95": 55.69999999999999,
+      "maximum": 84.0
+    },
+    "gps1_fix_transitions": [
+      {
+        "elapsed_s": 32.22532939910889,
+        "from_fix_type": 6,
+        "to_fix_type": 5
+      },
+      {
+        "elapsed_s": 39.24864149093628,
+        "from_fix_type": 5,
+        "to_fix_type": 6
+      },
+      {
+        "elapsed_s": 52.20957350730896,
+        "from_fix_type": 6,
+        "to_fix_type": 5
+      }
+    ]
+  },
+  "obstacle_avoidance": {
+    "scan_message_count": 0,
+    "proxy_topic": "/genz/non_planar_points",
+    "proxy_definition": "nearest point with x>=0.43 m, |y|<=0.75 m, 0<=z<=2 m in base_link",
+    "proxy_frames": 843,
+    "proxy_frames_with_candidate": 314,
+    "proxy_forward_range_m": {
+      "minimum": 2.2359260457008285,
+      "mean": 20.164143654844146,
+      "median": 10.734963939832994,
+      "p95": 41.280362524635564,
+      "maximum": 41.94047664686615
+    },
+    "proxy_frames_within_4m": 1,
+    "candidate_events": [
+      {
+        "elapsed_s": 72.50017404556274,
+        "proxy_range_m": 2.2359260457008285,
+        "proxy_point_base_link_xyz_m": [
+          2.1138771915435792,
+          -0.728620958328247,
+          1.8031546258926392
+        ],
+        "cmd_linear_x_mps": 0.2543579936027527,
+        "cmd_angular_z_radps": -0.9000000357627869,
+        "filtered_odom_age_s": 0.01224374771118164,
+        "costmap_publication_age_s": 0.09332823753356934,
+        "costmap_cell_value": 0.0,
+        "steering_response_latency_s": null,
+        "speed_reduction_latency_s": null,
+        "latency_note": "Single isolated proxy sample; command was already at high steering and reduced speed."
+      }
+    ],
+    "proxy_costmap_cell_free_pct": 100.0,
+    "interpretation_limit": "The proxy cloud was not consumed by Nav2 and cannot replace the absent /scan record."
+  },
+  "nav2_configuration": {
+    "controller_frequency_hz": 20.0,
+    "controller_odom_topic_configured": null,
+    "controller_odom_topic_effective_default": "/odom",
+    "controller_effective_topic_recorded_messages": 0,
+    "bt_navigator_odom_topic": "/odometry/filtered",
+    "velocity_smoother_odom_topic": "/odometry/filtered",
+    "velocity_smoother_feedback": "OPEN_LOOP",
+    "local_costmap_pose_source": "TF odom->base_link from local EKF",
+    "local_costmap_update_frequency_hz": 25.0,
+    "local_costmap_publish_frequency_hz": 10.0,
+    "observed_local_costmap_publish_hz": 8.338152761747985,
+    "scan_topic": "/scan",
+    "scan_observation_persistence": "not explicitly configured",
+    "obstacle_min_range_m": 0.43,
+    "obstacle_max_range_m": 20.0,
+    "raytrace_min_range_m": 0.43,
+    "raytrace_max_range_m": 20.0,
+    "inflation_radius_m": 0.8,
+    "inflation_cost_scaling_factor": 3.0,
+    "footprint": "[[0.50, 0.45], [-0.50, 0.45], [-0.50, -0.45], [0.50, -0.45]]",
+    "transform_tolerance_s": 0.3,
+    "mppi_time_steps": 56,
+    "mppi_model_dt_s": 0.05,
+    "mppi_horizon_s": 2.8000000000000003,
+    "mppi_vx_max_mps": 0.9,
+    "mppi_wz_max_radps": 0.9,
+    "mppi_obstacle_critic": {
+      "repulsion_weight": 4.0,
+      "critical_weight": 25.0,
+      "consider_footprint": true,
+      "collision_cost": 100000.0,
+      "collision_margin_distance": 0.25,
+      "near_goal_distance": 0.5
+    },
+    "mppi_path_align_weight": 12.0,
+    "mppi_path_follow_weight": 8.0,
+    "velocity_smoother_max_decel": [
+      -4.0,
+      0.0,
+      -6.0
+    ],
+    "global_planner_cost_travel_multiplier": 3.0,
+    "centerline_filter_enabled": true,
+    "pointcloud_to_laserscan_default_input": "/nonground",
+    "recorded_default_input_messages": 0
+  },
+  "ranked_likely_causes": [
+    {
+      "rank": 1,
+      "confidence": "high",
+      "cause": "No /scan messages reached the recorded Nav2 obstacle input, leaving live obstacle marking and clearing without observations."
+    },
+    {
+      "rank": 2,
+      "confidence": "high",
+      "cause": "controller_server omitted odom_topic, so Humble defaulted to /odom; the bag contains no /odom publisher, while /odometry/filtered was only configured for BT navigator and velocity smoother."
+    },
+    {
+      "rank": 3,
+      "confidence": "medium",
+      "cause": "Global localization was discontinuous during mostly RTK-float operation: 34 global EKF position steps exceeded 0.5 m and centerline error was substantially worse in float periods."
+    }
+  ],
+  "recommended_changes": {
+    "high_confidence": [
+      "Make the point-cloud-to-LaserScan input match the actually published nonground/obstacle cloud; gate Nav2 activation on a nonzero, healthy /scan rate and verify live obstacle cells in the local costmap.",
+      "Set controller_server.ros__parameters.odom_topic to /odometry/filtered and verify the controller subscription before motion.",
+      "Record /scan explicitly with compatible sensor-data QoS plus the compact obstacle cloud in the next diagnostic bag."
+    ],
+    "medium_confidence": [
+      "Investigate why GenZ/cloud cadence was 6.67 Hz rather than the previously observed ~11 Hz; retest stopping/steering margin at the actual maximum rover speed.",
+      "Gate or reduce navigation speed when HERE4 is RTK float, and tune global GPS fusion only after checking time synchronization/covariance because the global EKF made repeated sub-second correction jumps."
+    ],
+    "do_not_change_yet": [
+      "Do not reduce centerline cost_travel_multiplier solely from this run; the planner had no recorded obstacle input and 93.0% of plan samples stayed within 0.5 m of a mapped centerline.",
+      "Do not change footprint, inflation, MPPI obstacle weights, or deceleration limits until a run with a validated /scan stream shows inadequate clearance despite correctly marked obstacles.",
+      "Do not lower or restore EKF output rates: /odometry/filtered was 40.0 Hz and /odometry/global was 30.0 Hz, already above/at the requested 25-30 Hz range."
+    ]
+  }
+}

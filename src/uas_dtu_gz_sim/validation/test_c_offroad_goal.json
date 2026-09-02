@@ -1,0 +1,19 @@
+{
+  "actual_goal": [506.625, 352.625],
+  "actual_path_length_m": 69.939,
+  "actual_path_surface_percent": {"offroad": 6.1, "road": 93.9},
+  "actual_pose_count": 262,
+  "actual_start": [486.375, 393.625],
+  "actual_within_reference_percent": {
+    "0.5_m": 86.32,
+    "1.0_m": 94.71,
+    "2.0_m": 100.0
+  },
+  "clearance_source": "/global_costmap/costmap",
+  "lethal_cells_crossed": 0,
+  "minimum_obstacle_clearance_m": 9.441,
+  "reference_pose_count": 161,
+  "reference_route_length_m": 76.959,
+  "static_lethal_cells_crossed": 0
+}
+

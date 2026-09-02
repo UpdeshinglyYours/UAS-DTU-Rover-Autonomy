@@ -1,0 +1,133 @@
+{
+  "action_result": "SUCCEEDED",
+  "baseline_disabled": {
+    "barricade_entities_present": 0,
+    "lifecycle_nodes_active": true,
+    "scan_rate_hz": 20.0,
+    "tf_map_to_base_link_resolved": true
+  },
+  "course_entities_present": [
+    "dtu_barricade_1",
+    "dtu_barricade_2",
+    "dtu_barricade_3",
+    "dtu_barricade_4"
+  ],
+  "forward_plan_snapshot": {
+    "actual_goal": [
+      517.625,
+      359.625
+    ],
+    "actual_path_length_m": 75.405,
+    "actual_path_surface_percent": {
+      "offroad": 0.0,
+      "road": 100.0
+    },
+    "actual_pose_count": 288,
+    "actual_start": [
+      486.625,
+      392.875
+    ],
+    "actual_within_reference_percent": {
+      "0.5_m": 86.42,
+      "1.0_m": 97.71,
+      "2.0_m": 100.0
+    },
+    "clearance_source": "/global_costmap/costmap",
+    "lethal_cells_crossed": 0,
+    "minimum_obstacle_clearance_m": 0.293,
+    "reference_pose_count": 165,
+    "reference_route_length_m": 79.446,
+    "static_lethal_cells_crossed": 0
+  },
+  "lifecycle_nodes_active": [
+    "dtu_static_map_server",
+    "dtu_centerline_cost_server",
+    "planner_server",
+    "controller_server",
+    "bt_navigator"
+  ],
+  "map_artifact_sha256": {
+    "dtu_centerline_cost.pgm": "a81259c7bcd36667c4d4e635c91d244227fede406668c31d21b9041d51ffae2b",
+    "dtu_road_graph.json": "27ee668ac7bac1b5e6b941f4b048455a3a1d6f385eeadab2b9c602a641ddae34",
+    "dtu_static.pgm": "b7ed93c74ca7bccb0872e9862c41eaf0c17bce05ec4eb1d5eebb332631f0752b"
+  },
+  "navigation_recoveries": 0,
+  "per_barricade": {
+    "dtu_barricade_1": {
+      "global_cost_max": 100,
+      "global_lethal_cells_max": 10,
+      "local_cost_max": 100,
+      "local_lethal_cells_max": 24,
+      "max_actual_deviation_m": 1.025,
+      "max_plan_deviation_m": 1.136,
+      "min_footprint_clearance_m": 0.48,
+      "min_scan_range_m": 1.5,
+      "return_minimum_deviation_m": 0.012
+    },
+    "dtu_barricade_2": {
+      "global_cost_max": 100,
+      "global_lethal_cells_max": 10,
+      "local_cost_max": 100,
+      "local_lethal_cells_max": 26,
+      "max_actual_deviation_m": 0.775,
+      "max_plan_deviation_m": 0.794,
+      "min_footprint_clearance_m": 0.251,
+      "min_scan_range_m": 1.5,
+      "return_minimum_deviation_m": 0.0
+    },
+    "dtu_barricade_3": {
+      "global_cost_max": 100,
+      "global_lethal_cells_max": 10,
+      "local_cost_max": 100,
+      "local_lethal_cells_max": 28,
+      "max_actual_deviation_m": 0.963,
+      "max_plan_deviation_m": 1.054,
+      "min_footprint_clearance_m": 0.438,
+      "min_scan_range_m": 1.5,
+      "return_minimum_deviation_m": 0.001
+    },
+    "dtu_barricade_4": {
+      "global_cost_max": 100,
+      "global_lethal_cells_max": 12,
+      "local_cost_max": 100,
+      "local_lethal_cells_max": 24,
+      "max_actual_deviation_m": 0.824,
+      "max_plan_deviation_m": 0.924,
+      "min_footprint_clearance_m": 0.286,
+      "min_scan_range_m": 1.5,
+      "return_minimum_deviation_m": 0.003
+    }
+  },
+  "plan_updates": 104,
+  "reference_route_during_goal": {
+    "length_m": 79.998,
+    "message_updates": 1,
+    "unique_geometries": 1
+  },
+  "tf_owners": {
+    "/tf": [
+      "bcr_bot_gz_bridge",
+      "robot_state_publisher"
+    ],
+    "/tf_static": [
+      "dtu_map_to_odom",
+      "robot_state_publisher"
+    ],
+    "duplicate_ownership_detected": false
+  },
+  "trajectory": {
+    "length_m": 77.271,
+    "samples": 1066,
+    "static_lethal_cells_crossed": 0,
+    "surface_percent": {
+      "offroad": 0.0,
+      "road": 100.0
+    },
+    "within_reference_percent": {
+      "0.5_m": 55.07,
+      "1.0_m": 98.43,
+      "2.0_m": 100.0
+    }
+  },
+  "validation_date": "2026-08-26"
+}

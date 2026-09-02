@@ -142,7 +142,7 @@ def generate_launch_description():
             DeclareLaunchArgument("use_sim_time", default_value="false"),
             DeclareLaunchArgument("base_frame", default_value="base_link"),
             DeclareLaunchArgument("odom_frame", default_value="odom"),
-            DeclareLaunchArgument("lidar_frame", default_value="lidar"), #keep this lidar for blickfeld
+            DeclareLaunchArgument("lidar_frame", default_value="lidar"), #kdareep this lidar for blickfeld
             DeclareLaunchArgument(
                 "config_file",
                 default_value=PathJoinSubstitution(
@@ -152,9 +152,9 @@ def generate_launch_description():
 
             # Static TF: Y-forward base_link -> Y-forward lidar.
             # Make these match your physical lidar mounting.
-            DeclareLaunchArgument("lidar_tf_x", default_value="0.11"),
+            DeclareLaunchArgument("lidar_tf_x", default_value="-0.11"),
             DeclareLaunchArgument("lidar_tf_y", default_value="0.30"),
-            DeclareLaunchArgument("lidar_tf_z", default_value="0.0"),
+            DeclareLaunchArgument("lidar_tf_z", default_value="0.54"),
             DeclareLaunchArgument("lidar_tf_yaw", default_value="0.0"),
             DeclareLaunchArgument("lidar_tf_pitch", default_value="0.0"),
             DeclareLaunchArgument("lidar_tf_roll", default_value="0.0"),

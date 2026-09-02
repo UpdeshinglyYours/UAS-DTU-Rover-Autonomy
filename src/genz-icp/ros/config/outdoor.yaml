@@ -28,10 +28,10 @@ imu_prediction_point_time_field: auto
 imu_prediction_point_time_unit: nanoseconds
 imu_prediction_cloud_stamp_location: end
 imu_prediction_deskew_reference: end
-imu_angular_velocity_scale: 1.0
+imu_angular_velocity_scale: -1.0
 enable_imu_prediction_gyro_bias_calibration: true
-imu_prediction_gyro_bias_calibration_seconds: 2.0
-imu_prediction_gyro_bias_min_samples: 50
+imu_prediction_gyro_bias_calibration_seconds: 10.0
+imu_prediction_gyro_bias_min_samples: 300
 imu_prediction_gyro_bias: []
 imu_prediction_max_gap_seconds: 0.06
 imu_prediction_max_age_seconds: 0.25

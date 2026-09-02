@@ -29,8 +29,10 @@ setup(
             'converter = lirovo.converter:main',
             'stack_watchdog = lirovo.stack_watchdog:main',
             'startup_report = lirovo.startup_report:main',
-            'adaptive_controller = '
-            'lirovo.adaptive_velocity_controller_both2:main',
+            'dtu_nav2_readiness = lirovo.dtu_nav2_readiness:main',
+            'manual_global_alignment = '
+            'lirovo.manual_global_alignment:main',
+            'rtk_fix_gate = lirovo.rtk_fix_gate:main',
         ],
     },
 )

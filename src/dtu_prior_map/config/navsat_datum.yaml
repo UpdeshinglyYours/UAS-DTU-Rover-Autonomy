@@ -1,0 +1,21 @@
+# Configuration for robot_localization/navsat_transform_node. This datum is
+# exactly the southwest raster origin of the supplied DTU map. The datum yaw
+# cancels the UTM zone 43 grid convergence that navsat_transform adds internally,
+# so its output matches EPSG:32643 coordinates minus the map origin. In manual-
+# datum mode navsat_transform does not consume IMU yaw; the global EKF handles
+# absolute heading.
+
+navsat_transform:
+  ros__parameters:
+    frequency: 30.0
+    delay: 0.0
+    zero_altitude: true
+    publish_filtered_gps: true
+    use_odometry_yaw: false
+    wait_for_datum: true
+    datum: [28.7451419213, 77.1119513181, -0.0177330185]
+
+    # Keep UTM conversion so it matches the EPSG:32643 source data.
+    broadcast_utm_transform: false
+    broadcast_utm_transform_as_parent_frame: false
+    transform_timeout: 0.1

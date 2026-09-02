@@ -1,0 +1,646 @@
+bag,relative_sec,level,node,message
+25july.bag,4.27182022,30,planner_server,No planners specified in action call. Server will use only plugin GridBased  in server. This warning will appear once.
+25july.bag,7.34819001,20,controller_server,"Received a goal, begin computing control effort."
+25july.bag,7.348672421,30,controller_server,No goal checker was specified in parameter 'current_goal_checker'. Server will use only plugin loaded general_goal_checker . This warning will appear once.
+25july.bag,24.848646305,20,controller_server,Reached the goal!
+25july.bag,24.857903719,20,controller_server,"Received a goal, begin computing control effort."
+25july.bag,24.858115126,20,controller_server,Reached the goal!
+25july.bag,24.898535867,20,bt_navigator,Goal succeeded
+25july.bag,25.105425555,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,25.105473737,30,planner_server,"Planning algorithm  failed to generate a valid path to (12.39, 19.26)"
+25july.bag,25.105510799,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,25.109881994,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,25.109937642,30,planner_server,"Planning algorithm  failed to generate a valid path to (12.49, 18.96)"
+25july.bag,25.109956528,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,25.113850944,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,25.113920899,30,planner_server,"Planning algorithm  failed to generate a valid path to (12.54, 18.56)"
+25july.bag,25.113974703,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,25.118011474,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,25.118073774,30,planner_server,"Planning algorithm  failed to generate a valid path to (10.59, 18.11)"
+25july.bag,25.118112428,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,25.122789203,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,25.122820283,30,planner_server,"Planning algorithm  failed to generate a valid path to (11.49, 16.66)"
+25july.bag,25.122842255,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,25.126468705,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,25.126544231,30,planner_server,"Planning algorithm  failed to generate a valid path to (11.94, 16.21)"
+25july.bag,25.126653231,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,25.130812047,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,25.130852525,30,planner_server,"Planning algorithm  failed to generate a valid path to (9.69, 17.36)"
+25july.bag,25.130884867,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,25.135702363,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,25.135743061,30,planner_server,"Planning algorithm  failed to generate a valid path to (9.44, 17.11)"
+25july.bag,25.135776496,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,25.200563252,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,25.200638947,30,planner_server,"Planning algorithm  failed to generate a valid path to (11.09, 14.51)"
+25july.bag,25.200677422,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,25.206470508,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,25.206537827,30,planner_server,"Planning algorithm  failed to generate a valid path to (5.34, 19.06)"
+25july.bag,25.206586381,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,25.210952276,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,25.210986372,30,planner_server,"Planning algorithm  failed to generate a valid path to (5.14, 19.16)"
+25july.bag,25.211019907,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,25.31166056,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,25.311684346,30,planner_server,"Planning algorithm  failed to generate a valid path to (2.89, 20.11)"
+25july.bag,25.31172241,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,25.315875765,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,25.315912546,30,planner_server,"Planning algorithm  failed to generate a valid path to (2.74, 20.26)"
+25july.bag,25.31594559,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,25.320669786,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,25.320715724,30,planner_server,"Planning algorithm  failed to generate a valid path to (4.04, 18.86)"
+25july.bag,25.320737526,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,25.325925817,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,25.325971585,30,planner_server,"Planning algorithm  failed to generate a valid path to (2.99, 19.76)"
+25july.bag,25.326022142,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,25.968275242,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,25.96841954,30,planner_server,"Planning algorithm  failed to generate a valid path to (9.14, 11.61)"
+25july.bag,25.968448656,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,29.651711331,20,controller_server,"Received a goal, begin computing control effort."
+25july.bag,31.602077046,20,controller_server,Reached the goal!
+25july.bag,31.641582198,20,bt_navigator,Goal succeeded
+25july.bag,31.795245561,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,31.795282071,30,planner_server,"Planning algorithm  failed to generate a valid path to (12.39, 19.26)"
+25july.bag,31.795328921,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,31.80311703,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,31.803156015,30,planner_server,"Planning algorithm  failed to generate a valid path to (12.49, 18.96)"
+25july.bag,31.803175012,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,31.807836796,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,31.807879538,30,planner_server,"Planning algorithm  failed to generate a valid path to (12.69, 18.71)"
+25july.bag,31.807923984,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,31.816348509,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,31.816376673,30,planner_server,"Planning algorithm  failed to generate a valid path to (10.29, 18.21)"
+25july.bag,31.816397343,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,31.821977657,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,31.822030239,30,planner_server,"Planning algorithm  failed to generate a valid path to (11.49, 16.66)"
+25july.bag,31.822069053,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,31.832312805,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,31.832335819,30,planner_server,"Planning algorithm  failed to generate a valid path to (11.94, 16.21)"
+25july.bag,31.832370957,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,31.837079691,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,31.837121482,30,planner_server,"Planning algorithm  failed to generate a valid path to (9.44, 17.41)"
+25july.bag,31.837158182,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,31.899503659,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,31.899544758,30,planner_server,"Planning algorithm  failed to generate a valid path to (11.09, 14.41)"
+25july.bag,31.899583453,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,31.910016709,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,31.910059271,30,planner_server,"Planning algorithm  failed to generate a valid path to (5.34, 19.06)"
+25july.bag,31.910092074,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,31.921963421,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,31.922013958,30,planner_server,"Planning algorithm  failed to generate a valid path to (5.14, 19.16)"
+25july.bag,31.922049457,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,32.033096394,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,32.03313544,30,planner_server,"Planning algorithm  failed to generate a valid path to (2.74, 20.26)"
+25july.bag,32.033166149,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,32.042623815,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,32.042663241,30,planner_server,"Planning algorithm  failed to generate a valid path to (2.89, 20.11)"
+25july.bag,32.042693058,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,32.050219362,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,32.050259018,30,planner_server,"Planning algorithm  failed to generate a valid path to (4.04, 18.86)"
+25july.bag,32.050288084,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,32.058135347,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,32.058180484,30,planner_server,"Planning algorithm  failed to generate a valid path to (2.99, 19.76)"
+25july.bag,32.058219709,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,32.599649114,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,32.599745279,30,planner_server,"Planning algorithm  failed to generate a valid path to (9.04, 11.46)"
+25july.bag,32.599810455,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,36.415971979,20,controller_server,"Received a goal, begin computing control effort."
+25july.bag,39.215725539,40,bt_navigator_navigate_to_pose_rclcpp_node,Failed to get result for follow_path in node halt!
+25july.bag,39.215818227,20,bt_navigator,[navigate_to_pose] [ActionServer] Client requested to cancel the goal. Cancelling.
+25july.bag,39.216054753,20,bt_navigator,Goal canceled
+25july.bag,39.216086424,20,controller_server,Goal was canceled. Stopping the robot.
+25july.bag,39.216127163,20,controller_server,[follow_path] [ActionServer] Client requested to cancel the goal. Cancelling.
+25july.bag,39.238374406,20,controller_server,"Received a goal, begin computing control effort."
+25july.bag,48.588952615,20,controller_server,Reached the goal!
+25july.bag,48.638468412,20,bt_navigator,Goal succeeded
+25july.bag,48.989070968,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,48.989137276,30,planner_server,"Planning algorithm  failed to generate a valid path to (12.79, 18.89)"
+25july.bag,48.989171672,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,49.007653861,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,49.007695612,30,planner_server,"Planning algorithm  failed to generate a valid path to (12.79, 18.79)"
+25july.bag,49.007730489,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,49.024039473,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,49.024098296,30,planner_server,"Planning algorithm  failed to generate a valid path to (12.29, 19.14)"
+25july.bag,49.024131881,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,49.041599736,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,49.041649021,30,planner_server,"Planning algorithm  failed to generate a valid path to (11.99, 19.24)"
+25july.bag,49.041671675,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,49.151929869,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,49.151969215,30,planner_server,"Planning algorithm  failed to generate a valid path to (12.29, 18.69)"
+25july.bag,49.151993291,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,49.989742746,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,49.989779887,30,planner_server,"Planning algorithm  failed to generate a valid path to (12.34, 17.24)"
+25july.bag,49.98982778,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,50.317951618,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,50.317985433,30,planner_server,"Planning algorithm  failed to generate a valid path to (10.49, 18.39)"
+25july.bag,50.318007606,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,51.681518104,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,51.68159892,30,planner_server,"Planning algorithm  failed to generate a valid path to (9.39, 17.29)"
+25july.bag,51.682034188,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,51.699099146,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,51.69916355,30,planner_server,"Planning algorithm  failed to generate a valid path to (11.29, 15.69)"
+25july.bag,51.699202414,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,51.807177679,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,51.807210883,30,planner_server,"Planning algorithm  failed to generate a valid path to (5.19, 19.29)"
+25july.bag,51.807232074,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,51.823326002,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,51.823360628,30,planner_server,"Planning algorithm  failed to generate a valid path to (5.29, 18.69)"
+25july.bag,51.823395876,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,51.839050738,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,51.839113529,30,planner_server,"Planning algorithm  failed to generate a valid path to (10.99, 14.44)"
+25july.bag,51.8391503,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,51.85548945,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,51.855548754,30,planner_server,"Planning algorithm  failed to generate a valid path to (8.24, 16.14)"
+25july.bag,51.855568733,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,52.044233138,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,52.044275359,30,planner_server,"Planning algorithm  failed to generate a valid path to (4.09, 19.19)"
+25july.bag,52.044312401,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,52.220767551,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,52.220803811,30,planner_server,"Planning algorithm  failed to generate a valid path to (3.04, 20.14)"
+25july.bag,52.220826384,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,52.645957462,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,52.645989784,30,planner_server,"Planning algorithm  failed to generate a valid path to (9.64, 11.79)"
+25july.bag,52.646012418,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,52.779266874,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,52.779531233,30,planner_server,"Planning algorithm  failed to generate a valid path to (-4.56, 21.99)"
+25july.bag,52.779573114,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,55.887129119,20,controller_server,"Received a goal, begin computing control effort."
+25july.bag,61.438208854,20,controller_server,Reached the goal!
+25july.bag,61.477003844,20,bt_navigator,Goal succeeded
+25july.bag,61.63956743,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,61.639614992,30,planner_server,"Planning algorithm  failed to generate a valid path to (-6.19, 38.89)"
+25july.bag,61.639649308,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,61.64825572,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,61.64831299,30,planner_server,"Planning algorithm  failed to generate a valid path to (-8.69, 40.44)"
+25july.bag,61.648528715,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,61.66761679,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,61.667687386,30,planner_server,"Planning algorithm  failed to generate a valid path to (-8.44, 39.99)"
+25july.bag,61.667725439,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,61.680261217,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,61.680293298,30,planner_server,"Planning algorithm  failed to generate a valid path to (-8.34, 39.74)"
+25july.bag,61.680331312,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,61.696417586,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,61.696459887,30,planner_server,"Planning algorithm  failed to generate a valid path to (12.36, 19.19)"
+25july.bag,61.696508461,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,61.703352178,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,61.703386655,30,planner_server,"Planning algorithm  failed to generate a valid path to (-8.84, 40.09)"
+25july.bag,61.703416101,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,61.721707241,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,61.721783247,30,planner_server,"Planning algorithm  failed to generate a valid path to (-7.99, 39.04)"
+25july.bag,61.721819076,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,61.733368475,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,61.733422419,30,planner_server,"Planning algorithm  failed to generate a valid path to (12.46, 18.79)"
+25july.bag,61.73344411,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,61.797920811,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,61.797967,30,planner_server,"Planning algorithm  failed to generate a valid path to (12.26, 18.14)"
+25july.bag,61.798004432,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,61.807893924,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,61.807956003,30,planner_server,"Planning algorithm  failed to generate a valid path to (11.11, 18.09)"
+25july.bag,61.807992424,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,61.825505615,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,61.825539881,30,planner_server,"Planning algorithm  failed to generate a valid path to (12.06, 17.04)"
+25july.bag,61.825563537,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,61.832341027,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,61.832403407,30,planner_server,"Planning algorithm  failed to generate a valid path to (10.61, 18.14)"
+25july.bag,61.832452702,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,62.277290447,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,62.277333229,30,planner_server,"Planning algorithm  failed to generate a valid path to (11.71, 15.94)"
+25july.bag,62.277353027,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,62.291235257,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,62.291295022,30,planner_server,"Planning algorithm  failed to generate a valid path to (-7.74, 34.44)"
+25july.bag,62.29133045,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,62.515278652,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,62.51532451,30,planner_server,"Planning algorithm  failed to generate a valid path to (9.56, 17.24)"
+25july.bag,62.515365298,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,62.772040274,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,62.772124636,30,planner_server,"Planning algorithm  failed to generate a valid path to (10.96, 15.29)"
+25july.bag,62.772175133,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,63.091114273,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,63.091145473,30,planner_server,"Planning algorithm  failed to generate a valid path to (2.51, 21.24)"
+25july.bag,63.091167616,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,63.11476983,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,63.114817612,30,planner_server,"Planning algorithm  failed to generate a valid path to (11.06, 14.39)"
+25july.bag,63.114854873,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,63.134435774,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,63.134501481,30,planner_server,"Planning algorithm  failed to generate a valid path to (5.16, 19.14)"
+25july.bag,63.13455802,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,63.154693228,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,63.15471528,30,planner_server,"Planning algorithm  failed to generate a valid path to (5.26, 18.94)"
+25july.bag,63.154736151,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,63.179433813,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,63.179680028,30,planner_server,"Planning algorithm  failed to generate a valid path to (-14.94, 39.59)"
+25july.bag,63.17988925,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,63.572522406,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,63.572564888,30,planner_server,"Planning algorithm  failed to generate a valid path to (2.91, 20.14)"
+25july.bag,63.572607179,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,63.869769795,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,63.869818198,30,planner_server,"Planning algorithm  failed to generate a valid path to (4.16, 19.24)"
+25july.bag,63.869860089,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,63.886869688,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,63.886932589,30,planner_server,"Planning algorithm  failed to generate a valid path to (-12.24, 36.14)"
+25july.bag,63.886966605,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,63.89584558,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,63.895917047,30,planner_server,"Planning algorithm  failed to generate a valid path to (-11.39, 35.04)"
+25july.bag,63.89607919,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,63.914184368,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,63.914223103,30,planner_server,"Planning algorithm  failed to generate a valid path to (-12.69, 36.39)"
+25july.bag,63.914265414,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,63.923494614,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,63.923543047,30,planner_server,"Planning algorithm  failed to generate a valid path to (10.76, 12.39)"
+25july.bag,63.923589807,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,63.937982508,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,63.938023076,30,planner_server,"Planning algorithm  failed to generate a valid path to (5.66, 16.19)"
+25july.bag,63.938043666,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,63.953134651,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,63.953163266,30,planner_server,"Planning algorithm  failed to generate a valid path to (-13.99, 35.54)"
+25july.bag,63.953184968,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,64.131368573,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,64.131415093,30,planner_server,"Planning algorithm  failed to generate a valid path to (-13.79, 34.99)"
+25july.bag,64.131459217,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,65.736602737,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,65.736700956,30,planner_server,"Planning algorithm  failed to generate a valid path to (-7.74, 18.99)"
+25july.bag,65.736751744,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,65.849903585,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,65.849941568,30,planner_server,"Planning algorithm  failed to generate a valid path to (-8.19, 18.89)"
+25july.bag,65.849962278,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,67.261529973,20,controller_server,"Received a goal, begin computing control effort."
+25july.bag,80.512356157,40,controller_server,Failed to make progress
+25july.bag,80.512422705,30,controller_server,[follow_path] [ActionServer] Aborting handle.
+25july.bag,80.531548523,20,local_costmap.local_costmap,Received request to clear entirely the local_costmap
+25july.bag,80.535710984,20,controller_server,"Received a goal, begin computing control effort."
+25july.bag,81.820721854,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,81.820767111,30,planner_server,"Planning algorithm GridBased failed to generate a valid path to (0.94, 20.70)"
+25july.bag,81.820788813,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,81.831343455,20,global_costmap.global_costmap,Received request to clear entirely the global_costmap
+25july.bag,83.586357225,20,controller_server,Reached the goal!
+25july.bag,83.621459424,20,bt_navigator,Goal succeeded
+25july.bag,84.890770581,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,84.890838101,30,planner_server,"Planning algorithm  failed to generate a valid path to (-8.54, 40.39)"
+25july.bag,84.890868549,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,84.921518618,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,84.921546892,30,planner_server,"Planning algorithm  failed to generate a valid path to (12.36, 19.19)"
+25july.bag,84.921578082,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,85.07261176,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,85.072681654,30,planner_server,"Planning algorithm  failed to generate a valid path to (-9.04, 40.29)"
+25july.bag,85.07272083,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,85.09339393,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,85.093441782,30,planner_server,"Planning algorithm  failed to generate a valid path to (12.46, 18.79)"
+25july.bag,85.093478693,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,85.110394213,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,85.110444229,30,planner_server,"Planning algorithm  failed to generate a valid path to (-7.84, 38.69)"
+25july.bag,85.110483084,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,85.127751803,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,85.127798443,30,planner_server,"Planning algorithm  failed to generate a valid path to (12.26, 18.14)"
+25july.bag,85.127834102,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,85.361057654,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,85.36113378,30,planner_server,"Planning algorithm  failed to generate a valid path to (11.11, 18.09)"
+25july.bag,85.361171353,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,85.381799166,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,85.381849212,30,planner_server,"Planning algorithm  failed to generate a valid path to (12.06, 17.04)"
+25july.bag,85.381873379,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,85.633900644,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,85.63394039,30,planner_server,"Planning algorithm  failed to generate a valid path to (10.61, 18.14)"
+25july.bag,85.633959237,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,85.657786336,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,85.657848025,30,planner_server,"Planning algorithm  failed to generate a valid path to (-7.84, 34.79)"
+25july.bag,85.657889054,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,85.675924248,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,85.675973493,30,planner_server,"Planning algorithm  failed to generate a valid path to (11.71, 15.94)"
+25july.bag,85.676012629,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,85.693528423,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,85.693644857,30,planner_server,"Planning algorithm  failed to generate a valid path to (9.56, 17.24)"
+25july.bag,85.693679885,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,85.883525817,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,85.883597154,30,planner_server,"Planning algorithm  failed to generate a valid path to (2.51, 22.34)"
+25july.bag,85.883634285,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,85.905098026,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,85.905166127,30,planner_server,"Planning algorithm  failed to generate a valid path to (3.31, 21.44)"
+25july.bag,85.905203268,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,85.92295182,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,85.923073374,30,planner_server,"Planning algorithm  failed to generate a valid path to (10.96, 15.29)"
+25july.bag,85.923109644,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,86.120706461,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,86.12086204,30,planner_server,"Planning algorithm  failed to generate a valid path to (11.06, 14.39)"
+25july.bag,86.12090344,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,86.144220968,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,86.144272006,30,planner_server,"Planning algorithm  failed to generate a valid path to (5.11, 19.04)"
+25july.bag,86.144312965,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,86.161550544,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,86.161614797,30,planner_server,"Planning algorithm  failed to generate a valid path to (-12.24, 36.14)"
+25july.bag,86.161643643,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,86.322047733,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,86.322091698,30,planner_server,"Planning algorithm  failed to generate a valid path to (-13.54, 37.44)"
+25july.bag,86.322135963,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,86.366278212,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,86.366358146,30,planner_server,"Planning algorithm  failed to generate a valid path to (4.16, 19.29)"
+25july.bag,86.366392772,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,86.37436905,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,86.374415901,30,planner_server,"Planning algorithm  failed to generate a valid path to (-11.39, 34.99)"
+25july.bag,86.37445212,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,86.395023223,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,86.395095432,30,planner_server,"Planning algorithm  failed to generate a valid path to (6.26, 17.49)"
+25july.bag,86.395155398,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,86.405608241,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,86.4058467,30,planner_server,"Planning algorithm  failed to generate a valid path to (10.76, 12.39)"
+25july.bag,86.405903589,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,86.434577033,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,86.434599025,30,planner_server,"Planning algorithm  failed to generate a valid path to (5.66, 16.19)"
+25july.bag,86.434619725,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,86.452422211,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,86.452444894,30,planner_server,"Planning algorithm  failed to generate a valid path to (-12.79, 34.19)"
+25july.bag,86.452467688,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,86.469328873,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,86.469397425,30,planner_server,"Planning algorithm  failed to generate a valid path to (-13.34, 34.74)"
+25july.bag,86.469465666,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,86.487312958,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,86.487385557,30,planner_server,"Planning algorithm  failed to generate a valid path to (-13.29, 34.34)"
+25july.bag,86.487431666,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,87.366507965,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,87.366569333,30,planner_server,"Planning algorithm  failed to generate a valid path to (-4.94, 21.49)"
+25july.bag,87.366605202,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,87.471689931,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,87.471732383,30,planner_server,"Planning algorithm  failed to generate a valid path to (-7.74, 18.99)"
+25july.bag,87.471766949,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,87.714193285,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,87.714222993,30,planner_server,"Planning algorithm  failed to generate a valid path to (-8.29, 18.99)"
+25july.bag,87.714260956,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,89.504982077,20,controller_server,"Received a goal, begin computing control effort."
+25july.bag,110.005472795,20,controller_server,Reached the goal!
+25july.bag,110.044646026,20,bt_navigator,Goal succeeded
+25july.bag,111.731635956,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,111.731672927,30,planner_server,"Planning algorithm  failed to generate a valid path to (-8.54, 40.39)"
+25july.bag,111.731708005,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,111.787214562,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,111.787282894,30,planner_server,"Planning algorithm  failed to generate a valid path to (12.36, 19.19)"
+25july.bag,111.787319404,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,111.934142517,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,111.93424824,30,planner_server,"Planning algorithm  failed to generate a valid path to (12.46, 18.79)"
+25july.bag,111.934285342,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,111.96218476,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,111.96223178,30,planner_server,"Planning algorithm  failed to generate a valid path to (-9.04, 40.29)"
+25july.bag,111.962253161,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,111.981079323,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,111.981142354,30,planner_server,"Planning algorithm  failed to generate a valid path to (-7.84, 38.69)"
+25july.bag,111.981206457,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,111.998590856,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,111.998635352,30,planner_server,"Planning algorithm  failed to generate a valid path to (12.36, 18.29)"
+25july.bag,111.998666281,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,112.282809887,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,112.282852319,30,planner_server,"Planning algorithm  failed to generate a valid path to (11.11, 18.09)"
+25july.bag,112.282891835,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,112.317708204,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,112.317782947,30,planner_server,"Planning algorithm  failed to generate a valid path to (12.06, 17.04)"
+25july.bag,112.317854184,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,112.337490343,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,112.33753015,30,planner_server,"Planning algorithm  failed to generate a valid path to (10.61, 18.14)"
+25july.bag,112.337569175,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,112.651833641,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,112.651872275,30,planner_server,"Planning algorithm  failed to generate a valid path to (11.76, 15.99)"
+25july.bag,112.651903004,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,112.680971551,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,112.681056845,30,planner_server,"Planning algorithm  failed to generate a valid path to (-7.84, 34.79)"
+25july.bag,112.681108845,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,112.705152659,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,112.705193658,30,planner_server,"Planning algorithm  failed to generate a valid path to (9.56, 17.24)"
+25july.bag,112.705226391,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,112.935591632,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,112.936467235,30,planner_server,"Planning algorithm  failed to generate a valid path to (10.96, 15.29)"
+25july.bag,112.936517933,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,112.966465999,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,112.966606199,30,planner_server,"Planning algorithm  failed to generate a valid path to (3.81, 21.09)"
+25july.bag,112.966679429,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,112.977530234,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,112.977576824,30,planner_server,"Planning algorithm  failed to generate a valid path to (2.51, 22.34)"
+25july.bag,112.977622351,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,112.999500911,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,112.999544014,30,planner_server,"Planning algorithm  failed to generate a valid path to (5.36, 19.19)"
+25july.bag,112.999565014,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,113.008909452,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,113.008977854,30,planner_server,"Planning algorithm  failed to generate a valid path to (11.06, 14.39)"
+25july.bag,113.009011469,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,113.035378609,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,113.035486587,30,planner_server,"Planning algorithm  failed to generate a valid path to (5.16, 19.14)"
+25july.bag,113.035530932,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,113.219532785,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,113.219574755,30,planner_server,"Planning algorithm  failed to generate a valid path to (4.16, 19.29)"
+25july.bag,113.219599082,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,113.273253593,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,113.273291967,30,planner_server,"Planning algorithm  failed to generate a valid path to (6.11, 17.44)"
+25july.bag,113.273328467,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,113.297656346,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,113.297701593,30,planner_server,"Planning algorithm  failed to generate a valid path to (3.06, 20.19)"
+25july.bag,113.297966212,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,113.318713947,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,113.318783812,30,planner_server,"Planning algorithm  failed to generate a valid path to (-12.24, 36.14)"
+25july.bag,113.318823909,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,113.337312109,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,113.337338009,30,planner_server,"Planning algorithm  failed to generate a valid path to (-13.54, 37.44)"
+25july.bag,113.337369149,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,113.357919405,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,113.357980252,30,planner_server,"Planning algorithm  failed to generate a valid path to (-11.39, 34.99)"
+25july.bag,113.358013045,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,113.368912803,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,113.368956397,30,planner_server,"Planning algorithm  failed to generate a valid path to (5.96, 16.69)"
+25july.bag,113.369010752,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,113.393744251,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,113.393825357,30,planner_server,"Planning algorithm  failed to generate a valid path to (5.81, 16.04)"
+25july.bag,113.393860284,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,113.414495072,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,113.414527976,30,planner_server,"Planning algorithm  failed to generate a valid path to (10.36, 12.34)"
+25july.bag,113.414559727,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,113.434011981,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,113.43407373,30,planner_server,"Planning algorithm  failed to generate a valid path to (-12.79, 34.19)"
+25july.bag,113.434116442,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,113.457287226,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,113.457332153,30,planner_server,"Planning algorithm  failed to generate a valid path to (-13.49, 34.89)"
+25july.bag,113.457362181,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,113.479910919,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,113.479956266,30,planner_server,"Planning algorithm  failed to generate a valid path to (-14.14, 35.29)"
+25july.bag,113.480014318,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,114.463902,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,114.463941566,30,planner_server,"Planning algorithm  failed to generate a valid path to (-5.99, 21.19)"
+25july.bag,114.463999308,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,114.489941219,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,114.489974183,30,planner_server,"Planning algorithm  failed to generate a valid path to (-5.59, 20.39)"
+25july.bag,114.49000928,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,114.519274111,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,114.51934634,30,planner_server,"Planning algorithm  failed to generate a valid path to (-5.54, 20.24)"
+25july.bag,114.519381207,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,114.541541418,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,114.542245812,30,planner_server,"Planning algorithm  failed to generate a valid path to (7.51, 7.64)"
+25july.bag,114.542287402,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,114.566082756,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,114.566125719,30,planner_server,"Planning algorithm  failed to generate a valid path to (-7.74, 18.99)"
+25july.bag,114.566172769,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,114.719170197,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,114.719716838,30,planner_server,"Planning algorithm  failed to generate a valid path to (4.01, 4.39)"
+25july.bag,114.719760031,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,119.097437316,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,119.097476401,30,planner_server,"Planning algorithm  failed to generate a valid path to (3.91, -5.06)"
+25july.bag,119.097505598,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,119.959275089,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,119.959321489,30,planner_server,"Planning algorithm  failed to generate a valid path to (-5.94, 2.74)"
+25july.bag,119.959349412,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,120.316154615,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,120.316195643,30,planner_server,"Planning algorithm  failed to generate a valid path to (-7.19, 2.89)"
+25july.bag,120.316233286,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,120.463080545,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,120.463147384,30,planner_server,"Planning algorithm  failed to generate a valid path to (4.56, -8.16)"
+25july.bag,120.463180718,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,121.188950975,20,controller_server,"Received a goal, begin computing control effort."
+25july.bag,136.190295919,30,controller_server,Control loop missed its desired rate of 20.0000Hz
+25july.bag,137.989982495,30,controller_server,Control loop missed its desired rate of 20.0000Hz
+25july.bag,139.139399649,20,controller_server,Reached the goal!
+25july.bag,139.17999027,20,bt_navigator,Goal succeeded
+25july.bag,141.455032507,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,141.455170341,30,planner_server,"Planning algorithm  failed to generate a valid path to (-8.41, 40.04)"
+25july.bag,141.45521627,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,141.505111877,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,141.505168396,30,planner_server,"Planning algorithm  failed to generate a valid path to (-8.96, 40.49)"
+25july.bag,141.505189577,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,141.682367586,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,141.682446978,30,planner_server,"Planning algorithm  failed to generate a valid path to (12.79, 18.89)"
+25july.bag,141.682515139,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,141.721549646,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,141.721581037,30,planner_server,"Planning algorithm  failed to generate a valid path to (-8.06, 39.14)"
+25july.bag,141.72160365,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,141.749533279,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,141.749602872,30,planner_server,"Planning algorithm  failed to generate a valid path to (12.34, 19.19)"
+25july.bag,141.749667296,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,141.773641444,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,141.773728772,30,planner_server,"Planning algorithm  failed to generate a valid path to (12.69, 18.64)"
+25july.bag,141.773767336,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,141.805189115,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,141.805241025,30,planner_server,"Planning algorithm  failed to generate a valid path to (12.39, 18.84)"
+25july.bag,141.805279128,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,141.962387307,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,141.96243055,30,planner_server,"Planning algorithm  failed to generate a valid path to (11.49, 18.69)"
+25july.bag,141.962489804,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,142.274049061,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,142.274085531,30,planner_server,"Planning algorithm  failed to generate a valid path to (10.59, 18.19)"
+25july.bag,142.274483495,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,142.299641547,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,142.299685511,30,planner_server,"Planning algorithm  failed to generate a valid path to (11.79, 16.74)"
+25july.bag,142.299726971,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,142.334257723,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,142.335384047,30,planner_server,"Planning algorithm  failed to generate a valid path to (-7.86, 34.64)"
+25july.bag,142.335443371,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,142.365837684,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,142.365878833,30,planner_server,"Planning algorithm  failed to generate a valid path to (11.49, 15.74)"
+25july.bag,142.36591388,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,142.434316608,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,142.434397202,30,planner_server,"Planning algorithm  failed to generate a valid path to (9.44, 17.39)"
+25july.bag,142.434438071,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,142.605111974,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,142.605196176,30,planner_server,"Planning algorithm  failed to generate a valid path to (4.24, 20.94)"
+25july.bag,142.605242144,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,142.749871753,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,142.749899766,30,planner_server,"Planning algorithm  failed to generate a valid path to (4.09, 20.79)"
+25july.bag,142.749920917,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,142.782547019,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,142.782592596,30,planner_server,"Planning algorithm  failed to generate a valid path to (11.09, 14.39)"
+25july.bag,142.782616783,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,142.811805369,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,142.811834786,30,planner_server,"Planning algorithm  failed to generate a valid path to (5.14, 19.19)"
+25july.bag,142.811856678,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,142.838691341,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,142.838725116,30,planner_server,"Planning algorithm  failed to generate a valid path to (5.29, 18.94)"
+25july.bag,142.83875848,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,142.868981935,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,142.869037782,30,planner_server,"Planning algorithm  failed to generate a valid path to (-13.41, 37.69)"
+25july.bag,142.869204833,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,142.898971369,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,142.899026865,30,planner_server,"Planning algorithm  failed to generate a valid path to (-13.21, 37.44)"
+25july.bag,142.899066551,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,142.922851965,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,142.922894206,30,planner_server,"Planning algorithm  failed to generate a valid path to (6.34, 17.64)"
+25july.bag,142.922927129,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,142.948098746,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,142.948154453,30,planner_server,"Planning algorithm  failed to generate a valid path to (-15.41, 39.89)"
+25july.bag,142.94818969,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,142.977327598,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,142.977395859,30,planner_server,"Planning algorithm  failed to generate a valid path to (4.14, 19.24)"
+25july.bag,142.977429083,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,143.005460164,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,143.005498227,30,planner_server,"Planning algorithm  failed to generate a valid path to (-11.66, 35.29)"
+25july.bag,143.005518516,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,143.037091863,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,143.037153722,30,planner_server,"Planning algorithm  failed to generate a valid path to (6.09, 16.34)"
+25july.bag,143.037196164,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,143.066415007,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,143.066449012,30,planner_server,"Planning algorithm  failed to generate a valid path to (10.74, 12.39)"
+25july.bag,143.066471936,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,143.272810029,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,143.272878331,30,planner_server,"Planning algorithm  failed to generate a valid path to (-12.96, 34.39)"
+25july.bag,143.272935931,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,143.30943316,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,143.309588609,30,planner_server,"Planning algorithm  failed to generate a valid path to (-14.01, 35.54)"
+25july.bag,143.309659034,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,143.33906669,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,143.339703363,30,planner_server,"Planning algorithm  failed to generate a valid path to (-13.26, 34.39)"
+25july.bag,143.339752788,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,144.63657904,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,144.636655467,30,planner_server,"Planning algorithm  failed to generate a valid path to (-4.76, 23.64)"
+25july.bag,144.636694161,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,144.689608813,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,144.689743582,30,planner_server,"Planning algorithm  failed to generate a valid path to (7.64, 9.44)"
+25july.bag,144.689773038,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,144.719128853,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,144.719180753,30,planner_server,"Planning algorithm  failed to generate a valid path to (-9.36, 21.49)"
+25july.bag,144.71924673,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,147.976308968,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,147.97636212,30,planner_server,"Planning algorithm  failed to generate a valid path to (-18.66, 19.69)"
+25july.bag,147.976394532,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,149.692077257,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,149.692138554,30,planner_server,"Planning algorithm  failed to generate a valid path to (-5.96, 2.84)"
+25july.bag,149.692263374,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,150.39409969,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july.bag,150.394149987,30,planner_server,"Planning algorithm  failed to generate a valid path to (-7.26, 2.84)"
+25july.bag,150.394168222,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july.bag,152.678291225,20,controller_server,"Received a goal, begin computing control effort."
+25july.bag,161.916910671,40,bt_navigator_navigate_to_pose_rclcpp_node,Failed to get result for follow_path in node halt!
+25july.bag,161.917001866,20,bt_navigator,[navigate_to_pose] [ActionServer] Client requested to cancel the goal. Cancelling.
+25july.bag,161.917269871,20,bt_navigator,Goal canceled
+25july.bag,161.92849502,20,controller_server,Goal was canceled. Stopping the robot.
+25july.bag,161.928799946,20,controller_server,[follow_path] [ActionServer] Client requested to cancel the goal. Cancelling.
+25july.bag,161.96128095,20,controller_server,"Received a goal, begin computing control effort."
+25july1.bag,1.093792567,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july1.bag,1.09387226,30,planner_server,"Planning algorithm  failed to generate a valid path to (6.11, 16.02)"
+25july1.bag,1.093916224,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july1.bag,1.114557258,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july1.bag,1.114616651,30,planner_server,"Planning algorithm  failed to generate a valid path to (5.11, 16.42)"
+25july1.bag,1.114635217,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july1.bag,6.682916402,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july1.bag,6.682959194,30,planner_server,"Planning algorithm  failed to generate a valid path to (6.11, 16.02)"
+25july1.bag,6.682994661,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july1.bag,6.702844007,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july1.bag,6.702912548,30,planner_server,"Planning algorithm  failed to generate a valid path to (5.11, 16.42)"
+25july1.bag,6.703426381,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july2.bag,26.444420769,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july2.bag,26.444492276,30,planner_server,"Planning algorithm  failed to generate a valid path to (5.41, 14.32)"
+25july2.bag,26.444513526,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july2.bag,28.33152052,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july2.bag,28.331595323,30,planner_server,"Planning algorithm  failed to generate a valid path to (5.41, 14.32)"
+25july2.bag,28.33164098,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july2.bag,30.235520144,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july2.bag,30.235549179,30,planner_server,"Planning algorithm  failed to generate a valid path to (5.41, 14.32)"
+25july2.bag,30.235577123,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july2.bag,32.148209911,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july2.bag,32.148265277,30,planner_server,"Planning algorithm  failed to generate a valid path to (5.41, 14.32)"
+25july2.bag,32.148291146,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july2.bag,34.035096555,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july2.bag,34.035159696,30,planner_server,"Planning algorithm  failed to generate a valid path to (5.41, 14.32)"
+25july2.bag,34.035179023,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july2.bag,36.030701727,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july2.bag,36.030775538,30,planner_server,"Planning algorithm  failed to generate a valid path to (5.41, 14.32)"
+25july2.bag,36.030819692,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july2.bag,38.136466904,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july2.bag,38.136523031,30,planner_server,"Planning algorithm  failed to generate a valid path to (5.41, 14.32)"
+25july2.bag,38.136542919,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july2.bag,40.230194699,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july2.bag,40.230267137,30,planner_server,"Planning algorithm  failed to generate a valid path to (5.41, 14.32)"
+25july2.bag,40.230307324,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july2.bag,42.332417316,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july2.bag,42.332462112,30,planner_server,"Planning algorithm  failed to generate a valid path to (5.41, 14.32)"
+25july2.bag,42.332494964,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.
+25july2.bag,44.542818486,30,planner_server,GridBased: failed to create plan with tolerance 0.50.
+25july2.bag,44.542861558,30,planner_server,"Planning algorithm  failed to generate a valid path to (5.41, 14.32)"
+25july2.bag,44.5428994,30,planner_server,[compute_path_to_pose] [ActionServer] Aborting handle.

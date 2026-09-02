@@ -1,0 +1,30 @@
+manual_global_alignment:
+  ros__parameters:
+    map_frame: map
+    odom_frame: odom
+    base_frame: base_link
+    global_set_pose_service: /ekf_filter_node_map/set_pose
+    global_odometry_topic: /odometry/global
+    gps_odometry_topic: /odometry/gps
+    max_initialpose_age_sec: 2.0
+    max_global_odometry_age_sec: 1.0
+    tf_timeout_sec: 0.5
+    transform_publish_frequency: 30.0
+
+rtk_fix_gate:
+  ros__parameters:
+    required_consecutive_fixed_samples: 10
+    max_horizontal_variance_m2: 0.25
+    max_reentry_position_error_m: 2.0
+    enable_reentry_sanity_check: true
+    stale_status_timeout_sec: 1.5
+    stale_fix_timeout_sec: 1.5
+    raw_fix_topic: /mavros/global_position/raw/fix
+    gps_status_topic: /mavros/gpsstatus/gps1/raw
+    output_fix_topic: /mavros/global_position/rtk_fixed_only
+    global_odometry_topic: /odometry/global
+    from_ll_service: /navsat_transform/fromLL
+    map_frame: map
+    base_frame: base_link
+    gps_frame: gps_antenna
+    tf_timeout_sec: 0.5

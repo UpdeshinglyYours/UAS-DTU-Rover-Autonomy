@@ -15,7 +15,7 @@ def generate_launch_description():
         [
             DeclareLaunchArgument(
                 "input_cloud_topic",
-                default_value="/bf_lidar/point_cloud_deskewed",
+                default_value="/kinect_camera/points",
                 description="PointCloud2 topic consumed by Patchwork++.",
             ),
             DeclareLaunchArgument(

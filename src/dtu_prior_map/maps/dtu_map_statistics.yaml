@@ -1,0 +1,12 @@
+# Generated validation statistics
+boundary_area_m2: 557832.905
+road_area_inside_boundary_m2: 67415.218
+buildings_intersecting_boundary: 72
+water_features_intersecting_boundary: 0
+static_pixel_counts:
+  0: 7547285
+  100: 10147225
+road_mask_pixel_counts:
+  0: 1073501
+  70: 6473784
+  100: 10147225

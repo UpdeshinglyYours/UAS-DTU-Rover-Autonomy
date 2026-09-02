@@ -1,0 +1,15 @@
+# Geographic origin of Nav2 map coordinate (0, 0).
+map_frame: map
+projected_crs: EPSG:32643
+utm_zone: 43N
+utm_origin_easting: 706231.750
+utm_origin_northing: 3181578.500
+datum_latitude: 28.7451419213
+datum_longitude: 77.1119513181
+grid_convergence_radians: 0.0177330185
+datum_yaw_radians: -0.0177330185
+resolution: 0.250000
+width_pixels: 4218
+height_pixels: 4195
+width_meters: 1054.500
+height_meters: 1048.750

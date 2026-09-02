@@ -1,0 +1,57 @@
+# Merge these entries into the matching sections of your existing Nav2 YAML.
+# Do not replace your existing obstacle/voxel/inflation layer configuration.
+
+global_costmap:
+  global_costmap:
+    ros__parameters:
+      global_frame: map
+      track_unknown_space: false
+
+      # Keep your existing plugins, but ensure static_layer is included.
+      plugins:
+        - static_layer
+        - obstacle_layer
+        - voxel_layer
+        - inflation_layer
+
+      static_layer:
+        plugin: "nav2_costmap_2d::StaticLayer"
+        map_topic: /dtu_static_map
+        map_subscribe_transient_local: true
+        subscribe_to_updates: false
+
+      # Costmap filters are listed separately from normal plugins.
+      filters:
+        - road_preference_filter
+
+      road_preference_filter:
+        plugin: "nav2_costmap_2d::KeepoutFilter"
+        enabled: true
+        filter_info_topic: /dtu_road_filter_info
+
+planner_server:
+  ros__parameters:
+    # Keep Navfn if wanted and add RoadAware alongside it.
+    planner_plugins: ["Navfn", "RoadAware"]
+
+    Navfn:
+      plugin: "nav2_navfn_planner/NavfnPlanner"
+      tolerance: 0.5
+      use_astar: false
+      allow_unknown: false
+
+    RoadAware:
+      # ROS 2 Humble uses the slash form of the plugin name.
+      plugin: "nav2_smac_planner/SmacPlanner2D"
+      tolerance: 0.5
+      allow_unknown: false
+      max_iterations: 1000000
+      max_on_approach_iterations: 1000
+      max_planning_time: 3.0
+      cost_travel_multiplier: 3.0
+      use_final_approach_orientation: false
+      smoother:
+        max_iterations: 1000
+        w_smooth: 0.3
+        w_data: 0.2
+        tolerance: 1.0e-10

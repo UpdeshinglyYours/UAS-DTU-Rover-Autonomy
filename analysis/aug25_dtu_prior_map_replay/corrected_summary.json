@@ -1,0 +1,114 @@
+{
+  "bag": {
+    "path": "/home/aryaman/Desktop/aug25.bag/aug25.bag_0.db3",
+    "duration_seconds": 110.98977565765381,
+    "rate": 1.0,
+    "clock_hz": 100,
+    "replayed_topics": [
+      "/genz/odometry",
+      "/mavros/global_position/raw/fix",
+      "/mavros/imu/data"
+    ],
+    "excluded_recorded_topics": [
+      "/tf",
+      "/odometry/filtered"
+    ]
+  },
+  "sample_counts": {
+    "direct_gps": 112,
+    "original_navsat": 112,
+    "corrected_navsat": 112,
+    "original_global_ekf": 3351,
+    "corrected_global_ekf": 3351
+  },
+  "direct_gps_to_centreline_m": {
+    "minimum": 0.0005668898253030285,
+    "mean": 1.6388607636499184,
+    "median": 0.964919949437774,
+    "p95": 4.214349645981343,
+    "maximum": 4.885291413518985,
+    "rms": 2.2160351814665815
+  },
+  "original_pipeline": {
+    "navsat_to_direct_projection_m": {
+      "minimum": 9.758738577745445,
+      "mean": 10.146329574348096,
+      "median": 10.163784972474753,
+      "p95": 10.389225408369256,
+      "maximum": 10.392363390295575,
+      "rms": 10.148149936205268
+    },
+    "global_to_direct_projection_after_first_fix_m": {
+      "minimum": 9.676392254567556,
+      "mean": 74.98967698655247,
+      "median": 13.701108294994993,
+      "p95": 450.3626387088467,
+      "maximum": 586.0524831741121,
+      "rms": 156.3073905076351
+    },
+    "global_to_centreline_after_first_fix_m": {
+      "minimum": 0.002235141470688938,
+      "mean": 41.01576074253134,
+      "median": 6.03528760561142,
+      "p95": 310.3289644130411,
+      "maximum": 438.2494265517129,
+      "rms": 105.15036978836557
+    },
+    "seconds_to_first_global_within_2m": null
+  },
+  "corrected_pipeline": {
+    "navsat_to_direct_projection_m": {
+      "minimum": 2.6202135106458224e-06,
+      "mean": 2.6209737404091055e-06,
+      "median": 2.620914357764504e-06,
+      "p95": 2.6216001929060257e-06,
+      "maximum": 2.621899044811925e-06,
+      "rms": 2.6209737658415137e-06
+    },
+    "seconds_to_first_global_within_2m": 0.39600372314453125,
+    "global_to_direct_projection_after_initialization_m": {
+      "minimum": 0.014157326789548208,
+      "mean": 1.6754599827564545,
+      "median": 1.413197301568294,
+      "p95": 3.672041845549894,
+      "maximum": 4.017910627756446,
+      "rms": 2.1567992386799135
+    },
+    "global_to_centreline_after_initialization_m": {
+      "minimum": 3.412360398704621e-05,
+      "mean": 1.7970162156340967,
+      "median": 1.8454393106647942,
+      "p95": 3.9603404605139594,
+      "maximum": 4.959662559315165,
+      "rms": 2.2060539533004655
+    },
+    "initialization_sample_xy_m": [
+      446.8006622253269,
+      379.2440281584275
+    ],
+    "dynamic_tf_edge_message_counts": {
+      "odom -> base_link": 4468,
+      "map -> odom": 3351
+    },
+    "runtime_tf_publishers": {
+      "ekf_filter_node": "odom -> base_link",
+      "ekf_filter_node_map": "map -> odom"
+    },
+    "map_server_state": "active",
+    "centerline_map_server_state": "active",
+    "planner_server_state": "unconfigured",
+    "controller_server_state": "unconfigured",
+    "navsat_transform_heading_factor_radians": -2.44452e-11
+  },
+  "acceptance": {
+    "navsat_projection_max_below_0_01m": true,
+    "global_within_2m_within_1s": true,
+    "global_median_at_most_2m": true,
+    "global_p95_at_most_4m": true,
+    "centreline_median_at_most_2_5m": true,
+    "centreline_p95_at_most_5m": true,
+    "single_dynamic_tf_owner_per_edge": true,
+    "map_servers_active": true,
+    "nav2_inactive": true
+  }
+}

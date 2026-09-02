@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<sdf version="1.9">
+  <model name="dtu_barricade">
+    <static>true</static>
+    <link name="barricade_link">
+      <collision name="collision">
+        <geometry>
+          <box>
+            <size>0.16 1.60 2.00</size>
+          </box>
+        </geometry>
+        <surface>
+          <friction>
+            <ode>
+              <mu>1.0</mu>
+              <mu2>1.0</mu2>
+            </ode>
+          </friction>
+        </surface>
+      </collision>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.16 1.60 2.00</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.28 0.0 1.0</ambient>
+          <diffuse>1.0 0.36 0.02 1.0</diffuse>
+          <specular>0.15 0.15 0.15 1.0</specular>
+        </material>
+      </visual>
+    </link>
+  </model>
+</sdf>

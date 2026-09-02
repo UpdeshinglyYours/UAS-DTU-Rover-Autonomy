@@ -1,0 +1,594 @@
+<?xml version="1.0" encoding="utf-8"?>
+<sdf version="1.9">
+  <world name="default">
+    <!--
+      Gazebo's default Physics, UserCommands and SceneBroadcaster systems are
+      intentionally used, matching the working warehouse world. Sensors and
+      IMU systems are supplied by BCR Bot's gz.xacro and are not duplicated.
+    -->
+    <gravity>0 0 -9.8</gravity>
+    <scene>
+      <ambient>0.45 0.45 0.48 1</ambient>
+      <background>0.68 0.78 0.90 1</background>
+      <shadows>true</shadows>
+      <grid>true</grid>
+    </scene>
+
+    <light name="flat_field_sun" type="directional">
+      <cast_shadows>true</cast_shadows>
+      <pose>0 0 40 0 0 0</pose>
+      <diffuse>0.9 0.88 0.82 1</diffuse>
+      <specular>0.25 0.25 0.25 1</specular>
+      <attenuation>
+        <range>1000</range>
+        <constant>0.9</constant>
+        <linear>0.01</linear>
+        <quadratic>0.001</quadratic>
+      </attenuation>
+      <direction>-0.45 0.25 -0.86</direction>
+    </light>
+
+    <model name="flat_ground_100m">
+      <static>true</static>
+      <pose>0 0 0 0 0 0</pose>
+      <link name="flat_ground_100m_link">
+        <collision name="flat_ground_100m_collision">
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>100 100</size>
+            </plane>
+          </geometry>
+        </collision>
+        <visual name="flat_ground_100m_visual">
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>100 100</size>
+            </plane>
+          </geometry>
+          <material>
+            <ambient>0.32 0.36 0.31 1</ambient>
+            <diffuse>0.42 0.48 0.40 1</diffuse>
+            <specular>0.04 0.04 0.04 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Eight large, primitive building-like blocks. -->
+    <model name="building_northwest_slate">
+      <static>true</static>
+      <pose>-38 38 0 0 0 0</pose>
+      <link name="building_northwest_slate_link">
+        <pose>0 0 4 0 0 0</pose>
+        <collision name="building_northwest_slate_collision">
+          <geometry><box><size>10 10 8</size></box></geometry>
+        </collision>
+        <visual name="building_northwest_slate_visual">
+          <geometry><box><size>10 10 8</size></box></geometry>
+          <material><ambient>0.25 0.29 0.34 1</ambient><diffuse>0.36 0.42 0.49 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="building_north_umber">
+      <static>true</static>
+      <pose>-12 38 0 0 0 0</pose>
+      <link name="building_north_umber_link">
+        <pose>0 0 3 0 0 0</pose>
+        <collision name="building_north_umber_collision">
+          <geometry><box><size>12 8 6</size></box></geometry>
+        </collision>
+        <visual name="building_north_umber_visual">
+          <geometry><box><size>12 8 6</size></box></geometry>
+          <material><ambient>0.34 0.25 0.19 1</ambient><diffuse>0.48 0.36 0.27 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="building_northeast_steel">
+      <static>true</static>
+      <pose>24 38 0 0 0 0</pose>
+      <link name="building_northeast_steel_link">
+        <pose>0 0 5 0 0 0</pose>
+        <collision name="building_northeast_steel_collision">
+          <geometry><box><size>14 10 10</size></box></geometry>
+        </collision>
+        <visual name="building_northeast_steel_visual">
+          <geometry><box><size>14 10 10</size></box></geometry>
+          <material><ambient>0.30 0.35 0.38 1</ambient><diffuse>0.43 0.50 0.54 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="building_east_olive">
+      <static>true</static>
+      <pose>40 17 0 0 0 0</pose>
+      <link name="building_east_olive_link">
+        <pose>0 0 3.5 0 0 0</pose>
+        <collision name="building_east_olive_collision">
+          <geometry><box><size>10 12 7</size></box></geometry>
+        </collision>
+        <visual name="building_east_olive_visual">
+          <geometry><box><size>10 12 7</size></box></geometry>
+          <material><ambient>0.31 0.33 0.20 1</ambient><diffuse>0.45 0.48 0.29 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="building_southeast_clay">
+      <static>true</static>
+      <pose>36 -36 0 0 0 0</pose>
+      <link name="building_southeast_clay_link">
+        <pose>0 0 4.5 0 0 0</pose>
+        <collision name="building_southeast_clay_collision">
+          <geometry><box><size>12 10 9</size></box></geometry>
+        </collision>
+        <visual name="building_southeast_clay_visual">
+          <geometry><box><size>12 10 9</size></box></geometry>
+          <material><ambient>0.38 0.25 0.20 1</ambient><diffuse>0.55 0.36 0.29 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="building_south_sandstone">
+      <static>true</static>
+      <pose>8 -40 0 0 0 0</pose>
+      <link name="building_south_sandstone_link">
+        <pose>0 0 2.5 0 0 0</pose>
+        <collision name="building_south_sandstone_collision">
+          <geometry><box><size>10 12 5</size></box></geometry>
+        </collision>
+        <visual name="building_south_sandstone_visual">
+          <geometry><box><size>10 12 5</size></box></geometry>
+          <material><ambient>0.40 0.34 0.25 1</ambient><diffuse>0.58 0.49 0.35 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="building_southwest_graphite">
+      <static>true</static>
+      <pose>-36 -35 0 0 0 0</pose>
+      <link name="building_southwest_graphite_link">
+        <pose>0 0 5.5 0 0 0</pose>
+        <collision name="building_southwest_graphite_collision">
+          <geometry><box><size>14 10 11</size></box></geometry>
+        </collision>
+        <visual name="building_southwest_graphite_visual">
+          <geometry><box><size>14 10 11</size></box></geometry>
+          <material><ambient>0.20 0.21 0.23 1</ambient><diffuse>0.31 0.32 0.35 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="building_west_bluegray">
+      <static>true</static>
+      <pose>-40 5 0 0 0 0</pose>
+      <link name="building_west_bluegray_link">
+        <pose>0 0 3 0 0 0</pose>
+        <collision name="building_west_bluegray_collision">
+          <geometry><box><size>10 12 6</size></box></geometry>
+        </collision>
+        <visual name="building_west_bluegray_visual">
+          <geometry><box><size>10 12 6</size></box></geometry>
+          <material><ambient>0.22 0.29 0.34 1</ambient><diffuse>0.33 0.43 0.50 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Twenty-two smaller obstacles and compound obstacle groups. -->
+    <model name="cube_spawn_north_orange">
+      <static>true</static>
+      <pose>0 8 0 0 0 0</pose>
+      <link name="cube_spawn_north_orange_link">
+        <pose>0 0 0.75 0 0 0</pose>
+        <collision name="cube_spawn_north_orange_collision">
+          <geometry><box><size>1.5 1.5 1.5</size></box></geometry>
+        </collision>
+        <visual name="cube_spawn_north_orange_visual">
+          <geometry><box><size>1.5 1.5 1.5</size></box></geometry>
+          <material><ambient>0.75 0.25 0.03 1</ambient><diffuse>1.0 0.38 0.04 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="column_spawn_east_cyan">
+      <static>true</static>
+      <pose>10 0 0 0 0 0</pose>
+      <link name="column_spawn_east_cyan_link">
+        <pose>0 0 1.5 0 0 0</pose>
+        <collision name="column_spawn_east_cyan_collision">
+          <geometry><cylinder><radius>1</radius><length>3</length></cylinder></geometry>
+        </collision>
+        <visual name="column_spawn_east_cyan_visual">
+          <geometry><cylinder><radius>1</radius><length>3</length></cylinder></geometry>
+          <material><ambient>0.02 0.55 0.64 1</ambient><diffuse>0.03 0.82 0.95 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="barrier_spawn_south_yellow">
+      <static>true</static>
+      <pose>-2 -8 0 0 0 0</pose>
+      <link name="barrier_spawn_south_yellow_link">
+        <pose>0 0 0.5 0 0 0</pose>
+        <collision name="barrier_spawn_south_yellow_collision">
+          <geometry><box><size>4 1 1</size></box></geometry>
+        </collision>
+        <visual name="barrier_spawn_south_yellow_visual">
+          <geometry><box><size>4 1 1</size></box></geometry>
+          <material><ambient>0.75 0.62 0.02 1</ambient><diffuse>1.0 0.86 0.03 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="tower_spawn_west_red">
+      <static>true</static>
+      <pose>-11 1 0 0 0 0</pose>
+      <link name="tower_spawn_west_red_link">
+        <pose>0 0 2 0 0 0</pose>
+        <collision name="tower_spawn_west_red_collision">
+          <geometry><box><size>2 2 4</size></box></geometry>
+        </collision>
+        <visual name="tower_spawn_west_red_visual">
+          <geometry><box><size>2 2 4</size></box></geometry>
+          <material><ambient>0.62 0.05 0.04 1</ambient><diffuse>0.90 0.08 0.06 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="barrier_north_mid_teal">
+      <static>true</static>
+      <pose>10 17 0 0 0 0</pose>
+      <link name="barrier_north_mid_teal_link">
+        <pose>0 0 0.75 0 0 0</pose>
+        <collision name="barrier_north_mid_teal_collision">
+          <geometry><box><size>1.2 8 1.5</size></box></geometry>
+        </collision>
+        <visual name="barrier_north_mid_teal_visual">
+          <geometry><box><size>1.2 8 1.5</size></box></geometry>
+          <material><ambient>0.02 0.40 0.36 1</ambient><diffuse>0.03 0.68 0.60 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="tower_northwest_purple">
+      <static>true</static>
+      <pose>-20 19 0 0 0 0</pose>
+      <link name="tower_northwest_purple_link">
+        <pose>0 0 2 0 0 0</pose>
+        <collision name="tower_northwest_purple_collision">
+          <geometry><box><size>3 3 4</size></box></geometry>
+        </collision>
+        <visual name="tower_northwest_purple_visual">
+          <geometry><box><size>3 3 4</size></box></geometry>
+          <material><ambient>0.38 0.08 0.52 1</ambient><diffuse>0.60 0.12 0.82 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="column_northwest_lime">
+      <static>true</static>
+      <pose>-27 16 0 0 0 0</pose>
+      <link name="column_northwest_lime_link">
+        <pose>0 0 1.25 0 0 0</pose>
+        <collision name="column_northwest_lime_collision">
+          <geometry><cylinder><radius>1.5</radius><length>2.5</length></cylinder></geometry>
+        </collision>
+        <visual name="column_northwest_lime_visual">
+          <geometry><cylinder><radius>1.5</radius><length>2.5</length></cylinder></geometry>
+          <material><ambient>0.43 0.62 0.03 1</ambient><diffuse>0.65 0.90 0.05 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="l_wall_northeast_blue">
+      <static>true</static>
+      <pose>25 18 0 0 0 0</pose>
+      <link name="l_wall_northeast_blue_horizontal_link">
+        <pose>0 -3.5 1 0 0 0</pose>
+        <collision name="l_wall_northeast_blue_horizontal_collision">
+          <geometry><box><size>8 1 2</size></box></geometry>
+        </collision>
+        <visual name="l_wall_northeast_blue_horizontal_visual">
+          <geometry><box><size>8 1 2</size></box></geometry>
+          <material><ambient>0.05 0.20 0.62 1</ambient><diffuse>0.08 0.32 0.90 1</diffuse></material>
+        </visual>
+      </link>
+      <link name="l_wall_northeast_blue_vertical_link">
+        <pose>-3.5 0 1 0 0 0</pose>
+        <collision name="l_wall_northeast_blue_vertical_collision">
+          <geometry><box><size>1 8 2</size></box></geometry>
+        </collision>
+        <visual name="l_wall_northeast_blue_vertical_visual">
+          <geometry><box><size>1 8 2</size></box></geometry>
+          <material><ambient>0.05 0.20 0.62 1</ambient><diffuse>0.08 0.32 0.90 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="u_enclosure_northcenter_white">
+      <static>true</static>
+      <pose>-1 24 0 0 0 0</pose>
+      <link name="u_enclosure_northcenter_white_back_link">
+        <pose>0 3.5 1 0 0 0</pose>
+        <collision name="u_enclosure_northcenter_white_back_collision">
+          <geometry><box><size>12 1 2</size></box></geometry>
+        </collision>
+        <visual name="u_enclosure_northcenter_white_back_visual">
+          <geometry><box><size>12 1 2</size></box></geometry>
+          <material><ambient>0.68 0.68 0.70 1</ambient><diffuse>0.90 0.90 0.92 1</diffuse></material>
+        </visual>
+      </link>
+      <link name="u_enclosure_northcenter_white_left_link">
+        <pose>-5.5 0 1 0 0 0</pose>
+        <collision name="u_enclosure_northcenter_white_left_collision">
+          <geometry><box><size>1 7 2</size></box></geometry>
+        </collision>
+        <visual name="u_enclosure_northcenter_white_left_visual">
+          <geometry><box><size>1 7 2</size></box></geometry>
+          <material><ambient>0.68 0.68 0.70 1</ambient><diffuse>0.90 0.90 0.92 1</diffuse></material>
+        </visual>
+      </link>
+      <link name="u_enclosure_northcenter_white_right_link">
+        <pose>5.5 0 1 0 0 0</pose>
+        <collision name="u_enclosure_northcenter_white_right_collision">
+          <geometry><box><size>1 7 2</size></box></geometry>
+        </collision>
+        <visual name="u_enclosure_northcenter_white_right_visual">
+          <geometry><box><size>1 7 2</size></box></geometry>
+          <material><ambient>0.68 0.68 0.70 1</ambient><diffuse>0.90 0.90 0.92 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="short_wall_west_mid_pink">
+      <static>true</static>
+      <pose>-23 5 0 0 0 0</pose>
+      <link name="short_wall_west_mid_pink_link">
+        <pose>0 0 0.6 0 0 0</pose>
+        <collision name="short_wall_west_mid_pink_collision">
+          <geometry><box><size>1 6 1.2</size></box></geometry>
+        </collision>
+        <visual name="short_wall_west_mid_pink_visual">
+          <geometry><box><size>1 6 1.2</size></box></geometry>
+          <material><ambient>0.68 0.08 0.36 1</ambient><diffuse>0.94 0.13 0.52 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="wide_wall_east_mid_green">
+      <static>true</static>
+      <pose>25 2 0 0 0 0</pose>
+      <link name="wide_wall_east_mid_green_link">
+        <pose>0 0 0.5 0 0 0</pose>
+        <collision name="wide_wall_east_mid_green_collision">
+          <geometry><box><size>7 1.2 1</size></box></geometry>
+        </collision>
+        <visual name="wide_wall_east_mid_green_visual">
+          <geometry><box><size>7 1.2 1</size></box></geometry>
+          <material><ambient>0.03 0.48 0.12 1</ambient><diffuse>0.05 0.76 0.20 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="dead_end_u_southeast_maroon">
+      <static>true</static>
+      <pose>14 -16 0 0 0 0</pose>
+      <link name="dead_end_u_southeast_maroon_back_link">
+        <pose>0 -4.5 1.25 0 0 0</pose>
+        <collision name="dead_end_u_southeast_maroon_back_collision">
+          <geometry><box><size>10 1 2.5</size></box></geometry>
+        </collision>
+        <visual name="dead_end_u_southeast_maroon_back_visual">
+          <geometry><box><size>10 1 2.5</size></box></geometry>
+          <material><ambient>0.42 0.05 0.08 1</ambient><diffuse>0.68 0.08 0.12 1</diffuse></material>
+        </visual>
+      </link>
+      <link name="dead_end_u_southeast_maroon_left_link">
+        <pose>-4.5 0 1.25 0 0 0</pose>
+        <collision name="dead_end_u_southeast_maroon_left_collision">
+          <geometry><box><size>1 9 2.5</size></box></geometry>
+        </collision>
+        <visual name="dead_end_u_southeast_maroon_left_visual">
+          <geometry><box><size>1 9 2.5</size></box></geometry>
+          <material><ambient>0.42 0.05 0.08 1</ambient><diffuse>0.68 0.08 0.12 1</diffuse></material>
+        </visual>
+      </link>
+      <link name="dead_end_u_southeast_maroon_right_link">
+        <pose>4.5 0 1.25 0 0 0</pose>
+        <collision name="dead_end_u_southeast_maroon_right_collision">
+          <geometry><box><size>1 9 2.5</size></box></geometry>
+        </collision>
+        <visual name="dead_end_u_southeast_maroon_right_visual">
+          <geometry><box><size>1 9 2.5</size></box></geometry>
+          <material><ambient>0.42 0.05 0.08 1</ambient><diffuse>0.68 0.08 0.12 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="column_southeast_mid_violet">
+      <static>true</static>
+      <pose>27 -15 0 0 0 0</pose>
+      <link name="column_southeast_mid_violet_link">
+        <pose>0 0 1.5 0 0 0</pose>
+        <collision name="column_southeast_mid_violet_collision">
+          <geometry><cylinder><radius>1.2</radius><length>3</length></cylinder></geometry>
+        </collision>
+        <visual name="column_southeast_mid_violet_visual">
+          <geometry><cylinder><radius>1.2</radius><length>3</length></cylinder></geometry>
+          <material><ambient>0.38 0.08 0.58 1</ambient><diffuse>0.62 0.13 0.90 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="tower_southeast_inner_copper">
+      <static>true</static>
+      <pose>20 -27 0 0 0 0</pose>
+      <link name="tower_southeast_inner_copper_link">
+        <pose>0 0 2 0 0 0</pose>
+        <collision name="tower_southeast_inner_copper_collision">
+          <geometry><box><size>3 2.5 4</size></box></geometry>
+        </collision>
+        <visual name="tower_southeast_inner_copper_visual">
+          <geometry><box><size>3 2.5 4</size></box></geometry>
+          <material><ambient>0.55 0.25 0.08 1</ambient><diffuse>0.80 0.38 0.12 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="barrier_south_mid_aqua">
+      <static>true</static>
+      <pose>-9 -24 0 0 0 0</pose>
+      <link name="barrier_south_mid_aqua_link">
+        <pose>0 0 0.6 0 0 0</pose>
+        <collision name="barrier_south_mid_aqua_collision">
+          <geometry><box><size>6 1.2 1.2</size></box></geometry>
+        </collision>
+        <visual name="barrier_south_mid_aqua_visual">
+          <geometry><box><size>6 1.2 1.2</size></box></geometry>
+          <material><ambient>0.03 0.54 0.52 1</ambient><diffuse>0.05 0.82 0.78 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="column_southwest_inner_amber">
+      <static>true</static>
+      <pose>-22 -18 0 0 0 0</pose>
+      <link name="column_southwest_inner_amber_link">
+        <pose>0 0 1 0 0 0</pose>
+        <collision name="column_southwest_inner_amber_collision">
+          <geometry><cylinder><radius>1.4</radius><length>2</length></cylinder></geometry>
+        </collision>
+        <visual name="column_southwest_inner_amber_visual">
+          <geometry><cylinder><radius>1.4</radius><length>2</length></cylinder></geometry>
+          <material><ambient>0.70 0.38 0.03 1</ambient><diffuse>0.96 0.55 0.04 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="l_wall_southwest_indigo">
+      <static>true</static>
+      <pose>-29 -9 0 0 0 0</pose>
+      <link name="l_wall_southwest_indigo_horizontal_link">
+        <pose>0 -3.5 1 0 0 0</pose>
+        <collision name="l_wall_southwest_indigo_horizontal_collision">
+          <geometry><box><size>8 1 2</size></box></geometry>
+        </collision>
+        <visual name="l_wall_southwest_indigo_horizontal_visual">
+          <geometry><box><size>8 1 2</size></box></geometry>
+          <material><ambient>0.15 0.10 0.52 1</ambient><diffuse>0.24 0.16 0.82 1</diffuse></material>
+        </visual>
+      </link>
+      <link name="l_wall_southwest_indigo_vertical_link">
+        <pose>-3.5 0 1 0 0 0</pose>
+        <collision name="l_wall_southwest_indigo_vertical_collision">
+          <geometry><box><size>1 8 2</size></box></geometry>
+        </collision>
+        <visual name="l_wall_southwest_indigo_vertical_visual">
+          <geometry><box><size>1 8 2</size></box></geometry>
+          <material><ambient>0.15 0.10 0.52 1</ambient><diffuse>0.24 0.16 0.82 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="column_far_west_silver">
+      <static>true</static>
+      <pose>-42 -17 0 0 0 0</pose>
+      <link name="column_far_west_silver_link">
+        <pose>0 0 1.5 0 0 0</pose>
+        <collision name="column_far_west_silver_collision">
+          <geometry><cylinder><radius>1.2</radius><length>3</length></cylinder></geometry>
+        </collision>
+        <visual name="column_far_west_silver_visual">
+          <geometry><cylinder><radius>1.2</radius><length>3</length></cylinder></geometry>
+          <material><ambient>0.52 0.55 0.58 1</ambient><diffuse>0.72 0.76 0.80 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="cube_far_southwest_rose">
+      <static>true</static>
+      <pose>-18 -40 0 0 0 0</pose>
+      <link name="cube_far_southwest_rose_link">
+        <pose>0 0 1 0 0 0</pose>
+        <collision name="cube_far_southwest_rose_collision">
+          <geometry><box><size>2 2 2</size></box></geometry>
+        </collision>
+        <visual name="cube_far_southwest_rose_visual">
+          <geometry><box><size>2 2 2</size></box></geometry>
+          <material><ambient>0.62 0.18 0.28 1</ambient><diffuse>0.90 0.27 0.40 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="barrier_far_southeast_blue">
+      <static>true</static>
+      <pose>25 -44 0 0 0 0</pose>
+      <link name="barrier_far_southeast_blue_link">
+        <pose>0 0 0.75 0 0 0</pose>
+        <collision name="barrier_far_southeast_blue_collision">
+          <geometry><box><size>5 1.5 1.5</size></box></geometry>
+        </collision>
+        <visual name="barrier_far_southeast_blue_visual">
+          <geometry><box><size>5 1.5 1.5</size></box></geometry>
+          <material><ambient>0.04 0.24 0.58 1</ambient><diffuse>0.06 0.38 0.88 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="column_far_northeast_tangerine">
+      <static>true</static>
+      <pose>44 34 0 0 0 0</pose>
+      <link name="column_far_northeast_tangerine_link">
+        <pose>0 0 1.5 0 0 0</pose>
+        <collision name="column_far_northeast_tangerine_collision">
+          <geometry><cylinder><radius>1.4</radius><length>3</length></cylinder></geometry>
+        </collision>
+        <visual name="column_far_northeast_tangerine_visual">
+          <geometry><cylinder><radius>1.4</radius><length>3</length></cylinder></geometry>
+          <material><ambient>0.70 0.25 0.04 1</ambient><diffuse>0.98 0.38 0.05 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="wall_far_northwest_mint">
+      <static>true</static>
+      <pose>-27 29 0 0 0 0</pose>
+      <link name="wall_far_northwest_mint_link">
+        <pose>0 0 0.75 0 0 0</pose>
+        <collision name="wall_far_northwest_mint_collision">
+          <geometry><box><size>4 1.5 1.5</size></box></geometry>
+        </collision>
+        <visual name="wall_far_northwest_mint_visual">
+          <geometry><box><size>4 1.5 1.5</size></box></geometry>
+          <material><ambient>0.18 0.58 0.42 1</ambient><diffuse>0.27 0.86 0.62 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="cube_east_upper_gold">
+      <static>true</static>
+      <pose>28 9 0 0 0 0</pose>
+      <link name="cube_east_upper_gold_link">
+        <pose>0 0 1 0 0 0</pose>
+        <collision name="cube_east_upper_gold_collision">
+          <geometry><box><size>2 2 2</size></box></geometry>
+        </collision>
+        <visual name="cube_east_upper_gold_visual">
+          <geometry><box><size>2 2 2</size></box></geometry>
+          <material><ambient>0.70 0.48 0.04 1</ambient><diffuse>0.98 0.68 0.06 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <gui fullscreen="0">
+      <camera name="flat_field_start_camera">
+        <pose>-25 -25 24 0 0.60 0.7854</pose>
+        <view_controller>orbit</view_controller>
+        <projection_type>perspective</projection_type>
+      </camera>
+    </gui>
+  </world>
+</sdf>

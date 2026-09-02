@@ -1,0 +1,93 @@
+{
+  "bag_duration_seconds": 110.98977565765381,
+  "sample_counts": {
+    "raw_gps": 112,
+    "navsat_odometry_gps": 112,
+    "global_ekf": 3351
+  },
+  "direct_utm_gps_to_centreline_m": {
+    "minimum": 0.0005668898253030285,
+    "mean": 1.6388607636499184,
+    "median": 0.964919949437774,
+    "p95": 4.214349645981343,
+    "maximum": 4.885291413518985,
+    "rms": 2.2160351814665815
+  },
+  "direct_utm_gps_static_free_samples": 112,
+  "direct_utm_gps_offroad_cost_samples": 20,
+  "global_ekf_static_occupied_samples": 525,
+  "global_ekf_last_occupied_elapsed_s": 17.496444702148438,
+  "navsat_to_direct_utm_m": {
+    "minimum": 9.758738577745445,
+    "mean": 10.146329574348096,
+    "median": 10.163784972474753,
+    "p95": 10.389225408369256,
+    "maximum": 10.392363390295575,
+    "rms": 10.148149936205268
+  },
+  "navsat_to_centreline_m": {
+    "minimum": 0.029860798996217897,
+    "mean": 3.8713362795525685,
+    "median": 4.186036425171877,
+    "p95": 6.019660161413068,
+    "maximum": 9.187821943759836,
+    "rms": 4.240789434656878
+  },
+  "navsat_exact_rotation_deg": -1.0160273265571038,
+  "navsat_rotation_fit_max_residual_m": 1.6837590826016607e-06,
+  "global_ekf_to_direct_utm_last_60_s_m": {
+    "minimum": 9.676392254567556,
+    "mean": 11.043133583510093,
+    "median": 10.432751368253305,
+    "p95": 13.98356375019159,
+    "maximum": 14.890587373446206,
+    "rms": 11.129619920837927
+  },
+  "global_ekf_to_centreline_last_60_s_m": {
+    "minimum": 0.002235141470688938,
+    "mean": 4.02532312983696,
+    "median": 4.265606766579124,
+    "p95": 6.656813672327137,
+    "maximum": 6.9237836454704285,
+    "rms": 4.489232912940482
+  },
+  "global_ekf_to_direct_utm_last_10_s_m": {
+    "minimum": 10.218890739228193,
+    "mean": 10.987629965078153,
+    "median": 10.952861480694644,
+    "p95": 11.66723414783641,
+    "maximum": 11.691711272517884,
+    "rms": 10.997080021580517
+  },
+  "global_ekf_to_centreline_last_10_s_m": {
+    "minimum": 5.19972476666602,
+    "mean": 6.283707676013112,
+    "median": 6.462737529753966,
+    "p95": 6.794652617209393,
+    "maximum": 6.9237836454704285,
+    "rms": 6.2994857389242
+  },
+  "initial": {
+    "direct_utm_xy_m": [
+      446.8024544635555,
+      379.24434032524005
+    ],
+    "global_ekf_xy_m": [
+      0.0,
+      0.0
+    ],
+    "separation_m": 586.0534983970184
+  },
+  "final": {
+    "direct_utm_xy_m": [
+      438.7992014202755,
+      383.7250755224377
+    ],
+    "global_ekf_xy_m": [
+      444.83951021066036,
+      373.8478632083716
+    ],
+    "global_to_direct_utm_m": 11.577765474405636,
+    "global_to_centreline_m": 5.734218277257905
+  }
+}
