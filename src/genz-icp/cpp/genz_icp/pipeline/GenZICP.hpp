@@ -57,6 +57,15 @@ struct GenZConfig {
     // Motion compensation
     bool deskew = false;
 
+    // Ground-rover registration modes: current_full_6dof,
+    // gravity_constrained_6dof, or planar_xy_yaw.
+    std::string ground_rover_mode = "current_full_6dof";
+    bool use_gravity_constraint = false;
+    bool constrain_roll_pitch = true;
+    bool constrain_z = false;
+    double roll_pitch_prior_weight = 0.0;
+    double z_prior_weight = 0.0;
+
     // registration params
     int max_num_iterations = 150;
     double convergence_criterion = 0.0001;
@@ -126,6 +135,13 @@ struct GenZConfig {
     bool tentative_map_debug = false;
 };
 
+struct MotionPrediction {
+    Sophus::SO3d rotation;
+    Eigen::Vector3d translation = Eigen::Vector3d::Zero();
+    bool use_translation = false;
+    bool gravity_aligned = false;
+};
+
 class GenZICP {
 public:
     using Vector3dVector = std::vector<Eigen::Vector3d>;
@@ -151,6 +167,13 @@ public:
     RegistrationTuple RegisterFrame(const std::vector<Eigen::Vector3d> &frame,
                                     const std::vector<double> &timestamps,
                                     const std::optional<Sophus::SO3d> &rotation_prediction);
+    RegistrationTuple RegisterFrameWithPrediction(
+        const std::vector<Eigen::Vector3d> &frame,
+        const std::vector<double> &timestamps,
+        const std::optional<MotionPrediction> &motion_prediction);
+    RegistrationTuple RegisterFrameWithPrediction(
+        const std::vector<Eigen::Vector3d> &frame,
+        const std::optional<MotionPrediction> &motion_prediction);
     void SetTerminalStatusEnabled(bool enabled) {
         terminal_status_enabled_ = enabled;
         registration_.SetTerminalStatusEnabled(enabled);
@@ -166,6 +189,9 @@ public:
     const std::deque<Sophus::SE3d> &poses() const { return poses_; };
     bool LastFrameAccepted() const { return last_frame_accepted_; }
     size_t ConsecutiveRegistrationRejections() const { return consecutive_registration_rejections_; }
+    const Sophus::SE3d &LastInitialGuess() const { return last_initial_guess_; }
+    const Sophus::SE3d &LastIcpCorrection() const { return last_icp_correction_; }
+    const RegistrationQuality &LastRegistrationQuality() const { return last_registration_quality_; }
 
 private:
     enum class TentativeGatingMode { Normal, Relaxed, Frozen };
@@ -236,6 +262,9 @@ private:
     size_t consecutive_registration_rejections_ = 0;
     bool registration_recovery_mode_ = false;
     bool last_frame_accepted_ = false;
+    Sophus::SE3d last_initial_guess_;
+    Sophus::SE3d last_icp_correction_;
+    RegistrationQuality last_registration_quality_;
     GenZConfig config_;
     double adaptive_voxel_size_;
     Registration registration_;

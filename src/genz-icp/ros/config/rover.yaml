@@ -1,8 +1,6 @@
-# GenZ publishes raw Y-forward odometry; robot_localization owns the TF.
 publish_odom_tf: false
 odom_frame: odom
 base_frame: base_link
-# Rover convention: +Y is forward and +X is right in base_link/lidar.
 publish_twist: true
 twist_in_child_frame: true
 twist_smoothing_alpha: 1.0
@@ -11,7 +9,7 @@ twist_max_dt: 1.0
 twist_debug: false
 twist_linear_covariance: 0.25
 twist_angular_covariance: 0.25
-max_range: 60.0
+max_range: 100.0
 min_range: 1.0
 voxel_size: 0.55
 desired_num_voxelized_points: 5500
@@ -22,6 +20,12 @@ min_motion_th: 0.09    # Make it more sensitive to small movements
 max_num_iterations: 100
 convergence_criterion: 0.0001
 deskew: false
+ground_rover_mode: current_full_6dof
+use_gravity_constraint: false
+constrain_roll_pitch: true
+constrain_z: false
+roll_pitch_prior_weight: 0.0
+z_prior_weight: 0.0
 enable_registration_quality_gate: true
 min_registration_correspondences: 300
 registration_rmse_reject_ratio: 2.5
@@ -37,10 +41,21 @@ imu_prediction_point_time_unit: nanoseconds
 imu_prediction_cloud_stamp_location: end
 imu_prediction_deskew_reference: middle
 imu_angular_velocity_scale: 1.0 # or 1.0
-enable_imu_prediction_gyro_bias_calibration: false
-imu_prediction_gyro_bias_calibration_seconds: 10.0
-imu_prediction_gyro_bias_min_samples: 500
+enable_imu_prediction_gyro_bias_calibration: true
+imu_prediction_gyro_bias_calibration_seconds: 3.0
+imu_prediction_gyro_bias_min_samples: 400
 imu_prediction_gyro_bias: []
+imu_prediction_accel_bias: []
+imu_stationary_max_gyro_norm: 0.05
+imu_stationary_accel_g_tolerance: 0.75
+imu_stationary_max_accel_variance: 0.05
+imu_gravity_magnitude: 9.80665
+imu_gravity_correction_gain: 1.0
+use_imu_orientation_for_gravity: true
+enable_imu_translation_prediction: false
+imu_prediction_max_acceleration: 5.0
+imu_prediction_max_velocity: 5.0
+publish_imu_debug_topics: true
 imu_prediction_max_gap_seconds: 0.06
 imu_prediction_max_age_seconds: 0.60
 imu_prediction_max_rejected_frame_age_seconds: 2.0

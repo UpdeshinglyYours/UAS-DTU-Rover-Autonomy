@@ -6,7 +6,7 @@ from launch_ros.actions import Node
 import ast
 
 
-def _parse_gyro_bias(value):
+def _parse_vector3(value, parameter_name):
     text = value.strip()
     if text in ("", "unset", "none", "None", "null"):
         return None
@@ -17,7 +17,9 @@ def _parse_gyro_bias(value):
         parsed = [item.strip() for item in text.split(",")]
 
     if not isinstance(parsed, (list, tuple)) or len(parsed) != 3:
-        raise ValueError("gyro_bias must be unset or a 3-value list like [0.0, 0.0, 0.0]")
+        raise ValueError(
+            f"{parameter_name} must be unset or a 3-value list like [0.0, 0.0, 0.0]"
+        )
 
     return [float(parsed[0]), float(parsed[1]), float(parsed[2])]
 
@@ -53,9 +55,34 @@ def _launch_setup(context, *args, **kwargs):
             "drop_cloud_on_missing_imu_after_wait"
         ),
         "max_pending_clouds": LaunchConfiguration("max_pending_clouds"),
+        "enable_lidar_lever_arm_correction": LaunchConfiguration(
+            "enable_lidar_lever_arm_correction"
+        ),
+        "lidar_lever_arm": _parse_vector3(
+            LaunchConfiguration("lidar_lever_arm").perform(context), "lidar_lever_arm"
+        ),
+        "enable_translational_deskew": LaunchConfiguration(
+            "enable_translational_deskew"
+        ),
+        "bias_topic": LaunchConfiguration("bias_topic"),
+        "velocity_topic": LaunchConfiguration("velocity_topic"),
+        "translation_max_velocity_age_seconds": LaunchConfiguration(
+            "translation_max_velocity_age_seconds"
+        ),
+        "translation_max_acceleration": LaunchConfiguration(
+            "translation_max_acceleration"
+        ),
+        "translation_max_velocity": LaunchConfiguration("translation_max_velocity"),
+        "gravity_magnitude": LaunchConfiguration("gravity_magnitude"),
+        "gravity_correction_gain": LaunchConfiguration("gravity_correction_gain"),
+        "use_imu_orientation_for_gravity": LaunchConfiguration(
+            "use_imu_orientation_for_gravity"
+        ),
     }
 
-    gyro_bias = _parse_gyro_bias(LaunchConfiguration("gyro_bias").perform(context))
+    gyro_bias = _parse_vector3(
+        LaunchConfiguration("gyro_bias").perform(context), "gyro_bias"
+    )
     if gyro_bias is not None:
         params["gyro_bias"] = gyro_bias
 
@@ -97,6 +124,23 @@ def generate_launch_description():
             DeclareLaunchArgument("publish_raw_on_missing_imu_after_wait", default_value="false"),
             DeclareLaunchArgument("drop_cloud_on_missing_imu_after_wait", default_value="true"),
             DeclareLaunchArgument("max_pending_clouds", default_value="20"),
+            DeclareLaunchArgument(
+                "enable_lidar_lever_arm_correction", default_value="false"
+            ),
+            DeclareLaunchArgument("lidar_lever_arm", default_value="[0.0, 0.0, 0.0]"),
+            DeclareLaunchArgument("enable_translational_deskew", default_value="false"),
+            DeclareLaunchArgument("bias_topic", default_value="/genz/imu/bias"),
+            DeclareLaunchArgument("velocity_topic", default_value="/genz/odometry"),
+            DeclareLaunchArgument(
+                "translation_max_velocity_age_seconds", default_value="0.5"
+            ),
+            DeclareLaunchArgument("translation_max_acceleration", default_value="5.0"),
+            DeclareLaunchArgument("translation_max_velocity", default_value="5.0"),
+            DeclareLaunchArgument("gravity_magnitude", default_value="9.80665"),
+            DeclareLaunchArgument("gravity_correction_gain", default_value="1.0"),
+            DeclareLaunchArgument(
+                "use_imu_orientation_for_gravity", default_value="true"
+            ),
             OpaqueFunction(function=_launch_setup),
         ]
     )

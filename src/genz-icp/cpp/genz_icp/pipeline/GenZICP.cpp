@@ -302,6 +302,31 @@ std::optional<genz_icp::RegistrationMotionPriorConfig> BuildMotionPriorConfig(
     }
     return prior;
 }
+
+std::optional<genz_icp::RegistrationDofConstraintConfig> BuildDofConstraintConfig(
+    const genz_icp::pipeline::GenZConfig &config,
+    const Sophus::SE3d &reference_pose) {
+    const std::string mode = ToLower(config.ground_rover_mode);
+    if (mode == "current_full_6dof" || mode == "full_6dof" || mode == "none") {
+        return std::nullopt;
+    }
+
+    genz_icp::RegistrationDofConstraintConfig constraint;
+    constraint.enabled = true;
+    constraint.reference_pose = reference_pose;
+    constraint.roll_pitch_prior_weight =
+        std::max(0.0, config.roll_pitch_prior_weight);
+    constraint.z_prior_weight = std::max(0.0, config.z_prior_weight);
+    if (mode == "planar_xy_yaw" || mode == "planar") {
+        constraint.lock_roll_pitch = true;
+        constraint.lock_z = true;
+    } else {
+        constraint.lock_roll_pitch =
+            config.use_gravity_constraint && config.constrain_roll_pitch;
+        constraint.lock_z = config.constrain_z;
+    }
+    return constraint;
+}
 }  // namespace
 
 namespace genz_icp::pipeline {
@@ -315,6 +340,18 @@ GenZICP::RegistrationTuple GenZICP::RegisterFrame(
     const std::vector<Eigen::Vector3d> &frame,
     const std::vector<double> &timestamps,
     const std::optional<Sophus::SO3d> &rotation_prediction) {
+    std::optional<MotionPrediction> prediction;
+    if (rotation_prediction) {
+        prediction = MotionPrediction{*rotation_prediction,
+                                      Eigen::Vector3d::Zero(), false, false};
+    }
+    return RegisterFrameWithPrediction(frame, timestamps, prediction);
+}
+
+GenZICP::RegistrationTuple GenZICP::RegisterFrameWithPrediction(
+    const std::vector<Eigen::Vector3d> &frame,
+    const std::vector<double> &timestamps,
+    const std::optional<MotionPrediction> &motion_prediction) {
     const auto &deskew_frame = [&]() -> std::vector<Eigen::Vector3d> {
         if (!config_.deskew || timestamps.empty()) return frame;
         // TODO(Nacho) Add some asserts here to sanitize the timestamps
@@ -330,7 +367,7 @@ GenZICP::RegistrationTuple GenZICP::RegisterFrame(
         return DeSkewScan(frame, timestamps, start_pose, finish_pose);
         
     }();
-    return RegisterFrame(deskew_frame, rotation_prediction);
+    return RegisterFrameWithPrediction(deskew_frame, motion_prediction);
 }
 
 GenZICP::RegistrationTuple GenZICP::RegisterFrame(const std::vector<Eigen::Vector3d> &frame) {
@@ -340,7 +377,20 @@ GenZICP::RegistrationTuple GenZICP::RegisterFrame(const std::vector<Eigen::Vecto
 GenZICP::RegistrationTuple GenZICP::RegisterFrame(
     const std::vector<Eigen::Vector3d> &frame,
     const std::optional<Sophus::SO3d> &rotation_prediction) {
+    std::optional<MotionPrediction> prediction;
+    if (rotation_prediction) {
+        prediction = MotionPrediction{*rotation_prediction,
+                                      Eigen::Vector3d::Zero(), false, false};
+    }
+    return RegisterFrameWithPrediction(frame, prediction);
+}
+
+GenZICP::RegistrationTuple GenZICP::RegisterFrameWithPrediction(
+    const std::vector<Eigen::Vector3d> &frame,
+    const std::optional<MotionPrediction> &motion_prediction) {
     last_frame_accepted_ = false;
+    last_icp_correction_ = Sophus::SE3d();
+    last_registration_quality_ = RegistrationQuality{};
 
     // Preprocess the input cloud
     const auto &cropped_frame = Preprocess(frame, config_.max_range, config_.min_range);
@@ -390,10 +440,12 @@ GenZICP::RegistrationTuple GenZICP::RegisterFrame(
 
     // Compute initial_guess for ICP
     const auto normal_prediction = GetPredictionModel();
-    const Sophus::SE3d prediction =
-        rotation_prediction
-            ? Sophus::SE3d(*rotation_prediction, normal_prediction.translation())
-            : normal_prediction;
+    const Sophus::SE3d prediction = motion_prediction
+        ? Sophus::SE3d(motion_prediction->rotation,
+                       motion_prediction->use_translation
+                           ? motion_prediction->translation
+                           : normal_prediction.translation())
+        : normal_prediction;
     const auto last_pose = !poses_.empty() ? poses_.back() : Sophus::SE3d();
     const auto base_initial_guess = last_pose * prediction;
     Sophus::SE3d initial_guess = base_initial_guess;
@@ -417,9 +469,19 @@ GenZICP::RegistrationTuple GenZICP::RegisterFrame(
         }
     }
 
+    const std::string ground_mode = ToLower(config_.ground_rover_mode);
+    const bool lock_z = config_.constrain_z || ground_mode == "planar_xy_yaw" ||
+                        ground_mode == "planar";
+    if (lock_z) {
+        Eigen::Vector3d constrained_translation = initial_guess.translation();
+        constrained_translation.z() = last_pose.translation().z();
+        initial_guess = Sophus::SE3d(initial_guess.so3(), constrained_translation);
+    }
+    last_initial_guess_ = initial_guess;
+
     if (config_.enable_yaw_search_initializer && config_.yaw_search_debug) {
         std::cout << "ICP initial guess source: "
-                  << (rotation_prediction ? "imu_prediction" : "normal")
+                  << (motion_prediction ? "imu_prediction" : "normal")
                   << (yaw_search_selected ? "+yaw_search" : "")
                   << "\n";
     }
@@ -432,6 +494,7 @@ GenZICP::RegistrationTuple GenZICP::RegisterFrame(
         config_.enable_robust_icp_outlier_handling
             ? std::optional<genz_icp::RegistrationRobustICPConfig>(BuildRobustICPConfig())
             : std::nullopt;
+    const auto dof_constraint = BuildDofConstraintConfig(config_, initial_guess);
 
     // Run GenZ-ICP and evaluate the complete candidate before committing it.
     auto registration_result = registration_.RegisterFrameWithQuality(source,         //
@@ -440,11 +503,14 @@ GenZICP::RegistrationTuple GenZICP::RegisterFrame(
                                                                       3.0 * sigma,    //
                                                                       sigma / 3.0,    //
                                                                       motion_prior,
-                                                                      robust_icp);
+                                                                      robust_icp,
+                                                                      dof_constraint);
     const auto &new_pose = registration_result.pose;
     const auto &covariance = registration_result.covariance;
 
     auto quality = registration_result.quality;
+    last_icp_correction_ = initial_guess.inverse() * new_pose;
+    last_registration_quality_ = quality;
     const auto accepted_delta = last_pose.inverse() * new_pose;
     quality.translation_delta = accepted_delta.translation().norm();
     quality.rotation_delta = accepted_delta.so3().log().norm();
@@ -454,6 +520,7 @@ GenZICP::RegistrationTuple GenZICP::RegisterFrame(
                      covariance.allFinite() &&
                      std::isfinite(quality.translation_delta) &&
                      std::isfinite(quality.rotation_delta);
+    last_registration_quality_ = quality;
 
     bool log_accept = false;
     if (config_.enable_registration_quality_gate) {

@@ -77,6 +77,23 @@ def _launch_setup(context, *args, **kwargs):
         ),
         "lidar_lever_arm": lidar_lever_arm,
         "debug_print": LaunchConfiguration("deskew_debug_print"),
+        "enable_translational_deskew": LaunchConfiguration(
+            "enable_translational_deskew"
+        ),
+        "bias_topic": LaunchConfiguration("imu_bias_topic"),
+        "velocity_topic": LaunchConfiguration("deskew_velocity_topic"),
+        "translation_max_velocity_age_seconds": LaunchConfiguration(
+            "translation_max_velocity_age_seconds"
+        ),
+        "translation_max_acceleration": LaunchConfiguration(
+            "imu_prediction_max_acceleration"
+        ),
+        "translation_max_velocity": LaunchConfiguration("imu_prediction_max_velocity"),
+        "gravity_magnitude": LaunchConfiguration("imu_gravity_magnitude"),
+        "gravity_correction_gain": LaunchConfiguration("imu_gravity_correction_gain"),
+        "use_imu_orientation_for_gravity": LaunchConfiguration(
+            "use_imu_orientation_for_gravity"
+        ),
     }
 
     deskewer = Node(
@@ -122,6 +139,38 @@ def _launch_setup(context, *args, **kwargs):
                 "imu_prediction_max_rejected_frame_age_seconds"
             ),
             "imu_prediction_debug": LaunchConfiguration("imu_prediction_debug"),
+            "ground_rover_mode": LaunchConfiguration("ground_rover_mode"),
+            "use_gravity_constraint": LaunchConfiguration("use_gravity_constraint"),
+            "constrain_roll_pitch": LaunchConfiguration("constrain_roll_pitch"),
+            "constrain_z": LaunchConfiguration("constrain_z"),
+            "roll_pitch_prior_weight": LaunchConfiguration("roll_pitch_prior_weight"),
+            "z_prior_weight": LaunchConfiguration("z_prior_weight"),
+            "enable_imu_translation_prediction": LaunchConfiguration(
+                "enable_imu_translation_prediction"
+            ),
+            "use_imu_orientation_for_gravity": LaunchConfiguration(
+                "use_imu_orientation_for_gravity"
+            ),
+            "publish_imu_debug_topics": LaunchConfiguration("publish_imu_debug_topics"),
+            "imu_stationary_max_gyro_norm": LaunchConfiguration(
+                "imu_stationary_max_gyro_norm"
+            ),
+            "imu_stationary_accel_g_tolerance": LaunchConfiguration(
+                "imu_stationary_accel_g_tolerance"
+            ),
+            "imu_stationary_max_accel_variance": LaunchConfiguration(
+                "imu_stationary_max_accel_variance"
+            ),
+            "imu_gravity_magnitude": LaunchConfiguration("imu_gravity_magnitude"),
+            "imu_gravity_correction_gain": LaunchConfiguration(
+                "imu_gravity_correction_gain"
+            ),
+            "imu_prediction_max_acceleration": LaunchConfiguration(
+                "imu_prediction_max_acceleration"
+            ),
+            "imu_prediction_max_velocity": LaunchConfiguration(
+                "imu_prediction_max_velocity"
+            ),
             "yaw_search_debug": LaunchConfiguration("yaw_search_debug"),
             "motion_prior_debug": LaunchConfiguration("motion_prior_debug"),
             "map_update_debug": LaunchConfiguration("map_update_debug"),
@@ -183,6 +232,12 @@ def generate_launch_description():
             DeclareLaunchArgument("enable_lidar_lever_arm_correction", default_value="true"),
             DeclareLaunchArgument("lidar_lever_arm", default_value="[0.11, 0.30, 0.00]"),
             DeclareLaunchArgument("deskew_debug_print", default_value="true"),
+            DeclareLaunchArgument("enable_translational_deskew", default_value="false"),
+            DeclareLaunchArgument("imu_bias_topic", default_value="/genz/imu/bias"),
+            DeclareLaunchArgument("deskew_velocity_topic", default_value="/genz/odometry"),
+            DeclareLaunchArgument(
+                "translation_max_velocity_age_seconds", default_value="0.5"
+            ),
 
             # GenZ odometry
             DeclareLaunchArgument("odom_imu_topic", default_value="/mavros/imu/data"),
@@ -199,6 +254,34 @@ def generate_launch_description():
                 default_value="2.0",
             ),
             DeclareLaunchArgument("imu_prediction_debug", default_value="false"),
+            DeclareLaunchArgument(
+                "ground_rover_mode", default_value="current_full_6dof"
+            ),
+            DeclareLaunchArgument("use_gravity_constraint", default_value="false"),
+            DeclareLaunchArgument("constrain_roll_pitch", default_value="true"),
+            DeclareLaunchArgument("constrain_z", default_value="false"),
+            DeclareLaunchArgument("roll_pitch_prior_weight", default_value="0.0"),
+            DeclareLaunchArgument("z_prior_weight", default_value="0.0"),
+            DeclareLaunchArgument(
+                "enable_imu_translation_prediction", default_value="false"
+            ),
+            DeclareLaunchArgument(
+                "use_imu_orientation_for_gravity", default_value="true"
+            ),
+            DeclareLaunchArgument("publish_imu_debug_topics", default_value="true"),
+            DeclareLaunchArgument("imu_stationary_max_gyro_norm", default_value="0.05"),
+            DeclareLaunchArgument(
+                "imu_stationary_accel_g_tolerance", default_value="0.75"
+            ),
+            DeclareLaunchArgument(
+                "imu_stationary_max_accel_variance", default_value="0.05"
+            ),
+            DeclareLaunchArgument("imu_gravity_magnitude", default_value="9.80665"),
+            DeclareLaunchArgument("imu_gravity_correction_gain", default_value="1.0"),
+            DeclareLaunchArgument(
+                "imu_prediction_max_acceleration", default_value="5.0"
+            ),
+            DeclareLaunchArgument("imu_prediction_max_velocity", default_value="5.0"),
             DeclareLaunchArgument("yaw_search_debug", default_value="false"),
             DeclareLaunchArgument("motion_prior_debug", default_value="false"),
             DeclareLaunchArgument("map_update_debug", default_value="false"),

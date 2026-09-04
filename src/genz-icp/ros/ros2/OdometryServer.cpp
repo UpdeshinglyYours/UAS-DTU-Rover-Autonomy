@@ -287,6 +287,12 @@ OdometryServer::OdometryServer(const rclcpp::NodeOptions &options)
     declare_parameter<double>("max_range", config_.max_range);
     declare_parameter<double>("min_range", config_.min_range);
     declare_parameter<bool>("deskew", config_.deskew);
+    declare_parameter<std::string>("ground_rover_mode", config_.ground_rover_mode);
+    declare_parameter<bool>("use_gravity_constraint", config_.use_gravity_constraint);
+    declare_parameter<bool>("constrain_roll_pitch", config_.constrain_roll_pitch);
+    declare_parameter<bool>("constrain_z", config_.constrain_z);
+    declare_parameter<double>("roll_pitch_prior_weight", config_.roll_pitch_prior_weight);
+    declare_parameter<double>("z_prior_weight", config_.z_prior_weight);
     declare_parameter<double>("voxel_size", config_.max_range / 100.0);
     declare_parameter<double>("map_cleanup_radius", config_.map_cleanup_radius);
     declare_parameter<double>("planarity_threshold", config_.planarity_threshold);
@@ -325,6 +331,35 @@ OdometryServer::OdometryServer(const rclcpp::NodeOptions &options)
         declare_parameter<int>("imu_prediction_gyro_bias_min_samples",
                                imu_prediction_gyro_bias_min_samples_);
     declare_parameter<std::vector<double>>("imu_prediction_gyro_bias", std::vector<double>{});
+    declare_parameter<std::vector<double>>("imu_prediction_accel_bias", std::vector<double>{});
+    enable_imu_translation_prediction_ =
+        declare_parameter<bool>("enable_imu_translation_prediction",
+                                enable_imu_translation_prediction_);
+    use_imu_orientation_for_gravity_ =
+        declare_parameter<bool>("use_imu_orientation_for_gravity",
+                                use_imu_orientation_for_gravity_);
+    publish_imu_debug_topics_ =
+        declare_parameter<bool>("publish_imu_debug_topics", publish_imu_debug_topics_);
+    imu_stationary_max_gyro_norm_ =
+        declare_parameter<double>("imu_stationary_max_gyro_norm",
+                                  imu_stationary_max_gyro_norm_);
+    imu_stationary_accel_g_tolerance_ =
+        declare_parameter<double>("imu_stationary_accel_g_tolerance",
+                                  imu_stationary_accel_g_tolerance_);
+    imu_stationary_max_accel_variance_ =
+        declare_parameter<double>("imu_stationary_max_accel_variance",
+                                  imu_stationary_max_accel_variance_);
+    imu_gravity_magnitude_ =
+        declare_parameter<double>("imu_gravity_magnitude", imu_gravity_magnitude_);
+    imu_gravity_correction_gain_ =
+        declare_parameter<double>("imu_gravity_correction_gain",
+                                  imu_gravity_correction_gain_);
+    imu_prediction_max_acceleration_ =
+        declare_parameter<double>("imu_prediction_max_acceleration",
+                                  imu_prediction_max_acceleration_);
+    imu_prediction_max_velocity_ =
+        declare_parameter<double>("imu_prediction_max_velocity",
+                                  imu_prediction_max_velocity_);
     imu_prediction_max_gap_seconds_ =
         declare_parameter<double>("imu_prediction_max_gap_seconds", imu_prediction_max_gap_seconds_);
     imu_prediction_max_age_seconds_ =
@@ -449,6 +484,12 @@ OdometryServer::OdometryServer(const rclcpp::NodeOptions &options)
     config_.max_range = get_parameter("max_range").as_double();
     config_.min_range = get_parameter("min_range").as_double();
     config_.deskew = get_parameter("deskew").as_bool();
+    config_.ground_rover_mode = ToLower(Trim(get_parameter("ground_rover_mode").as_string()));
+    config_.use_gravity_constraint = get_parameter("use_gravity_constraint").as_bool();
+    config_.constrain_roll_pitch = get_parameter("constrain_roll_pitch").as_bool();
+    config_.constrain_z = get_parameter("constrain_z").as_bool();
+    config_.roll_pitch_prior_weight = get_parameter("roll_pitch_prior_weight").as_double();
+    config_.z_prior_weight = get_parameter("z_prior_weight").as_double();
     config_.voxel_size = get_parameter("voxel_size").as_double();
     config_.map_cleanup_radius = get_parameter("map_cleanup_radius").as_double();
     config_.planarity_threshold = get_parameter("planarity_threshold").as_double();
@@ -497,6 +538,26 @@ OdometryServer::OdometryServer(const rclcpp::NodeOptions &options)
         static_cast<int>(std::max<int64_t>(1, get_parameter("imu_prediction_gyro_bias_min_samples").as_int()));
     const auto imu_prediction_gyro_bias_override =
         get_parameter("imu_prediction_gyro_bias").as_double_array();
+    const auto imu_prediction_accel_bias_override =
+        get_parameter("imu_prediction_accel_bias").as_double_array();
+    enable_imu_translation_prediction_ =
+        get_parameter("enable_imu_translation_prediction").as_bool();
+    use_imu_orientation_for_gravity_ =
+        get_parameter("use_imu_orientation_for_gravity").as_bool();
+    publish_imu_debug_topics_ = get_parameter("publish_imu_debug_topics").as_bool();
+    imu_stationary_max_gyro_norm_ =
+        get_parameter("imu_stationary_max_gyro_norm").as_double();
+    imu_stationary_accel_g_tolerance_ =
+        get_parameter("imu_stationary_accel_g_tolerance").as_double();
+    imu_stationary_max_accel_variance_ =
+        get_parameter("imu_stationary_max_accel_variance").as_double();
+    imu_gravity_magnitude_ = get_parameter("imu_gravity_magnitude").as_double();
+    imu_gravity_correction_gain_ =
+        get_parameter("imu_gravity_correction_gain").as_double();
+    imu_prediction_max_acceleration_ =
+        get_parameter("imu_prediction_max_acceleration").as_double();
+    imu_prediction_max_velocity_ =
+        get_parameter("imu_prediction_max_velocity").as_double();
     imu_prediction_max_gap_seconds_ =
         get_parameter("imu_prediction_max_gap_seconds").as_double();
     imu_prediction_max_age_seconds_ =
@@ -657,6 +718,28 @@ OdometryServer::OdometryServer(const rclcpp::NodeOptions &options)
         std::max(2.0,
                  std::max(imu_prediction_max_age_seconds_,
                           imu_prediction_max_rejected_frame_age_seconds_) + 1.0);
+    imu_stationary_max_gyro_norm_ = std::max(0.0, imu_stationary_max_gyro_norm_);
+    imu_stationary_accel_g_tolerance_ =
+        std::max(0.0, imu_stationary_accel_g_tolerance_);
+    imu_stationary_max_accel_variance_ =
+        std::max(0.0, imu_stationary_max_accel_variance_);
+    if (!std::isfinite(imu_gravity_magnitude_) || imu_gravity_magnitude_ < 1.0) {
+        RCLCPP_WARN(get_logger(), "Invalid imu_gravity_magnitude; using 9.80665 m/s^2");
+        imu_gravity_magnitude_ = genz_icp::imu::kStandardGravity;
+    }
+    imu_gravity_correction_gain_ =
+        std::clamp(imu_gravity_correction_gain_, 0.0, 1.0);
+    imu_prediction_max_acceleration_ = std::max(0.0, imu_prediction_max_acceleration_);
+    imu_prediction_max_velocity_ = std::max(0.0, imu_prediction_max_velocity_);
+    config_.roll_pitch_prior_weight = std::max(0.0, config_.roll_pitch_prior_weight);
+    config_.z_prior_weight = std::max(0.0, config_.z_prior_weight);
+    if (config_.ground_rover_mode != "current_full_6dof" &&
+        config_.ground_rover_mode != "gravity_constrained_6dof" &&
+        config_.ground_rover_mode != "planar_xy_yaw") {
+        RCLCPP_WARN(get_logger(), "Invalid ground_rover_mode '%s'; using current_full_6dof",
+                    config_.ground_rover_mode.c_str());
+        config_.ground_rover_mode = "current_full_6dof";
+    }
     config_.yaw_search_score_max_correspondence_distance =
         std::max(0.0, config_.yaw_search_score_max_correspondence_distance);
     config_.yaw_search_min_correspondences =
@@ -752,23 +835,22 @@ OdometryServer::OdometryServer(const rclcpp::NodeOptions &options)
         twist_angular_covariance_ = 0.25;
     }
 
-    if (!imu_prediction_rotation_only_) {
-        RCLCPP_WARN(get_logger(),
-                    "imu_prediction_rotation_only=false requested, but only rotation-only IMU "
-                    "prediction is implemented; keeping translation prediction from GenZ-ICP");
-        imu_prediction_rotation_only_ = true;
-    }
+    if (!imu_prediction_rotation_only_) enable_imu_translation_prediction_ = true;
+    imu_prediction_rotation_only_ = !enable_imu_translation_prediction_;
 
     imu_prediction_gyro_bias_ = Eigen::Vector3d::Zero();
+    imu_prediction_accel_bias_ = Eigen::Vector3d::Zero();
+    imu_gravity_specific_force_ =
+        Eigen::Vector3d(0.0, 0.0, imu_gravity_magnitude_);
     imu_prediction_gyro_bias_ready_ = false;
     imu_prediction_gyro_bias_manual_override_ = false;
+    imu_prediction_accel_bias_manual_override_ = false;
     if (!imu_prediction_gyro_bias_override.empty()) {
         if (imu_prediction_gyro_bias_override.size() == 3 &&
             AllFinite(imu_prediction_gyro_bias_override)) {
             imu_prediction_gyro_bias_ = Eigen::Vector3d(imu_prediction_gyro_bias_override[0],
                                                         imu_prediction_gyro_bias_override[1],
                                                         imu_prediction_gyro_bias_override[2]);
-            imu_prediction_gyro_bias_ready_ = true;
             imu_prediction_gyro_bias_manual_override_ = true;
             RCLCPP_INFO(get_logger(), "Using manual imu_prediction_gyro_bias=%s rad/s",
                         FormatVector(imu_prediction_gyro_bias_).c_str());
@@ -777,15 +859,46 @@ OdometryServer::OdometryServer(const rclcpp::NodeOptions &options)
                         "Ignoring imu_prediction_gyro_bias override: expected [x, y, z] finite values");
         }
     }
-    if (!imu_prediction_gyro_bias_manual_override_) {
-        imu_prediction_gyro_bias_ready_ = !enable_imu_prediction_gyro_bias_calibration_;
+    if (!imu_prediction_accel_bias_override.empty()) {
+        if (imu_prediction_accel_bias_override.size() == 3 &&
+            AllFinite(imu_prediction_accel_bias_override)) {
+            imu_prediction_accel_bias_ =
+                Eigen::Vector3d(imu_prediction_accel_bias_override[0],
+                                imu_prediction_accel_bias_override[1],
+                                imu_prediction_accel_bias_override[2]);
+            imu_prediction_accel_bias_manual_override_ = true;
+            RCLCPP_INFO(get_logger(), "Using manual imu_prediction_accel_bias=%s m/s^2",
+                        FormatVector(imu_prediction_accel_bias_).c_str());
+        } else {
+            RCLCPP_WARN(get_logger(),
+                        "Ignoring imu_prediction_accel_bias override: expected [x, y, z] finite values");
+        }
     }
+    imu_prediction_gyro_bias_ready_ =
+        !enable_imu_prediction_gyro_bias_calibration_ ||
+        (imu_prediction_gyro_bias_manual_override_ &&
+         imu_prediction_accel_bias_manual_override_);
+    genz_icp::imu::StationaryCalibrationConfig calibration_config;
+    calibration_config.duration_seconds = imu_prediction_gyro_bias_calibration_seconds_;
+    calibration_config.min_samples =
+        static_cast<size_t>(imu_prediction_gyro_bias_min_samples_);
+    calibration_config.max_gyro_norm = imu_stationary_max_gyro_norm_;
+    calibration_config.accel_g_tolerance = imu_stationary_accel_g_tolerance_;
+    calibration_config.max_accel_variance = imu_stationary_max_accel_variance_;
+    calibration_config.gravity_magnitude = imu_gravity_magnitude_;
+    imu_calibrator_ = genz_icp::imu::StationaryCalibrator(calibration_config);
     // clang-format on
 
     // Construct the main GenZ-ICP odometry node
     odometry_ = genz_icp::pipeline::GenZICP(config_);
     odometry_.SetTerminalStatusEnabled(terminal_status_enabled_);
     RCLCPP_INFO(this->get_logger(), "LiDAR deskew is %s", config_.deskew ? "enabled" : "disabled");
+    RCLCPP_INFO(get_logger(),
+                "Ground rover mode=%s gravity_constraint=%s lock_roll_pitch=%s lock_z=%s",
+                config_.ground_rover_mode.c_str(),
+                config_.use_gravity_constraint ? "true" : "false",
+                config_.constrain_roll_pitch ? "true" : "false",
+                config_.constrain_z ? "true" : "false");
     RCLCPP_INFO(get_logger(),
                 "Robust ICP outlier handling is %s: max_corr=%.3f residual_threshold=%.3f "
                 "loss=%s trimmed=%s keep_ratio=%.2f min_correspondences=%d",
@@ -815,23 +928,36 @@ OdometryServer::OdometryServer(const rclcpp::NodeOptions &options)
             imu_topic_, rclcpp::SensorDataQoS(),
             std::bind(&OdometryServer::ImuPredictionCallback, this, std::placeholders::_1));
         RCLCPP_INFO(get_logger(),
-                    "IMU motion prediction enabled: imu=%s scale=%.12f bias_calibration=%s "
-                    "point_time_field=%s",
+                    "IMU motion prediction enabled: imu=%s scale=%.12f stationary_calibration=%s "
+                    "translation=%s gravity=%s point_time_field=%s",
                     imu_topic_.c_str(), imu_angular_velocity_scale_,
                     enable_imu_prediction_gyro_bias_calibration_ &&
-                            !imu_prediction_gyro_bias_manual_override_
+                            !imu_prediction_gyro_bias_ready_
                         ? "enabled"
                         : "disabled",
+                    enable_imu_translation_prediction_ ? "enabled" : "disabled",
+                    config_.use_gravity_constraint ? "enabled" : "disabled",
                     imu_prediction_point_time_field_.c_str());
-        RCLCPP_INFO(get_logger(),
-                    "IMU prediction uses angular_velocity only; orientation and "
-                    "linear_acceleration are ignored");
     }
 
     // Initialize publishers
     rclcpp::QoS qos((rclcpp::SystemDefaultsQoS().keep_last(1).durability_volatile()));
     odom_publisher_ = create_publisher<nav_msgs::msg::Odometry>("/genz/odometry", qos);
     traj_publisher_ = create_publisher<nav_msgs::msg::Path>("/genz/trajectory", qos);
+    if (publish_imu_debug_topics_) {
+        imu_predicted_odom_publisher_ =
+            create_publisher<nav_msgs::msg::Odometry>("/genz/imu/predicted_odometry", qos);
+        gravity_vector_publisher_ = create_publisher<geometry_msgs::msg::Vector3Stamped>(
+            "/genz/imu/gravity_vector", rclcpp::QoS(1).reliable().transient_local());
+        imu_bias_publisher_ = create_publisher<sensor_msgs::msg::Imu>(
+            "/genz/imu/bias", rclcpp::QoS(1).reliable().transient_local());
+        translation_guess_publisher_ = create_publisher<geometry_msgs::msg::Vector3Stamped>(
+            "/genz/imu/translation_initial_guess", qos);
+        rotation_guess_publisher_ = create_publisher<geometry_msgs::msg::QuaternionStamped>(
+            "/genz/imu/rotation_initial_guess", qos);
+        icp_correction_publisher_ = create_publisher<geometry_msgs::msg::TwistStamped>(
+            "/genz/imu/icp_correction", qos);
+    }
     path_msg_.header.frame_id = odom_frame_;
     if (publish_debug_clouds_) {
         map_publisher_ = create_publisher<sensor_msgs::msg::PointCloud2>("/genz/local_map", qos);
@@ -872,37 +998,78 @@ void OdometryServer::ImuPredictionCallback(const sensor_msgs::msg::Imu::ConstSha
                                                msg->angular_velocity.z);
     const Eigen::Vector3d scaled_angular_velocity =
         imu_angular_velocity_scale_ * raw_angular_velocity;
+    const Eigen::Vector3d linear_acceleration(msg->linear_acceleration.x,
+                                              msg->linear_acceleration.y,
+                                              msg->linear_acceleration.z);
     if (!std::isfinite(stamp) ||
         !raw_angular_velocity.allFinite() ||
-        !scaled_angular_velocity.allFinite()) {
+        !scaled_angular_velocity.allFinite() ||
+        !linear_acceleration.allFinite()) {
+        ++imu_bad_sample_count_;
         RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000,
-                             "Dropping IMU prediction sample with non-finite time or angular velocity");
+                             "Dropping IMU sample with non-finite timestamp/gyro/accel; total=%zu",
+                             imu_bad_sample_count_);
         return;
     }
 
+    Eigen::Vector3d gravity_direction = Eigen::Vector3d::UnitZ();
+    bool gravity_direction_valid = false;
+    if (use_imu_orientation_for_gravity_ && msg->orientation_covariance[0] >= 0.0) {
+        Eigen::Quaterniond orientation(msg->orientation.w, msg->orientation.x,
+                                       msg->orientation.y, msg->orientation.z);
+        if (orientation.coeffs().allFinite() && orientation.norm() > 1.0e-6) {
+            orientation.normalize();
+            // sensor_msgs/Imu orientation maps the IMU frame into its ENU
+            // world frame. q^-1 * +Z is the gravity-specific-force direction
+            // in the IMU frame and is independent of the message's yaw.
+            gravity_direction = orientation.conjugate() * Eigen::Vector3d::UnitZ();
+            gravity_direction_valid = gravity_direction.allFinite() &&
+                                      gravity_direction.norm() > 1.0e-6;
+            if (gravity_direction_valid) gravity_direction.normalize();
+        }
+    }
+
     std::lock_guard<std::mutex> lock(imu_prediction_mutex_);
+    if (imu_frame_id_.empty()) {
+        imu_frame_id_ = msg->header.frame_id;
+    } else if (msg->header.frame_id != imu_frame_id_) {
+        ++imu_bad_sample_count_;
+        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000,
+                             "Dropping IMU sample because frame changed from '%s' to '%s'",
+                             imu_frame_id_.c_str(), msg->header.frame_id.c_str());
+        return;
+    }
+
+    genz_icp::imu::Sample calibration_sample;
+    calibration_sample.stamp = stamp;
+    calibration_sample.angular_velocity = scaled_angular_velocity;
+    calibration_sample.linear_acceleration = linear_acceleration;
+    calibration_sample.gravity_direction = gravity_direction;
+    calibration_sample.gravity_direction_valid = gravity_direction_valid;
     if (!imu_prediction_gyro_bias_ready_) {
-        UpdateImuPredictionGyroBiasCalibration(stamp, raw_angular_velocity,
-                                               scaled_angular_velocity);
+        UpdateImuPredictionCalibration(calibration_sample);
         if (!imu_prediction_gyro_bias_ready_) {
             return;
         }
     }
 
-    const Eigen::Vector3d angular_velocity =
-        scaled_angular_velocity - imu_prediction_gyro_bias_;
-    if (!angular_velocity.allFinite()) {
+    if (std::isfinite(latest_imu_prediction_stamp_) &&
+        stamp <= latest_imu_prediction_stamp_ + kTimeEpsilon) {
+        ++imu_non_monotonic_count_;
         RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000,
-                             "Dropping IMU prediction sample with non-finite bias-corrected angular velocity");
-        return;
+                             "Non-monotonic/duplicate IMU timestamp %.9f after %.9f; total=%zu",
+                             stamp, latest_imu_prediction_stamp_, imu_non_monotonic_count_);
     }
-
-    latest_imu_prediction_stamp_ = std::max(latest_imu_prediction_stamp_, stamp);
     if (stamp < latest_imu_prediction_stamp_ - imu_prediction_buffer_seconds_) {
         return;
     }
+    latest_imu_prediction_stamp_ = std::max(latest_imu_prediction_stamp_, stamp);
 
-    InsertImuPredictionSample(ImuPredictionSample{stamp, angular_velocity});
+    InsertImuPredictionSample(ImuPredictionSample{stamp,
+                                                  scaled_angular_velocity,
+                                                  linear_acceleration,
+                                                  gravity_direction,
+                                                  gravity_direction_valid});
 
     const double cutoff = latest_imu_prediction_stamp_ - imu_prediction_buffer_seconds_;
     while (!imu_prediction_buffer_.empty() && imu_prediction_buffer_.front().stamp < cutoff) {
@@ -910,48 +1077,49 @@ void OdometryServer::ImuPredictionCallback(const sensor_msgs::msg::Imu::ConstSha
     }
 }
 
-void OdometryServer::UpdateImuPredictionGyroBiasCalibration(
-    const double stamp,
-    const Eigen::Vector3d &raw_angular_velocity,
-    const Eigen::Vector3d &scaled_angular_velocity) {
-    if (std::isnan(imu_prediction_gyro_bias_calibration_start_)) {
-        imu_prediction_gyro_bias_calibration_start_ = stamp;
+void OdometryServer::UpdateImuPredictionCalibration(
+    const genz_icp::imu::Sample &sample) {
+    if (imu_prediction_calibration_sample_count_ == 0) {
         RCLCPP_INFO(get_logger(),
-                    "Starting IMU prediction gyro bias calibration: duration=%.3fs min_samples=%d",
+                    "Starting stationary IMU calibration: duration=%.3fs min_samples=%d "
+                    "max_gyro=%.4f rad/s accel_g_tolerance=%.3f m/s^2 max_accel_variance=%.4f",
                     imu_prediction_gyro_bias_calibration_seconds_,
-                    imu_prediction_gyro_bias_min_samples_);
+                    imu_prediction_gyro_bias_min_samples_, imu_stationary_max_gyro_norm_,
+                    imu_stationary_accel_g_tolerance_,
+                    imu_stationary_max_accel_variance_);
     }
-
-    imu_prediction_gyro_bias_raw_sum_ += raw_angular_velocity;
-    imu_prediction_gyro_bias_scaled_sum_ += scaled_angular_velocity;
-    ++imu_prediction_gyro_bias_sample_count_;
-
-    const double elapsed =
-        std::max(0.0, stamp - imu_prediction_gyro_bias_calibration_start_);
-    if (elapsed < imu_prediction_gyro_bias_calibration_seconds_ ||
-        imu_prediction_gyro_bias_sample_count_ <
-            static_cast<size_t>(imu_prediction_gyro_bias_min_samples_)) {
+    ++imu_prediction_calibration_sample_count_;
+    const auto result = imu_calibrator_.AddSample(sample);
+    if (!result) {
+        if (imu_calibrator_.RejectedSamples() > 0) {
+            RCLCPP_WARN_THROTTLE(
+                get_logger(), *get_clock(), 5000,
+                "Waiting for a stationary IMU calibration window; rejected_samples=%zu",
+                imu_calibrator_.RejectedSamples());
+        }
         return;
     }
-
-    const double inv_count =
-        1.0 / static_cast<double>(imu_prediction_gyro_bias_sample_count_);
-    const Eigen::Vector3d raw_mean =
-        imu_prediction_gyro_bias_raw_sum_ * inv_count;
-    const Eigen::Vector3d scaled_mean =
-        imu_prediction_gyro_bias_scaled_sum_ * inv_count;
-
-    imu_prediction_gyro_bias_ = scaled_mean;
+    if (!imu_prediction_gyro_bias_manual_override_) {
+        imu_prediction_gyro_bias_ = result->gyro_bias;
+    }
+    if (!imu_prediction_accel_bias_manual_override_) {
+        imu_prediction_accel_bias_ = result->accel_bias;
+    }
+    imu_gravity_specific_force_ = result->gravity_specific_force;
     imu_prediction_gyro_bias_ready_ = true;
     RCLCPP_INFO(get_logger(),
-                "IMU prediction gyro bias calibration complete: samples=%zu elapsed=%.3fs",
-                imu_prediction_gyro_bias_sample_count_, elapsed);
-    RCLCPP_INFO(get_logger(), "IMU prediction raw omega mean=%s",
-                FormatVector(raw_mean).c_str());
-    RCLCPP_INFO(get_logger(), "IMU prediction scaled omega mean=%s rad/s",
-                FormatVector(scaled_mean).c_str());
-    RCLCPP_INFO(get_logger(), "IMU prediction final gyro_bias=%s rad/s",
+                "Stationary IMU calibration complete: samples=%zu duration=%.3fs "
+                "accel_magnitude_variance=%.6f rejected=%zu",
+                result->accepted_samples, result->duration_seconds,
+                result->accel_magnitude_variance, result->rejected_samples);
+    RCLCPP_INFO(get_logger(), "Estimated gyro_bias=%s rad/s",
                 FormatVector(imu_prediction_gyro_bias_).c_str());
+    RCLCPP_INFO(get_logger(), "Estimated accel_bias=%s m/s^2",
+                FormatVector(imu_prediction_accel_bias_).c_str());
+    RCLCPP_INFO(get_logger(), "Estimated stationary specific_force=%s m/s^2; physical gravity is its negative",
+                FormatVector(imu_gravity_specific_force_).c_str());
+    PublishImuCalibrationDiagnostics(rclcpp::Time(
+        static_cast<int64_t>(sample.stamp * 1.0e9)), imu_frame_id_);
 }
 
 void OdometryServer::InsertImuPredictionSample(const ImuPredictionSample &sample) {
@@ -1058,6 +1226,7 @@ std::optional<double> OdometryServer::ComputeScanReferenceTime(
 
 std::optional<ImuPredictionResult> OdometryServer::BuildImuMotionPrediction(
     const double current_reference_time,
+    const std::string &cloud_frame_id,
     std::string *reason) const {
     if (!previous_accepted_scan_reference_time_) {
         if (reason) *reason = "no previous accepted scan reference time";
@@ -1077,7 +1246,9 @@ std::optional<ImuPredictionResult> OdometryServer::BuildImuMotionPrediction(
 
     const double dt_total = current_reference_time - previous_reference_time;
     if (dt_total <= kTimeEpsilon) {
-        return ImuPredictionResult{Sophus::SO3d(), 0.0, 0};
+        ImuPredictionResult result;
+        result.dt = 0.0;
+        return result;
     }
 
     const bool using_rejected_frame_age =
@@ -1099,13 +1270,19 @@ std::optional<ImuPredictionResult> OdometryServer::BuildImuMotionPrediction(
     }
 
     std::vector<ImuPredictionSample> samples;
+    Eigen::Vector3d gyro_bias;
+    Eigen::Vector3d accel_bias;
+    std::string imu_frame_id;
     {
         std::lock_guard<std::mutex> lock(imu_prediction_mutex_);
         if (!imu_prediction_gyro_bias_ready_) {
-            if (reason) *reason = "gyro bias calibration in progress";
+            if (reason) *reason = "stationary IMU calibration in progress";
             return std::nullopt;
         }
         samples.assign(imu_prediction_buffer_.begin(), imu_prediction_buffer_.end());
+        gyro_bias = imu_prediction_gyro_bias_;
+        accel_bias = imu_prediction_accel_bias_;
+        imu_frame_id = imu_frame_id_;
     }
 
     if (samples.size() < 2) {
@@ -1113,87 +1290,163 @@ std::optional<ImuPredictionResult> OdometryServer::BuildImuMotionPrediction(
         return std::nullopt;
     }
 
-    const auto first_after_start = std::upper_bound(
-        samples.begin(), samples.end(), previous_reference_time,
-        [](const double value, const ImuPredictionSample &sample) {
-            return value < sample.stamp;
-        });
-    if (first_after_start == samples.begin()) {
-        if (reason) {
-            *reason = "IMU prediction buffer does not cover previous accepted reference; first IMU=" +
-                      std::to_string(samples.front().stamp) +
-                      " requested=" + std::to_string(previous_reference_time);
-        }
-        return std::nullopt;
-    }
-    const size_t first_index =
-        static_cast<size_t>(std::distance(samples.begin(), first_after_start) - 1);
-
-    const auto first_at_or_after_end = std::lower_bound(
-        samples.begin(), samples.end(), current_reference_time,
-        [](const ImuPredictionSample &sample, const double value) {
-            return sample.stamp < value;
-        });
-    if (first_at_or_after_end == samples.end()) {
-        if (reason) {
-            *reason = "IMU prediction buffer does not cover current reference; last IMU=" +
-                      std::to_string(samples.back().stamp) +
-                      " requested=" + std::to_string(current_reference_time);
-        }
-        return std::nullopt;
-    }
-    const size_t last_index =
-        static_cast<size_t>(std::distance(samples.begin(), first_at_or_after_end));
-
-    Sophus::SO3d rotation;
-    for (size_t i = first_index; i < last_index; ++i) {
-        const double t0 = samples[i].stamp;
-        const double t1 = samples[i + 1].stamp;
-        const double dt = t1 - t0;
-        if (!(dt > 0.0)) {
-            if (reason) *reason = "IMU prediction samples are not strictly time ordered";
-            return std::nullopt;
-        }
-
-        const bool overlaps_requested_interval =
-            t0 < current_reference_time && t1 > previous_reference_time;
-        if (imu_prediction_max_gap_seconds_ > 0.0 && overlaps_requested_interval &&
-            dt > imu_prediction_max_gap_seconds_) {
+    Sophus::SO3d cloud_from_imu;
+    if (!imu_frame_id.empty() && imu_frame_id != cloud_frame_id) {
+        std::string tf_error;
+        if (!tf2_buffer_->_frameExists(imu_frame_id) ||
+            !tf2_buffer_->_frameExists(cloud_frame_id) ||
+            !tf2_buffer_->canTransform(cloud_frame_id, imu_frame_id,
+                                       tf2::TimePointZero, &tf_error)) {
             if (reason) {
-                *reason = "IMU prediction gap " + std::to_string(dt) +
-                          "s exceeds imu_prediction_max_gap_seconds=" +
-                          std::to_string(imu_prediction_max_gap_seconds_);
+                *reason = "missing IMU-to-lidar rotation " + cloud_frame_id + " <- " +
+                          imu_frame_id + ": " + tf_error;
             }
             return std::nullopt;
         }
-
-        const double segment_start = std::max(previous_reference_time, t0);
-        const double segment_end = std::min(current_reference_time, t1);
-        if (segment_end <= segment_start) {
-            continue;
-        }
-
-        const double alpha_start = (segment_start - t0) / dt;
-        const double alpha_end = (segment_end - t0) / dt;
-        const Eigen::Vector3d omega_start =
-            samples[i].angular_velocity +
-            alpha_start * (samples[i + 1].angular_velocity - samples[i].angular_velocity);
-        const Eigen::Vector3d omega_end =
-            samples[i].angular_velocity +
-            alpha_end * (samples[i + 1].angular_velocity - samples[i].angular_velocity);
-
-        // Body-frame gyro integration uses right composition:
-        // R(t + dt) = R(t) * Exp(omega_body * dt).
-        const Eigen::Vector3d omega_mid = 0.5 * (omega_start + omega_end);
-        rotation = rotation * Sophus::SO3d::exp(omega_mid * (segment_end - segment_start));
+        cloud_from_imu = LookupTransform(cloud_frame_id, imu_frame_id).so3();
     }
 
-    if (!rotation.matrix().allFinite()) {
-        if (reason) *reason = "IMU prediction rotation is non-finite";
+    std::vector<genz_icp::imu::Sample> integration_samples;
+    integration_samples.reserve(samples.size());
+    for (const auto &sample : samples) {
+        genz_icp::imu::Sample converted;
+        converted.stamp = sample.stamp;
+        converted.angular_velocity = cloud_from_imu * sample.angular_velocity;
+        converted.linear_acceleration = cloud_from_imu * sample.linear_acceleration;
+        converted.gravity_direction = cloud_from_imu * sample.gravity_direction;
+        converted.gravity_direction_valid = sample.gravity_direction_valid;
+        integration_samples.push_back(converted);
+    }
+    gyro_bias = cloud_from_imu * gyro_bias;
+    accel_bias = cloud_from_imu * accel_bias;
+
+    if (odometry_.poses().empty()) {
+        if (reason) *reason = "no accepted lidar pose available to anchor IMU integration";
+        return std::nullopt;
+    }
+    const Sophus::SE3d &last_pose = odometry_.poses().back();
+    genz_icp::imu::State initial_state;
+    initial_state.orientation = last_pose.so3();
+    initial_state.position = last_pose.translation();
+    initial_state.velocity = imu_prediction_velocity_world_;
+    genz_icp::imu::IntegrationConfig integration_config;
+    integration_config.max_gap_seconds = imu_prediction_max_gap_seconds_;
+    integration_config.max_acceleration = imu_prediction_max_acceleration_;
+    integration_config.max_velocity = imu_prediction_max_velocity_;
+    integration_config.gravity_magnitude = imu_gravity_magnitude_;
+    integration_config.gravity_correction_gain = imu_gravity_correction_gain_;
+    integration_config.use_gravity_constraint = config_.use_gravity_constraint;
+    integration_config.integrate_translation = enable_imu_translation_prediction_;
+
+    std::string integration_reason;
+    const auto trajectory = genz_icp::imu::Integrate(
+        integration_samples, previous_reference_time, current_reference_time,
+        initial_state, gyro_bias, accel_bias, integration_config,
+        &integration_reason);
+    if (!trajectory || trajectory->states.empty()) {
+        if (reason) *reason = integration_reason;
         return std::nullopt;
     }
 
-    return ImuPredictionResult{rotation, dt_total, last_index - first_index + 1};
+    const auto &final_state = trajectory->states.back();
+    ImuPredictionResult result;
+    result.rotation = initial_state.orientation.inverse() * final_state.orientation;
+    result.translation = initial_state.orientation.inverse() *
+                         (final_state.position - initial_state.position);
+    result.predicted_pose = Sophus::SE3d(final_state.orientation, final_state.position);
+    result.predicted_velocity = final_state.velocity;
+    result.mean_linear_acceleration =
+        (final_state.velocity - initial_state.velocity) / dt_total;
+    result.dt = dt_total;
+    result.sample_count = trajectory->states.size();
+    if (!result.rotation.matrix().allFinite() || !result.translation.allFinite() ||
+        !result.predicted_pose.matrix().allFinite()) {
+        if (reason) *reason = "IMU prediction produced a non-finite pose";
+        return std::nullopt;
+    }
+
+    return result;
+}
+
+void OdometryServer::PublishImuCalibrationDiagnostics(const rclcpp::Time &stamp,
+                                                       const std::string &frame_id) {
+    if (!publish_imu_debug_topics_ || !imu_bias_publisher_ ||
+        !gravity_vector_publisher_) {
+        return;
+    }
+    sensor_msgs::msg::Imu bias;
+    bias.header.stamp = stamp;
+    bias.header.frame_id = frame_id;
+    bias.orientation_covariance[0] = -1.0;
+    bias.angular_velocity.x = imu_prediction_gyro_bias_.x();
+    bias.angular_velocity.y = imu_prediction_gyro_bias_.y();
+    bias.angular_velocity.z = imu_prediction_gyro_bias_.z();
+    bias.linear_acceleration.x = imu_prediction_accel_bias_.x();
+    bias.linear_acceleration.y = imu_prediction_accel_bias_.y();
+    bias.linear_acceleration.z = imu_prediction_accel_bias_.z();
+    imu_bias_publisher_->publish(bias);
+
+    geometry_msgs::msg::Vector3Stamped gravity;
+    gravity.header = bias.header;
+    const Eigen::Vector3d physical_gravity = -imu_gravity_specific_force_;
+    gravity.vector.x = physical_gravity.x();
+    gravity.vector.y = physical_gravity.y();
+    gravity.vector.z = physical_gravity.z();
+    gravity_vector_publisher_->publish(gravity);
+}
+
+void OdometryServer::PublishImuPredictionDiagnostics(
+    const ImuPredictionResult &prediction,
+    const rclcpp::Time &stamp,
+    const std::string &cloud_frame_id) {
+    if (!publish_imu_debug_topics_ || !imu_predicted_odom_publisher_) return;
+
+    nav_msgs::msg::Odometry predicted;
+    predicted.header.stamp = stamp;
+    predicted.header.frame_id = odom_frame_;
+    predicted.child_frame_id = cloud_frame_id;
+    predicted.pose.pose = tf2::sophusToPose(prediction.predicted_pose);
+    const Eigen::Vector3d velocity_child =
+        prediction.predicted_pose.so3().inverse() * prediction.predicted_velocity;
+    predicted.twist.twist.linear.x = velocity_child.x();
+    predicted.twist.twist.linear.y = velocity_child.y();
+    predicted.twist.twist.linear.z = velocity_child.z();
+    imu_predicted_odom_publisher_->publish(predicted);
+
+    geometry_msgs::msg::Vector3Stamped translation;
+    translation.header.stamp = stamp;
+    translation.header.frame_id = cloud_frame_id;
+    translation.vector.x = prediction.translation.x();
+    translation.vector.y = prediction.translation.y();
+    translation.vector.z = prediction.translation.z();
+    translation_guess_publisher_->publish(translation);
+
+    geometry_msgs::msg::QuaternionStamped rotation;
+    rotation.header = translation.header;
+    const Eigen::Quaterniond quaternion = prediction.rotation.unit_quaternion();
+    rotation.quaternion.x = quaternion.x();
+    rotation.quaternion.y = quaternion.y();
+    rotation.quaternion.z = quaternion.z();
+    rotation.quaternion.w = quaternion.w();
+    rotation_guess_publisher_->publish(rotation);
+}
+
+void OdometryServer::PublishIcpCorrectionDiagnostics(
+    const rclcpp::Time &stamp,
+    const std::string &cloud_frame_id) {
+    if (!publish_imu_debug_topics_ || !icp_correction_publisher_) return;
+    const Sophus::SE3d &correction = odometry_.LastIcpCorrection();
+    geometry_msgs::msg::TwistStamped message;
+    message.header.stamp = stamp;
+    message.header.frame_id = cloud_frame_id;
+    message.twist.linear.x = correction.translation().x();
+    message.twist.linear.y = correction.translation().y();
+    message.twist.linear.z = correction.translation().z();
+    const Eigen::Vector3d rotation = correction.so3().log();
+    message.twist.angular.x = rotation.x();
+    message.twist.angular.y = rotation.y();
+    message.twist.angular.z = rotation.z();
+    icp_correction_publisher_->publish(message);
 }
 
 void OdometryServer::RegisterFrame(const sensor_msgs::msg::PointCloud2::ConstSharedPtr &msg) {
@@ -1216,37 +1469,64 @@ void OdometryServer::RegisterFrame(const sensor_msgs::msg::PointCloud2::ConstSha
         }
     }
     const auto egocentric_estimation = (base_frame_.empty() || base_frame_ == cloud_frame_id);
+    const std::optional<Sophus::SE3d> previous_lidar_pose =
+        odometry_.poses().empty()
+            ? std::nullopt
+            : std::optional<Sophus::SE3d>(odometry_.poses().back());
+    const std::optional<double> previous_reference_time =
+        previous_accepted_scan_reference_time_;
 
     std::optional<double> current_scan_reference_time;
-    std::optional<Sophus::SO3d> imu_rotation_prediction;
+    std::optional<genz_icp::pipeline::MotionPrediction> imu_motion_prediction;
+    std::optional<ImuPredictionResult> imu_prediction_result;
     std::string initial_guess_source = "normal";
     if (enable_imu_motion_prediction_) {
         std::string timing_reason;
         current_scan_reference_time = ComputeScanReferenceTime(*msg, &timing_reason);
         if (!current_scan_reference_time) {
-            if (imu_prediction_debug_) {
-                RCLCPP_WARN_THROTTLE(
-                    get_logger(), *get_clock(), 2000,
-                    "IMU prediction unavailable: reason=%s", timing_reason.c_str());
-            }
+            ++imu_skipped_integration_count_;
+            RCLCPP_WARN_THROTTLE(
+                get_logger(), *get_clock(), 2000,
+                "IMU prediction unavailable: reason=%s skipped_total=%zu",
+                timing_reason.c_str(), imu_skipped_integration_count_);
         } else {
             std::string prediction_reason;
             const auto prediction =
-                BuildImuMotionPrediction(*current_scan_reference_time, &prediction_reason);
+                BuildImuMotionPrediction(*current_scan_reference_time, cloud_frame_id,
+                                         &prediction_reason);
             if (prediction) {
-                imu_rotation_prediction = prediction->rotation;
+                imu_prediction_result = prediction;
+                imu_motion_prediction = genz_icp::pipeline::MotionPrediction{
+                    prediction->rotation, prediction->translation,
+                    enable_imu_translation_prediction_, config_.use_gravity_constraint};
                 initial_guess_source = "imu_prediction";
+                PublishImuPredictionDiagnostics(*prediction, msg->header.stamp,
+                                                cloud_frame_id);
                 if (imu_prediction_debug_) {
+                    const Eigen::Matrix3d predicted_rotation =
+                        prediction->predicted_pose.rotationMatrix();
+                    const double predicted_roll =
+                        std::atan2(predicted_rotation(2, 1), predicted_rotation(2, 2));
+                    const double predicted_pitch = std::atan2(
+                        -predicted_rotation(2, 0),
+                        std::hypot(predicted_rotation(2, 1), predicted_rotation(2, 2)));
                     RCLCPP_INFO(get_logger(),
                                 "IMU prediction: available=true dt=%.4f samples=%zu "
-                                "rotation_delta_deg=%.3f",
+                                "rotation_delta_deg=%.3f gravity_roll_pitch_deg=[%.3f, %.3f] "
+                                "translation=%s m accel_world=%s m/s^2",
                                 prediction->dt, prediction->sample_count,
-                                prediction->rotation.log().norm() * kRadiansToDegrees);
+                                prediction->rotation.log().norm() * kRadiansToDegrees,
+                                predicted_roll * kRadiansToDegrees,
+                                predicted_pitch * kRadiansToDegrees,
+                                FormatVector(prediction->translation).c_str(),
+                                FormatVector(prediction->mean_linear_acceleration).c_str());
                 }
-            } else if (imu_prediction_debug_) {
+            } else {
+                ++imu_skipped_integration_count_;
                 RCLCPP_WARN_THROTTLE(
                     get_logger(), *get_clock(), 2000,
-                    "IMU prediction unavailable: reason=%s", prediction_reason.c_str());
+                    "IMU prediction unavailable: reason=%s skipped_total=%zu",
+                    prediction_reason.c_str(), imu_skipped_integration_count_);
             }
         }
     }
@@ -1259,11 +1539,22 @@ void OdometryServer::RegisterFrame(const sensor_msgs::msg::PointCloud2::ConstSha
 
     // Register frame, main entry point to GenZ-ICP pipeline
     const auto registration_output =
-        odometry_.RegisterFrame(points, timestamps, imu_rotation_prediction);
+        odometry_.RegisterFrameWithPrediction(points, timestamps, imu_motion_prediction);
     const auto &[planar_points, non_planar_points, covariance] = registration_output;
 
     if (enable_imu_motion_prediction_ && current_scan_reference_time) {
         if (odometry_.LastFrameAccepted()) {
+            if (previous_lidar_pose && previous_reference_time) {
+                const double correction_dt =
+                    *current_scan_reference_time - *previous_reference_time;
+                imu_prediction_velocity_world_ =
+                    genz_icp::imu::CorrectVelocityFromLidar(
+                        previous_lidar_pose->translation(),
+                        odometry_.poses().back().translation(), correction_dt,
+                        imu_prediction_max_velocity_);
+            } else {
+                imu_prediction_velocity_world_.setZero();
+            }
             previous_accepted_scan_reference_time_ = *current_scan_reference_time;
         } else if (imu_prediction_debug_) {
             RCLCPP_INFO_THROTTLE(
@@ -1274,6 +1565,18 @@ void OdometryServer::RegisterFrame(const sensor_msgs::msg::PointCloud2::ConstSha
 
     // Compute the pose using GenZ, ego-centric to the LiDAR
     const Sophus::SE3d genz_pose = odometry_.poses().back();
+    PublishIcpCorrectionDiagnostics(msg->header.stamp, cloud_frame_id);
+    if (imu_prediction_result && imu_prediction_debug_) {
+        const Sophus::SE3d prediction_error =
+            imu_prediction_result->predicted_pose.inverse() * genz_pose;
+        RCLCPP_INFO(get_logger(),
+                    "IMU-vs-ICP correction: translation=%.4f m rotation=%.3f deg; "
+                    "ICP-reset velocity_world=%s m/s accepted=%s",
+                    prediction_error.translation().norm(),
+                    prediction_error.so3().log().norm() * kRadiansToDegrees,
+                    FormatVector(imu_prediction_velocity_world_).c_str(),
+                    odometry_.LastFrameAccepted() ? "true" : "false");
+    }
 
     // If necessary, transform the ego-centric pose to the specified base_link/base_footprint frame
     const auto pose = [&]() -> Sophus::SE3d {

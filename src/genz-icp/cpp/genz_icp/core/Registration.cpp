@@ -33,6 +33,7 @@ constexpr double kMinResidualVariance = 1e-6;
 constexpr double kMaxResidualVariance = 1e3;
 constexpr double kErrorConvergenceRelativeTolerance = 1e-5;
 constexpr double kMinMotionPriorSigma = 1e-6;
+constexpr double kLockedDofInformation = 1e12;
 constexpr double kRadToDeg = 180.0 / 3.14159265358979323846;
 
 Eigen::Matrix6d HighUncertaintyCovariance() {
@@ -279,6 +280,46 @@ void AddMotionPrior(LinearSystemResult &linear_system,
     linear_system.JTr.noalias() += prior_information * error;
 }
 
+bool DofConstraintIsActive(const genz_icp::RegistrationDofConstraintConfig &constraint) {
+    return constraint.enabled &&
+           (constraint.lock_roll_pitch || constraint.lock_z ||
+            constraint.roll_pitch_prior_weight > 0.0 ||
+            constraint.z_prior_weight > 0.0);
+}
+
+void ConstrainDof(LinearSystemResult &linear_system,
+                  Eigen::Index index,
+                  bool lock,
+                  double prior_weight,
+                  double prior_error) {
+    if (lock) {
+        linear_system.JTJ.row(index).setZero();
+        linear_system.JTJ.col(index).setZero();
+        linear_system.JTJ(index, index) = kLockedDofInformation;
+        linear_system.JTr[index] = 0.0;
+    } else if (prior_weight > 0.0 && std::isfinite(prior_weight) &&
+               std::isfinite(prior_error)) {
+        linear_system.JTJ(index, index) += prior_weight;
+        linear_system.JTr[index] += prior_weight * prior_error;
+    }
+}
+
+void ApplyDofConstraint(
+    LinearSystemResult &linear_system,
+    const genz_icp::RegistrationDofConstraintConfig &constraint,
+    const Sophus::SE3d &current_pose) {
+    if (!DofConstraintIsActive(constraint)) return;
+    const Eigen::Vector6d error =
+        (constraint.reference_pose.inverse() * current_pose).log();
+    if (!error.allFinite()) return;
+    ConstrainDof(linear_system, 2, constraint.lock_z,
+                 constraint.z_prior_weight, error[2]);
+    ConstrainDof(linear_system, 3, constraint.lock_roll_pitch,
+                 constraint.roll_pitch_prior_weight, error[3]);
+    ConstrainDof(linear_system, 4, constraint.lock_roll_pitch,
+                 constraint.roll_pitch_prior_weight, error[4]);
+}
+
 void LogMotionPriorConfig(const genz_icp::RegistrationMotionPriorConfig &prior) {
     std::cout << "Motion prior enabled: sigma_xy=" << prior.translation_sigma
               << ", sigma_z=" << prior.z_sigma
@@ -453,6 +494,18 @@ void VisualizeStatus(size_t planar_count, size_t non_planar_count, double alpha)
 
 namespace genz_icp {
 
+Eigen::Matrix<double, 6, 1> ApplyLockedDofMask(
+    Eigen::Matrix<double, 6, 1> increment,
+    const RegistrationDofConstraintConfig &constraint) {
+    if (!constraint.enabled) return increment;
+    if (constraint.lock_z) increment[2] = 0.0;
+    if (constraint.lock_roll_pitch) {
+        increment[3] = 0.0;
+        increment[4] = 0.0;
+    }
+    return increment;
+}
+
 Registration::Registration(int max_num_iteration, double convergence_criterion)
     : max_num_iterations_(max_num_iteration), 
       convergence_criterion_(convergence_criterion) {}
@@ -464,7 +517,8 @@ RegistrationResult Registration::RegisterFrameWithQuality(
     double max_correspondence_distance,
     double kernel,
     const std::optional<RegistrationMotionPriorConfig> &motion_prior,
-    const std::optional<RegistrationRobustICPConfig> &robust_icp) {
+    const std::optional<RegistrationRobustICPConfig> &robust_icp,
+    const std::optional<RegistrationDofConstraintConfig> &dof_constraint) {
     RegistrationResult result;
     result.pose = initial_guess;
     result.covariance = HighUncertaintyCovariance();
@@ -474,6 +528,8 @@ RegistrationResult Registration::RegisterFrameWithQuality(
     const bool motion_prior_active =
         motion_prior && MotionPriorIsActive(*motion_prior);
     const bool robust_icp_active = robust_icp && robust_icp->enabled;
+    const bool dof_constraint_active =
+        dof_constraint && DofConstraintIsActive(*dof_constraint);
     const Eigen::Matrix6d motion_prior_information =
         motion_prior_active ? MotionPriorInformation(*motion_prior) : Eigen::Matrix6d::Zero();
     if (motion_prior_active && motion_prior->debug) {
@@ -565,12 +621,19 @@ RegistrationResult Registration::RegisterFrameWithQuality(
             const Sophus::SE3d current_pose = T_icp * initial_guess;
             AddMotionPrior(linear_system, motion_prior_information, initial_guess, current_pose);
         }
+        if (dof_constraint_active) {
+            const Sophus::SE3d current_pose = T_icp * initial_guess;
+            ApplyDofConstraint(linear_system, *dof_constraint, current_pose);
+        }
         Eigen::LDLT<Eigen::Matrix6d> ldlt(linear_system.JTJ);
         if (ldlt.info() != Eigen::Success) {
             break;
         }
 
-        const Eigen::Vector6d dx = ldlt.solve(-linear_system.JTr);
+        Eigen::Vector6d dx = ldlt.solve(-linear_system.JTr);
+        if (dof_constraint_active) {
+            dx = ApplyLockedDofMask(dx, *dof_constraint);
+        }
         if (!dx.allFinite()) {
             break;
         }

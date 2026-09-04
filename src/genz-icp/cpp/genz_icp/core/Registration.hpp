@@ -62,6 +62,19 @@ struct RegistrationMotionPriorConfig {
     bool debug = false;
 };
 
+struct RegistrationDofConstraintConfig {
+    bool enabled = false;
+    bool lock_roll_pitch = false;
+    bool lock_z = false;
+    double roll_pitch_prior_weight = 0.0;
+    double z_prior_weight = 0.0;
+    Sophus::SE3d reference_pose;
+};
+
+Eigen::Matrix<double, 6, 1> ApplyLockedDofMask(
+    Eigen::Matrix<double, 6, 1> increment,
+    const RegistrationDofConstraintConfig &constraint);
+
 struct RegistrationRobustICPConfig {
     bool enabled = false;
     double max_correspondence_distance = 1.0;
@@ -83,7 +96,8 @@ struct Registration {
                                                 double max_correspondence_distance,
                                                 double kernel,
                                                 const std::optional<RegistrationMotionPriorConfig> &motion_prior = std::nullopt,
-                                                const std::optional<RegistrationRobustICPConfig> &robust_icp = std::nullopt);
+                                                const std::optional<RegistrationRobustICPConfig> &robust_icp = std::nullopt,
+                                                const std::optional<RegistrationDofConstraintConfig> &dof_constraint = std::nullopt);
 
     std::tuple<Sophus::SE3d, std::vector<Eigen::Vector3d>, std::vector<Eigen::Vector3d>, Eigen::Matrix<double, 6, 6>> RegisterFrame(const std::vector<Eigen::Vector3d> &frame,
                                                                                                        const VoxelHashMap &voxel_map,

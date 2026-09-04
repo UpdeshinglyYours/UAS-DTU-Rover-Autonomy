@@ -51,8 +51,8 @@ Related parameters:
 ### `enable_imu_motion_prediction`
 : Uses IMU gyro integration to improve ICP's initial yaw/rotation guess (default: `false`)
 + This does not replace ICP and does not bypass the registration quality gate. It only changes the starting pose used by ICP.
-+ The node subscribes to **_imu_topic_**, ignores IMU orientation and linear acceleration, scales **_angular_velocity_** by **_imu_angular_velocity_scale_**, subtracts the calibrated or manual gyro bias, and integrates the gyro between the last accepted scan reference time and the current scan reference time.
-+ Only the rotational part of GenZ-ICP's motion model is replaced by the IMU delta. The translation prior remains GenZ-ICP's existing prediction; acceleration is not integrated.
++ The node scales **_angular_velocity_** by **_imu_angular_velocity_scale_**, subtracts the calibrated or manual gyro bias, and integrates it between the last accepted scan reference time and the current scan reference time.
++ With the backward-compatible default **_enable_imu_translation_prediction=false_**, only the rotational part of GenZ-ICP's motion model is replaced. Enabling translation uses bias-corrected acceleration only for a bounded, scan-to-scan initial guess; ICP remains the odometry correction source.
 + After a rejected registration, the last accepted pose and scan reference time are not advanced. The next frame's IMU prediction therefore integrates from the last accepted scan to the current scan, which helps prevent rejection cascades during fast yaw.
 + If IMU prediction is unavailable because of missing point timing, calibration, missing IMU coverage, or an excessive IMU gap, GenZ-ICP falls back to its normal initial guess and the quality gate still evaluates the final ICP candidate.
 
@@ -63,11 +63,32 @@ Related parameters:
 + **_imu_prediction_cloud_stamp_location_**: whether the cloud header is scan `start`, `middle`, or `end`, default `end`.
 + **_imu_prediction_deskew_reference_**: scan reference convention, default `middle`.
 + **_imu_angular_velocity_scale_**: multiply raw gyro by this before use. For Blickfeld gyro values published in deg/s, use `0.017453292519943295`.
-+ **_enable_imu_prediction_gyro_bias_calibration_**, **_imu_prediction_gyro_bias_calibration_seconds_**, **_imu_prediction_gyro_bias_min_samples_**, **_imu_prediction_gyro_bias_**: automatic or manual gyro bias handling.
++ **_enable_imu_prediction_gyro_bias_calibration_**, **_imu_prediction_gyro_bias_calibration_seconds_**, **_imu_prediction_gyro_bias_min_samples_**: shared stationary gyro/accelerometer calibration. The candidate window resets when gyro norm, acceleration magnitude, or acceleration-magnitude variance violates its threshold.
++ **_imu_prediction_gyro_bias_**, **_imu_prediction_accel_bias_**: optional manual three-axis overrides in the IMU message frame.
++ **_imu_stationary_max_gyro_norm_**, **_imu_stationary_accel_g_tolerance_**, **_imu_stationary_max_accel_variance_**: stationarity thresholds. The variance is variance of acceleration magnitude in `(m/s^2)^2`.
++ **_use_imu_orientation_for_gravity_**: obtains the body-frame up/specific-force direction as `q_world_imu.inverse() * +Z`. Absolute yaw is not copied into odometry.
++ **_imu_gravity_magnitude_** and **_imu_gravity_correction_gain_**: gravity magnitude and roll/pitch correction gain.
++ **_enable_imu_translation_prediction_**, **_imu_prediction_max_acceleration_**, **_imu_prediction_max_velocity_**: enable and bound short-horizon acceleration integration. ICP-corrected scan motion resets the velocity estimate after every accepted registration.
 + **_imu_prediction_max_gap_seconds_**: reject prediction over IMU gaps larger than this, default `0.06`.
 + **_imu_prediction_max_age_seconds_**: reject prediction intervals older/longer than this, default `0.25`.
 + **_imu_prediction_max_rejected_frame_age_seconds_**: larger prediction age allowed while one or more registration candidates have been rejected, default `1.0`. This keeps IMU prediction available when the last accepted scan reference is stale during a rejection cascade.
 + **_imu_prediction_debug_**: prints prediction availability, integrated rotation, and initial guess source.
+
+### `ground_rover_mode`
+: Selects the ICP degrees of freedom while keeping yaw geometrically observable (default: `current_full_6dof`)
++ **_current_full_6dof_** preserves the previous unconstrained solver behavior.
++ **_gravity_constrained_6dof_** supplies the gravity-aligned IMU initial orientation and applies the configured roll/pitch and optional z constraints inside every ICP normal-equation solve. It does not overwrite a completed six-DoF pose afterward.
++ **_planar_xy_yaw_** hard-locks z, roll, and pitch increments while ICP solves x, y, and yaw. Roll/pitch are carried by the gravity-aligned prediction; absolute IMU yaw is never imposed.
++ **_use_gravity_constraint_** and **_constrain_roll_pitch_** enable the hard roll/pitch constraint in `gravity_constrained_6dof`.
++ **_constrain_z_** optionally hard-locks z in gravity-constrained mode. Planar mode always locks z.
++ **_roll_pitch_prior_weight_** and **_z_prior_weight_** add soft information-matrix priors when the corresponding hard lock is disabled. Zero preserves no soft prior.
+
+### Translational deskew
+: Adds `R_ref^-1 * (p(t) - p(ref))` to the existing rotational point correction (default: disabled)
++ Set **_enable_translational_deskew=true_** on `imu_rotation_deskew_node` only after validating clock alignment, the odometry velocity topic, and the calibrated bias topic.
++ The old rotation-only formula and gyro bias path remain unchanged when disabled.
++ The translational trajectory is bounded by **_translation_max_acceleration_** and **_translation_max_velocity_**, and it falls back to rotation-only deskew on stale velocity, unavailable bias/TF, missing scan coverage, non-monotonic timestamps, or an excessive IMU gap.
++ For the Blickfeld/MAVROS rover recording, `point_time_offset` is nanoseconds from scan start while the cloud header is the scan-end/receipt timestamp. A stationary MAVROS FLU IMU reports approximately `+g` on body z; linear acceleration is therefore `R_odom_imu * (specific_force - bias) - [0, 0, +g]`.
 
 ### `enable_yaw_search_initializer`
 : Searches a small set of yaw offsets around the current initial guess before running the real ICP (default: `false`)

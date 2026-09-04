@@ -101,7 +101,7 @@ elseif("$ENV{ROS_VERSION}" STREQUAL "2")
   add_executable(imu_rotation_deskew_node ros2/ImuRotationDeskewNode.cpp)
   target_compile_features(imu_rotation_deskew_node PUBLIC cxx_std_20)
   target_link_libraries(imu_rotation_deskew_node genz_icp::core)
-  ament_target_dependencies(imu_rotation_deskew_node rclcpp sensor_msgs)
+  ament_target_dependencies(imu_rotation_deskew_node rclcpp sensor_msgs nav_msgs tf2_ros)
 
   add_executable(dynamic_pointcloud_filter_node ros2/dynamic_pointcloud_filter_node.cpp)
   target_compile_features(dynamic_pointcloud_filter_node PUBLIC cxx_std_20)
@@ -118,6 +118,12 @@ elseif("$ENV{ROS_VERSION}" STREQUAL "2")
     LIBRARY DESTINATION lib
     RUNTIME DESTINATION lib/${PROJECT_NAME})
   install(DIRECTORY launch rviz config DESTINATION share/${PROJECT_NAME}/)
+
+  if(BUILD_TESTING)
+    find_package(ament_cmake_gtest REQUIRED)
+    ament_add_gtest(test_imu_integration test/test_imu_integration.cpp)
+    target_link_libraries(test_imu_integration genz_icp::core genz_icp::pipeline)
+  endif()
 
   ament_package()
 

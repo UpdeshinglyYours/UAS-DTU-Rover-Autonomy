@@ -27,6 +27,7 @@
 
 // GenZ-ICP
 #include "genz_icp/pipeline/GenZICP.hpp"
+#include "genz_icp/core/ImuIntegration.hpp"
 
 // ROS 2
 #include <tf2_ros/buffer.h>
@@ -34,6 +35,9 @@
 #include <tf2_ros/transform_listener.h>
 
 #include <geometry_msgs/msg/pose_stamped.hpp>
+#include <geometry_msgs/msg/quaternion_stamped.hpp>
+#include <geometry_msgs/msg/twist_stamped.hpp>
+#include <geometry_msgs/msg/vector3_stamped.hpp>
 #include <nav_msgs/msg/odometry.hpp>
 #include <nav_msgs/msg/path.hpp>
 #include <rclcpp/rclcpp.hpp>
@@ -54,10 +58,17 @@ enum class ImuPredictionScanLocation { Start, Middle, End };
 struct ImuPredictionSample {
     double stamp{0.0};
     Eigen::Vector3d angular_velocity{Eigen::Vector3d::Zero()};
+    Eigen::Vector3d linear_acceleration{Eigen::Vector3d::Zero()};
+    Eigen::Vector3d gravity_direction{Eigen::Vector3d::UnitZ()};
+    bool gravity_direction_valid{false};
 };
 
 struct ImuPredictionResult {
     Sophus::SO3d rotation{Sophus::SO3d()};
+    Eigen::Vector3d translation{Eigen::Vector3d::Zero()};
+    Sophus::SE3d predicted_pose;
+    Eigen::Vector3d predicted_velocity{Eigen::Vector3d::Zero()};
+    Eigen::Vector3d mean_linear_acceleration{Eigen::Vector3d::Zero()};
     double dt{0.0};
     size_t sample_count{0};
 };
@@ -96,12 +107,19 @@ private:
 
     std::optional<double> ComputeScanReferenceTime(const sensor_msgs::msg::PointCloud2 &msg,
                                                    std::string *reason) const;
-    std::optional<ImuPredictionResult> BuildImuMotionPrediction(double current_reference_time,
-                                                                std::string *reason) const;
-    void UpdateImuPredictionGyroBiasCalibration(double stamp,
-                                                const Eigen::Vector3d &raw_angular_velocity,
-                                                const Eigen::Vector3d &scaled_angular_velocity);
+    std::optional<ImuPredictionResult> BuildImuMotionPrediction(
+        double current_reference_time,
+        const std::string &cloud_frame_id,
+        std::string *reason) const;
+    void UpdateImuPredictionCalibration(const genz_icp::imu::Sample &sample);
     void InsertImuPredictionSample(const ImuPredictionSample &sample);
+    void PublishImuCalibrationDiagnostics(const rclcpp::Time &stamp,
+                                          const std::string &frame_id);
+    void PublishImuPredictionDiagnostics(const ImuPredictionResult &prediction,
+                                         const rclcpp::Time &stamp,
+                                         const std::string &cloud_frame_id);
+    void PublishIcpCorrectionDiagnostics(const rclcpp::Time &stamp,
+                                         const std::string &cloud_frame_id);
 
 private:
     /// Tools for broadcasting TFs.
@@ -139,6 +157,12 @@ private:
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr map_publisher_;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr planar_points_publisher_;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr non_planar_points_publisher_;
+    rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr imu_predicted_odom_publisher_;
+    rclcpp::Publisher<geometry_msgs::msg::Vector3Stamped>::SharedPtr gravity_vector_publisher_;
+    rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_bias_publisher_;
+    rclcpp::Publisher<geometry_msgs::msg::Vector3Stamped>::SharedPtr translation_guess_publisher_;
+    rclcpp::Publisher<geometry_msgs::msg::QuaternionStamped>::SharedPtr rotation_guess_publisher_;
+    rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr icp_correction_publisher_;
 
     /// Path publisher
     nav_msgs::msg::Path path_msg_;
@@ -158,7 +182,7 @@ private:
     ImuPredictionScanLocation imu_prediction_deskew_reference_{ImuPredictionScanLocation::Middle};
     double imu_angular_velocity_scale_{0.017453292519943295};
     bool enable_imu_prediction_gyro_bias_calibration_{true};
-    double imu_prediction_gyro_bias_calibration_seconds_{2.0};
+    double imu_prediction_gyro_bias_calibration_seconds_{3.0};
     int imu_prediction_gyro_bias_min_samples_{50};
     double imu_prediction_max_gap_seconds_{0.06};
     double imu_prediction_max_age_seconds_{0.25};
@@ -166,17 +190,34 @@ private:
     double imu_prediction_buffer_seconds_{2.0};
     bool imu_prediction_rotation_only_{true};
     bool imu_prediction_debug_{true};
+    bool enable_imu_translation_prediction_{false};
+    bool use_imu_orientation_for_gravity_{true};
+    bool publish_imu_debug_topics_{true};
+    double imu_prediction_max_acceleration_{5.0};
+    double imu_prediction_max_velocity_{5.0};
+    double imu_gravity_magnitude_{genz_icp::imu::kStandardGravity};
+    double imu_gravity_correction_gain_{1.0};
+    double imu_stationary_max_gyro_norm_{0.05};
+    double imu_stationary_accel_g_tolerance_{0.75};
+    double imu_stationary_max_accel_variance_{0.05};
     Eigen::Vector3d imu_prediction_gyro_bias_{Eigen::Vector3d::Zero()};
+    Eigen::Vector3d imu_prediction_accel_bias_{Eigen::Vector3d::Zero()};
+    Eigen::Vector3d imu_gravity_specific_force_{0.0, 0.0,
+                                                genz_icp::imu::kStandardGravity};
     bool imu_prediction_gyro_bias_ready_{true};
     bool imu_prediction_gyro_bias_manual_override_{false};
-    double imu_prediction_gyro_bias_calibration_start_{std::numeric_limits<double>::quiet_NaN()};
-    Eigen::Vector3d imu_prediction_gyro_bias_raw_sum_{Eigen::Vector3d::Zero()};
-    Eigen::Vector3d imu_prediction_gyro_bias_scaled_sum_{Eigen::Vector3d::Zero()};
-    size_t imu_prediction_gyro_bias_sample_count_{0};
+    bool imu_prediction_accel_bias_manual_override_{false};
+    genz_icp::imu::StationaryCalibrator imu_calibrator_;
+    size_t imu_prediction_calibration_sample_count_{0};
+    std::string imu_frame_id_;
     double latest_imu_prediction_stamp_{-std::numeric_limits<double>::infinity()};
     std::deque<ImuPredictionSample> imu_prediction_buffer_;
     mutable std::mutex imu_prediction_mutex_;
     std::optional<double> previous_accepted_scan_reference_time_;
+    Eigen::Vector3d imu_prediction_velocity_world_{Eigen::Vector3d::Zero()};
+    size_t imu_non_monotonic_count_{0};
+    size_t imu_bad_sample_count_{0};
+    size_t imu_skipped_integration_count_{0};
 
     /// Global/map coordinate frame.
     std::string odom_frame_{"odom"};

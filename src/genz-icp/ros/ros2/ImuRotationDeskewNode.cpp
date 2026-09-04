@@ -6,11 +6,16 @@
 #include <Eigen/Core>
 #include <sophus/so3.hpp>
 
+#include "genz_icp/core/ImuIntegration.hpp"
+
 #include <rclcpp/rclcpp.hpp>
+#include <nav_msgs/msg/odometry.hpp>
 #include <sensor_msgs/msg/imu.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <sensor_msgs/msg/point_field.hpp>
 #include <sensor_msgs/point_cloud2_iterator.hpp>
+#include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_listener.h>
 
 #include <algorithm>
 #include <atomic>
@@ -47,6 +52,9 @@ enum class ScanLocation { Start, Middle, End };
 struct ImuSample {
     double stamp{0.0};
     Eigen::Vector3d angular_velocity{Eigen::Vector3d::Zero()};
+    Eigen::Vector3d linear_acceleration{Eigen::Vector3d::Zero()};
+    Eigen::Vector3d gravity_direction{Eigen::Vector3d::UnitZ()};
+    bool gravity_direction_valid{false};
 };
 
 struct ScanTiming {
@@ -316,6 +324,23 @@ public:
         drop_cloud_on_missing_imu_after_wait_ =
             declare_parameter<bool>("drop_cloud_on_missing_imu_after_wait", true);
         max_pending_clouds_ = declare_parameter<int>("max_pending_clouds", 20);
+        enable_translational_deskew_ =
+            declare_parameter<bool>("enable_translational_deskew", false);
+        bias_topic_ = declare_parameter<std::string>("bias_topic", "/genz/imu/bias");
+        velocity_topic_ =
+            declare_parameter<std::string>("velocity_topic", "/genz/odometry");
+        translation_max_velocity_age_seconds_ =
+            declare_parameter<double>("translation_max_velocity_age_seconds", 0.5);
+        translation_max_acceleration_ =
+            declare_parameter<double>("translation_max_acceleration", 5.0);
+        translation_max_velocity_ =
+            declare_parameter<double>("translation_max_velocity", 5.0);
+        gravity_magnitude_ =
+            declare_parameter<double>("gravity_magnitude", genz_icp::imu::kStandardGravity);
+        gravity_correction_gain_ =
+            declare_parameter<double>("gravity_correction_gain", 1.0);
+        use_imu_orientation_for_gravity_ =
+            declare_parameter<bool>("use_imu_orientation_for_gravity", true);
 
         if (const auto unit = ParseTimeUnit(point_time_unit_param)) {
             point_time_unit_ = *unit;
@@ -348,6 +373,14 @@ public:
         gyro_bias_min_samples_ = std::max(1, gyro_bias_min_samples_);
         max_pending_cloud_wait_seconds_ = std::max(0.0, max_pending_cloud_wait_seconds_);
         max_pending_clouds_ = std::max(1, max_pending_clouds_);
+        translation_max_velocity_age_seconds_ =
+            std::max(0.0, translation_max_velocity_age_seconds_);
+        translation_max_acceleration_ = std::max(0.0, translation_max_acceleration_);
+        translation_max_velocity_ = std::max(0.0, translation_max_velocity_);
+        if (!std::isfinite(gravity_magnitude_) || gravity_magnitude_ < 1.0) {
+            gravity_magnitude_ = genz_icp::imu::kStandardGravity;
+        }
+        gravity_correction_gain_ = std::clamp(gravity_correction_gain_, 0.0, 1.0);
 
         if (lidar_lever_arm_param.size() == 3 && AllFinite(lidar_lever_arm_param)) {
             lidar_lever_arm_ = Eigen::Vector3d(lidar_lever_arm_param[0],
@@ -390,12 +423,31 @@ public:
         cloud_subscriber_ = create_subscription<PointCloud2>(
             cloud_topic_, rclcpp::SensorDataQoS(),
             std::bind(&ImuRotationDeskewNode::CloudCallback, this, std::placeholders::_1));
+        if (enable_translational_deskew_) {
+            bias_subscriber_ = create_subscription<Imu>(
+                bias_topic_, rclcpp::QoS(1).reliable().transient_local(),
+                std::bind(&ImuRotationDeskewNode::BiasCallback, this,
+                          std::placeholders::_1));
+            velocity_subscriber_ = create_subscription<nav_msgs::msg::Odometry>(
+                velocity_topic_, rclcpp::QoS(10),
+                std::bind(&ImuRotationDeskewNode::VelocityCallback, this,
+                          std::placeholders::_1));
+        }
+        tf2_buffer_ = std::make_unique<tf2_ros::Buffer>(get_clock());
+        tf2_buffer_->setUsingDedicatedThread(true);
+        tf2_listener_ = std::make_unique<tf2_ros::TransformListener>(*tf2_buffer_);
 
         RCLCPP_INFO(get_logger(), "IMU rotation deskew: cloud=%s imu=%s output=%s",
                     cloud_topic_.c_str(), imu_topic_.c_str(), output_topic_.c_str());
-        RCLCPP_INFO(get_logger(),
-                    "Using angular_velocity only; sensor_msgs/Imu.orientation and "
-                    "linear_acceleration are ignored");
+        if (enable_translational_deskew_) {
+            RCLCPP_INFO(get_logger(),
+                        "Using angular_velocity plus bias-corrected linear_acceleration; "
+                        "IMU orientation supplies roll/pitch gravity direction only");
+        } else {
+            RCLCPP_INFO(get_logger(),
+                        "Rotation-only compatibility path: IMU orientation and "
+                        "linear_acceleration do not alter points");
+        }
         RCLCPP_INFO(get_logger(),
                     "IMU angular velocity scale=%.12f, gyro bias calibration=%s",
                     imu_angular_velocity_scale_,
@@ -406,6 +458,10 @@ public:
                     "Lidar lever-arm correction=%s, lidar_lever_arm=%s m",
                     enable_lidar_lever_arm_correction_ ? "enabled" : "disabled",
                     FormatVector(lidar_lever_arm_).c_str());
+        RCLCPP_INFO(get_logger(),
+                    "Translational deskew=%s bias_topic=%s velocity_topic=%s",
+                    enable_translational_deskew_ ? "enabled" : "disabled",
+                    bias_topic_.c_str(), velocity_topic_.c_str());
     }
 
 private:
@@ -416,16 +472,52 @@ private:
                                                    msg->angular_velocity.z);
         const Eigen::Vector3d scaled_angular_velocity =
             imu_angular_velocity_scale_ * raw_angular_velocity;
+        const Eigen::Vector3d linear_acceleration(msg->linear_acceleration.x,
+                                                  msg->linear_acceleration.y,
+                                                  msg->linear_acceleration.z);
         if (!std::isfinite(stamp) ||
             !raw_angular_velocity.allFinite() ||
-            !scaled_angular_velocity.allFinite()) {
+            !scaled_angular_velocity.allFinite() ||
+            !linear_acceleration.allFinite()) {
             RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000,
                                  "Dropping IMU sample with non-finite time or angular velocity");
             return;
         }
 
+        Eigen::Vector3d gravity_direction = Eigen::Vector3d::UnitZ();
+        bool gravity_direction_valid = false;
+        if (use_imu_orientation_for_gravity_ && msg->orientation_covariance[0] >= 0.0) {
+            Eigen::Quaterniond orientation(msg->orientation.w, msg->orientation.x,
+                                           msg->orientation.y, msg->orientation.z);
+            if (orientation.coeffs().allFinite() && orientation.norm() > 1.0e-6) {
+                orientation.normalize();
+                gravity_direction = orientation.conjugate() * Eigen::Vector3d::UnitZ();
+                gravity_direction_valid = gravity_direction.allFinite() &&
+                                          gravity_direction.norm() > 1.0e-6;
+                if (gravity_direction_valid) gravity_direction.normalize();
+            }
+        }
+
         {
             std::lock_guard<std::mutex> lock(imu_mutex_);
+            if (imu_frame_id_.empty()) {
+                imu_frame_id_ = msg->header.frame_id;
+            } else if (imu_frame_id_ != msg->header.frame_id) {
+                RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000,
+                                     "Dropping IMU sample because frame changed from '%s' to '%s'",
+                                     imu_frame_id_.c_str(), msg->header.frame_id.c_str());
+                return;
+            }
+            if (std::isfinite(last_received_imu_stamp_) &&
+                stamp <= last_received_imu_stamp_ + kTimeEpsilon) {
+                ++total_non_monotonic_imu_samples_;
+                RCLCPP_WARN_THROTTLE(
+                    get_logger(), *get_clock(), 5000,
+                    "Non-monotonic/duplicate deskew IMU timestamp %.9f after %.9f; total=%zu",
+                    stamp, last_received_imu_stamp_,
+                    total_non_monotonic_imu_samples_.load());
+            }
+            last_received_imu_stamp_ = std::max(last_received_imu_stamp_, stamp);
             if (!gyro_bias_ready_) {
                 UpdateGyroBiasCalibration(stamp, raw_angular_velocity, scaled_angular_velocity);
                 if (!gyro_bias_ready_) {
@@ -445,7 +537,8 @@ private:
                 return;
             }
 
-            const ImuSample sample{stamp, angular_velocity};
+            const ImuSample sample{stamp, angular_velocity, linear_acceleration,
+                                   gravity_direction, gravity_direction_valid};
             const auto it = std::lower_bound(
                 imu_buffer_.begin(), imu_buffer_.end(), stamp,
                 [](const ImuSample &candidate, const double value) {
@@ -542,7 +635,7 @@ private:
             return;
         }
 
-        DeskewAndPublish(msg, *timing, *trajectory);
+        DeskewUsingAvailableMotion(msg, *timing, *trajectory);
 
         if (debug_print_) {
             const Sophus::SO3d r_ref = InterpolateOrientation(*trajectory, timing->reference_time);
@@ -636,12 +729,14 @@ private:
         pending_clouds_.insert(insert_at, std::move(pending));
         ++total_queued_clouds_;
 
-        RCLCPP_INFO(get_logger(),
-                    "Queued cloud waiting for IMU coverage: pending=%zu total_queued=%zu "
-                    "scan=[%.6f %.6f] ref=%.6f field=%s reason=%s",
-                    pending_clouds_.size(), total_queued_clouds_.load(),
-                    timing.scan_start, timing.scan_end, timing.reference_time,
-                    time_field_name.c_str(), reason.c_str());
+        if (debug_print_) {
+            RCLCPP_INFO(get_logger(),
+                        "Queued cloud waiting for IMU coverage: pending=%zu total_queued=%zu "
+                        "scan=[%.6f %.6f] ref=%.6f field=%s reason=%s",
+                        pending_clouds_.size(), total_queued_clouds_.load(),
+                        timing.scan_start, timing.scan_end, timing.reference_time,
+                        time_field_name.c_str(), reason.c_str());
+        }
 
         while (pending_clouds_.size() > static_cast<size_t>(max_pending_clouds_)) {
             const auto dropped = pending_clouds_.front();
@@ -698,12 +793,14 @@ private:
             const auto trajectory =
                 BuildOrientationTrajectory(interval_start, interval_end, &trajectory_error);
             if (trajectory) {
-                DeskewAndPublish(pending.msg, pending.timing, *trajectory);
+                DeskewUsingAvailableMotion(pending.msg, pending.timing, *trajectory);
                 RemovePendingCloud(pending.sequence);
-                RCLCPP_INFO(get_logger(),
-                            "Processed pending cloud after %.1f ms: total_deskewed=%zu",
-                            WaitedMilliseconds(pending, NowSeconds()),
-                            total_deskewed_clouds_.load());
+                if (debug_print_) {
+                    RCLCPP_INFO(get_logger(),
+                                "Processed pending cloud after %.1f ms: total_deskewed=%zu",
+                                WaitedMilliseconds(pending, NowSeconds()),
+                                total_deskewed_clouds_.load());
+                }
                 continue;
             }
 
@@ -816,6 +913,167 @@ private:
 
         if (!(timing.duration >= 0.0)) return std::nullopt;
         return timing;
+    }
+
+    void BiasCallback(const Imu::ConstSharedPtr msg) {
+        const Eigen::Vector3d accel_bias(msg->linear_acceleration.x,
+                                         msg->linear_acceleration.y,
+                                         msg->linear_acceleration.z);
+        if (!accel_bias.allFinite()) {
+            RCLCPP_WARN(get_logger(), "Ignoring non-finite translational deskew accel bias");
+            return;
+        }
+        std::lock_guard<std::mutex> lock(translation_mutex_);
+        translation_accel_bias_ = accel_bias;
+        translation_bias_frame_id_ = msg->header.frame_id;
+        translation_bias_ready_ = true;
+        RCLCPP_INFO(get_logger(), "Translational deskew received accel_bias=%s m/s^2 frame=%s",
+                    FormatVector(translation_accel_bias_).c_str(),
+                    translation_bias_frame_id_.c_str());
+    }
+
+    void VelocityCallback(const nav_msgs::msg::Odometry::ConstSharedPtr msg) {
+        const Eigen::Vector3d velocity(msg->twist.twist.linear.x,
+                                       msg->twist.twist.linear.y,
+                                       msg->twist.twist.linear.z);
+        const double stamp = rclcpp::Time(msg->header.stamp).seconds();
+        if (!velocity.allFinite() || !std::isfinite(stamp)) return;
+        std::lock_guard<std::mutex> lock(translation_mutex_);
+        translation_velocity_ = velocity;
+        translation_velocity_stamp_ = stamp;
+        translation_velocity_frame_id_ = msg->child_frame_id;
+        translation_velocity_ready_ = true;
+    }
+
+    std::optional<Sophus::SO3d> LookupRotation(const std::string &target_frame,
+                                                const std::string &source_frame,
+                                                std::string *error) const {
+        if (source_frame.empty() || target_frame.empty() || source_frame == target_frame) {
+            return Sophus::SO3d();
+        }
+        std::string tf_error;
+        if (!tf2_buffer_->_frameExists(source_frame) ||
+            !tf2_buffer_->_frameExists(target_frame) ||
+            !tf2_buffer_->canTransform(target_frame, source_frame,
+                                       tf2::TimePointZero, &tf_error)) {
+            if (error) {
+                *error = "missing rotation " + target_frame + " <- " + source_frame +
+                         ": " + tf_error;
+            }
+            return std::nullopt;
+        }
+        try {
+            const auto transform = tf2_buffer_->lookupTransform(
+                target_frame, source_frame, tf2::TimePointZero);
+            Eigen::Quaterniond quaternion(transform.transform.rotation.w,
+                                          transform.transform.rotation.x,
+                                          transform.transform.rotation.y,
+                                          transform.transform.rotation.z);
+            if (!quaternion.coeffs().allFinite() || quaternion.norm() < 1.0e-6) {
+                if (error) *error = "non-finite or zero transform quaternion";
+                return std::nullopt;
+            }
+            quaternion.normalize();
+            return Sophus::SO3d(quaternion);
+        } catch (const tf2::TransformException &exception) {
+            if (error) *error = exception.what();
+            return std::nullopt;
+        }
+    }
+
+    std::optional<genz_icp::imu::Trajectory> BuildMotionTrajectory(
+        const std::string &cloud_frame_id,
+        double interval_start,
+        double interval_end,
+        double reference_time,
+        std::string *error) const {
+        std::vector<ImuSample> samples;
+        std::string imu_frame_id;
+        {
+            std::lock_guard<std::mutex> lock(imu_mutex_);
+            samples.assign(imu_buffer_.begin(), imu_buffer_.end());
+            imu_frame_id = imu_frame_id_;
+        }
+        Eigen::Vector3d accel_bias;
+        Eigen::Vector3d velocity;
+        double velocity_stamp = 0.0;
+        std::string bias_frame;
+        std::string velocity_frame;
+        bool velocity_ready = false;
+        {
+            std::lock_guard<std::mutex> lock(translation_mutex_);
+            if (!translation_bias_ready_) {
+                if (error) *error = "waiting for calibrated accelerometer bias";
+                return std::nullopt;
+            }
+            accel_bias = translation_accel_bias_;
+            bias_frame = translation_bias_frame_id_;
+            velocity = translation_velocity_;
+            velocity_stamp = translation_velocity_stamp_;
+            velocity_frame = translation_velocity_frame_id_;
+            velocity_ready = translation_velocity_ready_;
+        }
+
+        std::string tf_error;
+        const auto cloud_from_imu = LookupRotation(cloud_frame_id, imu_frame_id, &tf_error);
+        if (!cloud_from_imu) {
+            if (error) *error = tf_error;
+            return std::nullopt;
+        }
+        const auto cloud_from_bias = LookupRotation(cloud_frame_id, bias_frame, &tf_error);
+        if (!cloud_from_bias) {
+            if (error) *error = tf_error;
+            return std::nullopt;
+        }
+
+        std::vector<genz_icp::imu::Sample> converted;
+        converted.reserve(samples.size());
+        for (const auto &sample : samples) {
+            genz_icp::imu::Sample entry;
+            entry.stamp = sample.stamp;
+            entry.angular_velocity = *cloud_from_imu * sample.angular_velocity;
+            entry.linear_acceleration = *cloud_from_imu * sample.linear_acceleration;
+            entry.gravity_direction = *cloud_from_imu * sample.gravity_direction;
+            entry.gravity_direction_valid = sample.gravity_direction_valid;
+            converted.push_back(entry);
+        }
+
+        genz_icp::imu::State initial_state;
+        const auto first_after_start = std::upper_bound(
+            converted.begin(), converted.end(), interval_start,
+            [](double stamp, const genz_icp::imu::Sample &sample) {
+                return stamp < sample.stamp;
+            });
+        if (first_after_start != converted.begin()) {
+            const auto &sample = *std::prev(first_after_start);
+            if (sample.gravity_direction_valid) {
+                initial_state.orientation = genz_icp::imu::AlignGravity(
+                    Sophus::SO3d(), sample.gravity_direction, gravity_correction_gain_);
+            }
+        }
+
+        if (velocity_ready &&
+            std::abs(reference_time - velocity_stamp) <=
+                translation_max_velocity_age_seconds_) {
+            const auto cloud_from_velocity =
+                LookupRotation(cloud_frame_id, velocity_frame, &tf_error);
+            if (cloud_from_velocity) {
+                const Eigen::Vector3d velocity_cloud = *cloud_from_velocity * velocity;
+                initial_state.velocity = initial_state.orientation * velocity_cloud;
+            }
+        }
+
+        genz_icp::imu::IntegrationConfig config;
+        config.max_gap_seconds = max_imu_gap_seconds_;
+        config.max_acceleration = translation_max_acceleration_;
+        config.max_velocity = translation_max_velocity_;
+        config.gravity_magnitude = gravity_magnitude_;
+        config.gravity_correction_gain = gravity_correction_gain_;
+        config.use_gravity_constraint = true;
+        config.integrate_translation = true;
+        return genz_icp::imu::Integrate(
+            converted, interval_start, interval_end, initial_state,
+            Eigen::Vector3d::Zero(), *cloud_from_bias * accel_bias, config, error);
     }
 
     std::optional<OrientationTrajectory> BuildOrientationTrajectory(const double interval_start,
@@ -933,6 +1191,75 @@ private:
         return trajectory.rotations[index] * Sophus::SO3d::exp(omega_mid * partial_dt);
     }
 
+    void DeskewUsingAvailableMotion(const PointCloud2::ConstSharedPtr &msg,
+                                     const ScanTiming &timing,
+                                     const OrientationTrajectory &rotation_trajectory) {
+        if (!enable_translational_deskew_ || invert_correction_) {
+            if (enable_translational_deskew_ && invert_correction_) {
+                RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000,
+                                     "Translational deskew does not support invert_correction; using rotation only");
+            }
+            DeskewAndPublish(msg, timing, rotation_trajectory);
+            return;
+        }
+        const double interval_start =
+            std::min(timing.reference_time, timing.min_point_time);
+        const double interval_end =
+            std::max(timing.reference_time, timing.max_point_time);
+        std::string error;
+        const auto motion_trajectory = BuildMotionTrajectory(
+            msg->header.frame_id, interval_start, interval_end,
+            timing.reference_time, &error);
+        if (!motion_trajectory) {
+            RCLCPP_WARN_THROTTLE(
+                get_logger(), *get_clock(), 5000,
+                "Translational deskew unavailable (%s); preserving rotation-only deskew",
+                error.c_str());
+            DeskewAndPublish(msg, timing, rotation_trajectory);
+            return;
+        }
+        DeskewAndPublishTranslation(msg, timing, *motion_trajectory);
+    }
+
+    void DeskewAndPublishTranslation(
+        const PointCloud2::ConstSharedPtr &msg,
+        const ScanTiming &timing,
+        const genz_icp::imu::Trajectory &trajectory) {
+        auto corrected = std::make_unique<PointCloud2>(*msg);
+        const auto reference_state =
+            genz_icp::imu::InterpolateState(trajectory, timing.reference_time);
+        sensor_msgs::PointCloud2ConstIterator<float> in_x(*msg, "x");
+        sensor_msgs::PointCloud2ConstIterator<float> in_y(*msg, "y");
+        sensor_msgs::PointCloud2ConstIterator<float> in_z(*msg, "z");
+        sensor_msgs::PointCloud2Iterator<float> out_x(*corrected, "x");
+        sensor_msgs::PointCloud2Iterator<float> out_y(*corrected, "y");
+        sensor_msgs::PointCloud2Iterator<float> out_z(*corrected, "z");
+
+        for (size_t i = 0; i < timing.point_times.size();
+             ++i, ++in_x, ++in_y, ++in_z, ++out_x, ++out_y, ++out_z) {
+            Eigen::Vector3d raw_point(*in_x, *in_y, *in_z);
+            if (!raw_point.allFinite()) continue;
+            if (enable_lidar_lever_arm_correction_) raw_point += lidar_lever_arm_;
+            const auto point_state =
+                genz_icp::imu::InterpolateState(trajectory, timing.point_times[i]);
+            Eigen::Vector3d corrected_point = genz_icp::imu::DeskewPoint(
+                raw_point, point_state, reference_state, true);
+            if (enable_lidar_lever_arm_correction_) corrected_point -= lidar_lever_arm_;
+            *out_x = static_cast<float>(corrected_point.x());
+            *out_y = static_cast<float>(corrected_point.y());
+            *out_z = static_cast<float>(corrected_point.z());
+        }
+        publisher_->publish(std::move(corrected));
+        ++total_deskewed_clouds_;
+        if (debug_print_) {
+            const Eigen::Vector3d scan_translation =
+                trajectory.states.back().position - trajectory.states.front().position;
+            RCLCPP_INFO(get_logger(),
+                        "Translationally deskewed %zu points; integrated scan translation=%s m",
+                        timing.point_times.size(), FormatVector(scan_translation).c_str());
+        }
+    }
+
     void DeskewAndPublish(const PointCloud2::ConstSharedPtr &msg,
                           const ScanTiming &timing,
                           const OrientationTrajectory &trajectory) {
@@ -1014,10 +1341,20 @@ private:
     bool publish_raw_on_missing_imu_after_wait_{false};
     bool drop_cloud_on_missing_imu_after_wait_{true};
     int max_pending_clouds_{20};
+    bool enable_translational_deskew_{false};
+    std::string bias_topic_{"/genz/imu/bias"};
+    std::string velocity_topic_{"/genz/odometry"};
+    double translation_max_velocity_age_seconds_{0.5};
+    double translation_max_acceleration_{5.0};
+    double translation_max_velocity_{5.0};
+    double gravity_magnitude_{genz_icp::imu::kStandardGravity};
+    double gravity_correction_gain_{1.0};
+    bool use_imu_orientation_for_gravity_{true};
 
     mutable std::mutex imu_mutex_;
     std::deque<ImuSample> imu_buffer_;
     double latest_imu_stamp_{-std::numeric_limits<double>::infinity()};
+    double last_received_imu_stamp_{-std::numeric_limits<double>::infinity()};
     Eigen::Vector3d gyro_bias_{Eigen::Vector3d::Zero()};
     bool gyro_bias_ready_{true};
     bool gyro_bias_manual_override_{false};
@@ -1025,6 +1362,16 @@ private:
     size_t gyro_bias_sample_count_{0};
     Eigen::Vector3d gyro_bias_raw_sum_{Eigen::Vector3d::Zero()};
     Eigen::Vector3d gyro_bias_scaled_sum_{Eigen::Vector3d::Zero()};
+    std::string imu_frame_id_;
+
+    mutable std::mutex translation_mutex_;
+    Eigen::Vector3d translation_accel_bias_{Eigen::Vector3d::Zero()};
+    Eigen::Vector3d translation_velocity_{Eigen::Vector3d::Zero()};
+    double translation_velocity_stamp_{0.0};
+    std::string translation_bias_frame_id_;
+    std::string translation_velocity_frame_id_;
+    bool translation_bias_ready_{false};
+    bool translation_velocity_ready_{false};
 
     mutable std::mutex pending_mutex_;
     std::deque<PendingCloud> pending_clouds_;
@@ -1033,10 +1380,15 @@ private:
     std::atomic<size_t> total_queued_clouds_{0};
     std::atomic<size_t> total_dropped_clouds_{0};
     std::atomic<size_t> total_raw_fallback_clouds_{0};
+    std::atomic<size_t> total_non_monotonic_imu_samples_{0};
 
     rclcpp::Subscription<Imu>::SharedPtr imu_subscriber_;
+    rclcpp::Subscription<Imu>::SharedPtr bias_subscriber_;
+    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr velocity_subscriber_;
     rclcpp::Subscription<PointCloud2>::SharedPtr cloud_subscriber_;
     rclcpp::Publisher<PointCloud2>::SharedPtr publisher_;
+    std::unique_ptr<tf2_ros::Buffer> tf2_buffer_;
+    std::unique_ptr<tf2_ros::TransformListener> tf2_listener_;
 };
 
 }  // namespace genz_icp_ros

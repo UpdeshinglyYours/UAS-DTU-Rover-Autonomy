@@ -32,7 +32,7 @@ from launch_ros.substitutions import FindPackageShare
 import ast
 
 
-def _parse_imu_prediction_gyro_bias(value):
+def _parse_vector3(value, parameter_name):
     text = value.strip()
     if text in ("", "unset", "none", "None", "null"):
         return None
@@ -47,7 +47,7 @@ def _parse_imu_prediction_gyro_bias(value):
 
     if not isinstance(parsed, (list, tuple)) or len(parsed) != 3:
         raise ValueError(
-            "imu_prediction_gyro_bias must be unset or a 3-value list like [0.0, 0.0, 0.0]"
+            f"{parameter_name} must be unset or a 3-value list like [0.0, 0.0, 0.0]"
         )
 
     return [float(parsed[0]), float(parsed[1]), float(parsed[2])]
@@ -75,6 +75,12 @@ def _launch_setup(context, *args, **kwargs):
         "base_frame": LaunchConfiguration("base_frame"),
         "use_sim_time": LaunchConfiguration("use_sim_time"),
         "deskew": LaunchConfiguration("deskew"),
+        "ground_rover_mode": LaunchConfiguration("ground_rover_mode"),
+        "use_gravity_constraint": LaunchConfiguration("use_gravity_constraint"),
+        "constrain_roll_pitch": LaunchConfiguration("constrain_roll_pitch"),
+        "constrain_z": LaunchConfiguration("constrain_z"),
+        "roll_pitch_prior_weight": LaunchConfiguration("roll_pitch_prior_weight"),
+        "z_prior_weight": LaunchConfiguration("z_prior_weight"),
         "max_range": LaunchConfiguration("max_range"),
         "min_range": LaunchConfiguration("min_range"),
         "voxel_size": LaunchConfiguration("voxel_size"),
@@ -117,6 +123,26 @@ def _launch_setup(context, *args, **kwargs):
         ),
         "imu_prediction_rotation_only": LaunchConfiguration("imu_prediction_rotation_only"),
         "imu_prediction_debug": LaunchConfiguration("imu_prediction_debug"),
+        "enable_imu_translation_prediction": LaunchConfiguration(
+            "enable_imu_translation_prediction"
+        ),
+        "use_imu_orientation_for_gravity": LaunchConfiguration(
+            "use_imu_orientation_for_gravity"
+        ),
+        "publish_imu_debug_topics": LaunchConfiguration("publish_imu_debug_topics"),
+        "imu_stationary_max_gyro_norm": LaunchConfiguration("imu_stationary_max_gyro_norm"),
+        "imu_stationary_accel_g_tolerance": LaunchConfiguration(
+            "imu_stationary_accel_g_tolerance"
+        ),
+        "imu_stationary_max_accel_variance": LaunchConfiguration(
+            "imu_stationary_max_accel_variance"
+        ),
+        "imu_gravity_magnitude": LaunchConfiguration("imu_gravity_magnitude"),
+        "imu_gravity_correction_gain": LaunchConfiguration("imu_gravity_correction_gain"),
+        "imu_prediction_max_acceleration": LaunchConfiguration(
+            "imu_prediction_max_acceleration"
+        ),
+        "imu_prediction_max_velocity": LaunchConfiguration("imu_prediction_max_velocity"),
         "enable_yaw_search_initializer": LaunchConfiguration("enable_yaw_search_initializer"),
         "yaw_search_score_max_correspondence_distance": LaunchConfiguration(
             "yaw_search_score_max_correspondence_distance"
@@ -201,11 +227,18 @@ def _launch_setup(context, *args, **kwargs):
         "config_file": LaunchConfiguration("config_file"),
     }
 
-    gyro_bias = _parse_imu_prediction_gyro_bias(
-        LaunchConfiguration("imu_prediction_gyro_bias").perform(context)
+    gyro_bias = _parse_vector3(
+        LaunchConfiguration("imu_prediction_gyro_bias").perform(context),
+        "imu_prediction_gyro_bias",
     )
     if gyro_bias is not None:
         params["imu_prediction_gyro_bias"] = gyro_bias
+    accel_bias = _parse_vector3(
+        LaunchConfiguration("imu_prediction_accel_bias").perform(context),
+        "imu_prediction_accel_bias",
+    )
+    if accel_bias is not None:
+        params["imu_prediction_accel_bias"] = accel_bias
     params["yaw_search_degrees"] = _parse_double_list(
         LaunchConfiguration("yaw_search_degrees").perform(context),
         "yaw_search_degrees",
@@ -246,6 +279,12 @@ def generate_launch_description():
             DeclareLaunchArgument("use_sim_time", default_value="false"),
             # GenZ-ICP parameters
             DeclareLaunchArgument("deskew", default_value="false"),
+            DeclareLaunchArgument("ground_rover_mode", default_value="current_full_6dof"),
+            DeclareLaunchArgument("use_gravity_constraint", default_value="false"),
+            DeclareLaunchArgument("constrain_roll_pitch", default_value="true"),
+            DeclareLaunchArgument("constrain_z", default_value="false"),
+            DeclareLaunchArgument("roll_pitch_prior_weight", default_value="0.0"),
+            DeclareLaunchArgument("z_prior_weight", default_value="0.0"),
             DeclareLaunchArgument("max_range", default_value="75.0"),
             DeclareLaunchArgument("min_range", default_value="0.75"),
             # This thing is still not suported: https://github.com/ros2/launch/issues/290#issuecomment-1438476902
@@ -275,14 +314,25 @@ def generate_launch_description():
             DeclareLaunchArgument("imu_prediction_deskew_reference", default_value="middle"),
             DeclareLaunchArgument("imu_angular_velocity_scale", default_value="0.017453292519943295"),
             DeclareLaunchArgument("enable_imu_prediction_gyro_bias_calibration", default_value="true"),
-            DeclareLaunchArgument("imu_prediction_gyro_bias_calibration_seconds", default_value="2.0"),
+            DeclareLaunchArgument("imu_prediction_gyro_bias_calibration_seconds", default_value="3.0"),
             DeclareLaunchArgument("imu_prediction_gyro_bias_min_samples", default_value="50"),
             DeclareLaunchArgument("imu_prediction_gyro_bias", default_value="unset"),
+            DeclareLaunchArgument("imu_prediction_accel_bias", default_value="unset"),
             DeclareLaunchArgument("imu_prediction_max_gap_seconds", default_value="0.06"),
             DeclareLaunchArgument("imu_prediction_max_age_seconds", default_value="0.25"),
             DeclareLaunchArgument("imu_prediction_max_rejected_frame_age_seconds", default_value="1.0"),
             DeclareLaunchArgument("imu_prediction_rotation_only", default_value="true"),
             DeclareLaunchArgument("imu_prediction_debug", default_value="true"),
+            DeclareLaunchArgument("enable_imu_translation_prediction", default_value="false"),
+            DeclareLaunchArgument("use_imu_orientation_for_gravity", default_value="true"),
+            DeclareLaunchArgument("publish_imu_debug_topics", default_value="true"),
+            DeclareLaunchArgument("imu_stationary_max_gyro_norm", default_value="0.05"),
+            DeclareLaunchArgument("imu_stationary_accel_g_tolerance", default_value="0.75"),
+            DeclareLaunchArgument("imu_stationary_max_accel_variance", default_value="0.05"),
+            DeclareLaunchArgument("imu_gravity_magnitude", default_value="9.80665"),
+            DeclareLaunchArgument("imu_gravity_correction_gain", default_value="1.0"),
+            DeclareLaunchArgument("imu_prediction_max_acceleration", default_value="5.0"),
+            DeclareLaunchArgument("imu_prediction_max_velocity", default_value="5.0"),
             DeclareLaunchArgument("enable_yaw_search_initializer", default_value="false"),
             DeclareLaunchArgument(
                 "yaw_search_degrees",
