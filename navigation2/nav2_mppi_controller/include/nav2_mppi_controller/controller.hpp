@@ -108,6 +108,9 @@ protected:
     */
   void visualize(nav_msgs::msg::Path transformed_plan);
 
+  // Added: Method to publish the optimal trajectory as a nav_msgs/msg/Path
+  void publishOptimalTrajectory();
+
   std::string name_;
   rclcpp_lifecycle::LifecycleNode::WeakPtr parent_;
   rclcpp::Clock::SharedPtr clock_;
@@ -121,6 +124,10 @@ protected:
   TrajectoryVisualizer trajectory_visualizer_;
 
   bool visualize_;
+  // Added: Flag to enable publishing the optimal trajectory on a dedicated topic
+  bool publish_optimal_trajectory_{false};
+  // Added: Lifecycle publisher for the optimal trajectory path
+  std::shared_ptr<rclcpp_lifecycle::LifecyclePublisher<nav_msgs::msg::Path>> optimal_trajectory_pub_;
 
   double reset_period_;
   // Last time computeVelocityCommands was called

@@ -24,17 +24,82 @@
 
 #include <Eigen/Core>
 #include <sophus/se3.hpp>
-#include <vector>
 #include <iomanip>
+#include <limits>
+#include <optional>
+#include <tuple>
+#include <vector>
 
 #include "VoxelHashMap.hpp"
 
 namespace genz_icp {
+
+struct RegistrationQuality {
+    double rmse = std::numeric_limits<double>::infinity();
+    double weighted_rmse = std::numeric_limits<double>::infinity();
+    size_t correspondence_count = 0;
+    double translation_delta = 0.0;
+    double rotation_delta = 0.0;
+    bool finite = false;
+};
+
+struct RegistrationResult {
+    Sophus::SE3d pose;
+    std::vector<Eigen::Vector3d> planar_points;
+    std::vector<Eigen::Vector3d> non_planar_points;
+    Eigen::Matrix<double, 6, 6> covariance =
+        Eigen::Matrix<double, 6, 6>::Identity();
+    RegistrationQuality quality;
+};
+
+struct RegistrationMotionPriorConfig {
+    bool enabled = false;
+    double translation_sigma = 0.35;
+    double z_sigma = 0.12;
+    double roll_pitch_sigma_rad = 6.0 * 3.14159265358979323846 / 180.0;
+    double yaw_sigma_rad = 30.0 * 3.14159265358979323846 / 180.0;
+    double weight = 1.0;
+    bool debug = false;
+};
+
+struct RegistrationDofConstraintConfig {
+    bool enabled = false;
+    bool lock_roll_pitch = false;
+    bool lock_z = false;
+    double roll_pitch_prior_weight = 0.0;
+    double z_prior_weight = 0.0;
+    Sophus::SE3d reference_pose;
+};
+
+Eigen::Matrix<double, 6, 1> ApplyLockedDofMask(
+    Eigen::Matrix<double, 6, 1> increment,
+    const RegistrationDofConstraintConfig &constraint);
+
+struct RegistrationRobustICPConfig {
+    bool enabled = false;
+    double max_correspondence_distance = 1.0;
+    double residual_threshold = 0.35;
+    std::string loss_type = "cauchy";
+    bool trimmed_icp_enabled = false;
+    double trimmed_icp_keep_ratio = 0.80;
+    int min_correspondences = 500;
+    bool debug = false;
+};
     
 struct Registration {
     explicit Registration(int max_num_iteration, double convergence_criterion);
+    void SetTerminalStatusEnabled(bool enabled) { terminal_status_enabled_ = enabled; }
 
-    std::tuple<Sophus::SE3d, std::vector<Eigen::Vector3d>, std::vector<Eigen::Vector3d>> RegisterFrame(const std::vector<Eigen::Vector3d> &frame,
+    RegistrationResult RegisterFrameWithQuality(const std::vector<Eigen::Vector3d> &frame,
+                                                const VoxelHashMap &voxel_map,
+                                                const Sophus::SE3d &initial_guess,
+                                                double max_correspondence_distance,
+                                                double kernel,
+                                                const std::optional<RegistrationMotionPriorConfig> &motion_prior = std::nullopt,
+                                                const std::optional<RegistrationRobustICPConfig> &robust_icp = std::nullopt,
+                                                const std::optional<RegistrationDofConstraintConfig> &dof_constraint = std::nullopt);
+
+    std::tuple<Sophus::SE3d, std::vector<Eigen::Vector3d>, std::vector<Eigen::Vector3d>, Eigen::Matrix<double, 6, 6>> RegisterFrame(const std::vector<Eigen::Vector3d> &frame,
                                                                                                        const VoxelHashMap &voxel_map,
                                                                                                        const Sophus::SE3d &initial_guess,
                                                                                                        double max_correspondence_distance,
@@ -42,5 +107,6 @@ struct Registration {
 
     int max_num_iterations_;
     double convergence_criterion_;
+    bool terminal_status_enabled_ = true;
 };
 }  // namespace genz_icp

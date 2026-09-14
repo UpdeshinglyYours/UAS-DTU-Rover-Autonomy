@@ -68,6 +68,14 @@ OdometryServer::OdometryServer(const ros::NodeHandle &nh, const ros::NodeHandle 
     pnh_.param("min_motion_th", config_.min_motion_th, config_.min_motion_th);
     pnh_.param("max_num_iterations", config_.max_num_iterations, config_.max_num_iterations);
     pnh_.param("convergence_criterion", config_.convergence_criterion, config_.convergence_criterion);
+    pnh_.param("enable_registration_quality_gate", config_.enable_registration_quality_gate, config_.enable_registration_quality_gate);
+    pnh_.param("min_registration_correspondences", config_.min_registration_correspondences, config_.min_registration_correspondences);
+    pnh_.param("registration_rmse_reject_ratio", config_.registration_rmse_reject_ratio, config_.registration_rmse_reject_ratio);
+    pnh_.param("registration_rmse_ema_alpha", config_.registration_rmse_ema_alpha, config_.registration_rmse_ema_alpha);
+    pnh_.param("max_registration_translation_per_frame", config_.max_registration_translation_per_frame, config_.max_registration_translation_per_frame);
+    pnh_.param("max_registration_rotation_per_frame_deg", config_.max_registration_rotation_per_frame_deg, config_.max_registration_rotation_per_frame_deg);
+    pnh_.param("max_consecutive_registration_rejections", config_.max_consecutive_registration_rejections, config_.max_consecutive_registration_rejections);
+    pnh_.param("absolute_registration_rmse_limit", config_.absolute_registration_rmse_limit, config_.absolute_registration_rmse_limit);
     if (config_.max_range < config_.min_range) {
         ROS_WARN("[WARNING] max_range is smaller than min_range, setting min_range to 0.0");
         config_.min_range = 0.0;
@@ -124,7 +132,7 @@ void OdometryServer::RegisterFrame(const sensor_msgs::PointCloud2::ConstPtr &msg
     const auto egocentric_estimation = (base_frame_.empty() || base_frame_ == cloud_frame_id);
 
     // Register frame, main entry point to GenZ-ICP pipeline
-    const auto &[planar_points, non_planar_points] = odometry_.RegisterFrame(points, timestamps);
+    const auto &[planar_points, non_planar_points, covariance] = odometry_.RegisterFrame(points, timestamps);
 
     // Compute the pose using GenZ, ego-centric to the LiDAR
     const Sophus::SE3d genz_pose = odometry_.poses().back();
@@ -137,7 +145,7 @@ void OdometryServer::RegisterFrame(const sensor_msgs::PointCloud2::ConstPtr &msg
     }();
 
     // Spit the current estimated pose to ROS msgs
-    PublishOdometry(pose, msg->header.stamp, cloud_frame_id);
+    PublishOdometry(pose, msg->header.stamp, cloud_frame_id, covariance);
 
     // Publishing this clouds is a bit costly, so do it only if we are debugging
     if (publish_debug_clouds_) {
@@ -147,7 +155,8 @@ void OdometryServer::RegisterFrame(const sensor_msgs::PointCloud2::ConstPtr &msg
 
 void OdometryServer::PublishOdometry(const Sophus::SE3d &pose,
                                      const ros::Time &stamp,
-                                     const std::string &cloud_frame_id) {
+                                     const std::string &cloud_frame_id,
+                                     const Eigen::Matrix<double, 6, 6> &covariance) {
     // Header for point clouds and stuff seen from desired odom_frame
 
     // Broadcast the tf
@@ -172,7 +181,13 @@ void OdometryServer::PublishOdometry(const Sophus::SE3d &pose,
     nav_msgs::Odometry odom_msg;
     odom_msg.header.stamp = stamp;
     odom_msg.header.frame_id = odom_frame_;
+    odom_msg.child_frame_id = base_frame_.empty() ? cloud_frame_id : base_frame_;
     odom_msg.pose.pose = tf2::sophusToPose(pose);
+    for (int i = 0; i < 6; ++i) {
+        for (int j = 0; j < 6; ++j) {
+            odom_msg.pose.covariance[i * 6 + j] = covariance(i, j);
+        }
+    }
     odom_publisher_.publish(odom_msg);
 }
 

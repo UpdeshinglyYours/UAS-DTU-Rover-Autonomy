@@ -20,17 +20,20 @@ setup(
     ],
     install_requires=['setuptools'],
     zip_safe=True,
-    maintainer='abhimanyu',
-    maintainer_email='abhimanyu@todo.todo',
+    maintainer='vortex',
+    maintainer_email='vortex@todo.todo',
     description='TODO: Package description',
     license='TODO: License declaration',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+            'odom_to_tf = lirovo.odom_to_tf:main',
             'mavros_bridge = lirovo.mavros_bridge:main',
             'pointcloud_processor = lirovo.pointcloud_processor:main',
             'navigator = lirovo.navigator:main',
             'converter = lirovo.converter:main',
+            # Added: Entry point for depth image to PointCloud2 projective geometry node
+            'depth_to_pointcloud = lirovo.depth_to_pointcloud:main',
         ],
     },
 )

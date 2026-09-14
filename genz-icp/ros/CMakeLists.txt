@@ -69,12 +69,14 @@ elseif("$ENV{ROS_VERSION}" STREQUAL "2")
 
   find_package(ament_cmake REQUIRED)
   find_package(ament_index_cpp REQUIRED)
+  find_package(geometry_msgs REQUIRED)
   find_package(nav_msgs REQUIRED)
   find_package(rcutils REQUIRED)
   find_package(rclcpp REQUIRED)
   find_package(rclcpp_components REQUIRED)
   find_package(rcpputils REQUIRED)
   find_package(sensor_msgs REQUIRED)
+  find_package(tf2 REQUIRED)
   find_package(tf2_ros REQUIRED)
   find_package(yaml-cpp REQUIRED)
 
@@ -96,8 +98,32 @@ elseif("$ENV{ROS_VERSION}" STREQUAL "2")
 
   rclcpp_components_register_node(odometry_component PLUGIN "genz_icp_ros::OdometryServer" EXECUTABLE odometry_node)
 
-  install(TARGETS odometry_component LIBRARY DESTINATION lib RUNTIME DESTINATION lib/${PROJECT_NAME})
+  add_executable(imu_rotation_deskew_node ros2/ImuRotationDeskewNode.cpp)
+  target_compile_features(imu_rotation_deskew_node PUBLIC cxx_std_20)
+  target_link_libraries(imu_rotation_deskew_node genz_icp::core)
+  ament_target_dependencies(imu_rotation_deskew_node rclcpp sensor_msgs nav_msgs tf2_ros)
+
+  add_executable(dynamic_pointcloud_filter_node ros2/dynamic_pointcloud_filter_node.cpp)
+  target_compile_features(dynamic_pointcloud_filter_node PUBLIC cxx_std_20)
+  target_link_libraries(dynamic_pointcloud_filter_node genz_icp::core)
+  ament_target_dependencies(
+    dynamic_pointcloud_filter_node
+    rclcpp
+    sensor_msgs
+    geometry_msgs
+    tf2
+    tf2_ros)
+
+  install(TARGETS odometry_component imu_rotation_deskew_node dynamic_pointcloud_filter_node
+    LIBRARY DESTINATION lib
+    RUNTIME DESTINATION lib/${PROJECT_NAME})
   install(DIRECTORY launch rviz config DESTINATION share/${PROJECT_NAME}/)
+
+  if(BUILD_TESTING)
+    find_package(ament_cmake_gtest REQUIRED)
+    ament_add_gtest(test_imu_integration test/test_imu_integration.cpp)
+    target_link_libraries(test_imu_integration genz_icp::core genz_icp::pipeline)
+  endif()
 
   ament_package()
 

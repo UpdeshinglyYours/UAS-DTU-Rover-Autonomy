@@ -2,7 +2,7 @@
 ekf_filter_node:
     ros__parameters:
 
-        use_sim_time: false #true
+        use_sim_time: true #true
 
         
 # The frequency, in Hz, at which the filter will output a position estimate. Note that the filter will not begin
@@ -89,7 +89,7 @@ ekf_filter_node:
 # do not provide some of the state variables estimated by the filter. For example, a TwistWithCovarianceStamped message
 # has no pose information, so the first six values would be meaningless in that case. Each vector defaults to all false
 # if unspecified, effectively making this parameter required for each sensor.
-        odom0_config: [true, true, true,
+        odom0_config: [false, false, false,
                        false, false, false,
                        false, false, false,
                        false, false, false,
@@ -134,6 +134,32 @@ ekf_filter_node:
 # the thresholds.
         #odom0_pose_rejection_threshold: 5.0
         #odom0_twist_rejection_threshold: 1.0
+        
+        
+        pose0: /raw_fix/pose
+        pose0_config: [true,  true,  true,
+                       false, false, false,
+                       false, false, false,
+                       false, false, false,
+                       false, false, false]
+        pose0_differential: false #true
+        pose0_relative: false
+        pose0_queue_size: 5
+        #pose0_rejection_threshold: 2.0  # Note the difference in parameter name
+        pose0_nodelay: false
+        
+        pose1: /imu/corrected_pose
+        pose1_config: [false, false, false,
+                       true,  true,  true,
+                       false, false, false,
+                       false, false, false,
+                       false, false, false]
+        pose1_differential: false #true
+        pose1_relative: false
+        pose1_queue_size: 5
+        #pose0_rejection_threshold: 2.0  # Note the difference in parameter name
+        pose1_nodelay: false
+        
 
         odom1: /mavros/local_position/odom
 
@@ -194,7 +220,7 @@ ekf_filter_node:
 
         imu0: /mavros/imu/data
         imu0_config: [false, false, false,
-                      true,  true, true,
+                      false, false, false,
                       false, false, false,
                       false, false, false,
                       true, true, true]

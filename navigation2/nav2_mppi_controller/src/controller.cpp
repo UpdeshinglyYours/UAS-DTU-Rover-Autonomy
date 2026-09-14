@@ -14,6 +14,8 @@
 
 #include <stdint.h>
 #include <chrono>
+// Added: cmath for trigonometric functions (sinf/cosf) used in optimal trajectory orientation
+#include <cmath>
 #include "nav2_mppi_controller/controller.hpp"
 #include "nav2_mppi_controller/tools/utils.hpp"
 
@@ -40,6 +42,9 @@ void MPPIController::configure(
   auto getParam = parameters_handler_->getParamGetter(name_);
   getParam(visualize_, "visualize", false);
   getParam(reset_period_, "reset_period", 1.0);
+  // Added: Retrieve publish_optimal_trajectory parameter and create its lifecycle publisher
+  getParam(publish_optimal_trajectory_, "publish_optimal_trajectory", false);
+  optimal_trajectory_pub_ = node->create_publisher<nav_msgs::msg::Path>("optimal_trajectory", 1);
 
   // Configure composed objects
   optimizer_.initialize(parent_, name_, costmap_ros_, parameters_handler_.get());
@@ -55,6 +60,10 @@ void MPPIController::cleanup()
 {
   optimizer_.shutdown();
   trajectory_visualizer_.on_cleanup();
+  // Added: Reset optimal trajectory publisher on cleanup
+  if (optimal_trajectory_pub_) {
+    optimal_trajectory_pub_.reset();
+  }
   parameters_handler_.reset();
   RCLCPP_INFO(logger_, "Cleaned up MPPI Controller: %s", name_.c_str());
 }
@@ -62,6 +71,10 @@ void MPPIController::cleanup()
 void MPPIController::activate()
 {
   trajectory_visualizer_.on_activate();
+  // Added: Activate optimal trajectory lifecycle publisher
+  if (optimal_trajectory_pub_) {
+    optimal_trajectory_pub_->on_activate();
+  }
   parameters_handler_->start();
   RCLCPP_INFO(logger_, "Activated MPPI Controller: %s", name_.c_str());
 }
@@ -69,6 +82,10 @@ void MPPIController::activate()
 void MPPIController::deactivate()
 {
   trajectory_visualizer_.on_deactivate();
+  // Added: Deactivate optimal trajectory lifecycle publisher
+  if (optimal_trajectory_pub_) {
+    optimal_trajectory_pub_->on_deactivate();
+  }
   RCLCPP_INFO(logger_, "Deactivated MPPI Controller: %s", name_.c_str());
 }
 
@@ -106,6 +123,11 @@ geometry_msgs::msg::TwistStamped MPPIController::computeVelocityCommands(
   RCLCPP_INFO(logger_, "Control loop execution time: %ld [ms]", duration);
 #endif
 
+  // Added: Publish optimal trajectory path if publish_optimal_trajectory parameter is enabled
+  if (publish_optimal_trajectory_) {
+    publishOptimalTrajectory();
+  }
+
   if (visualize_) {
     visualize(std::move(transformed_plan));
   }
@@ -118,6 +140,36 @@ void MPPIController::visualize(nav_msgs::msg::Path transformed_plan)
   trajectory_visualizer_.add(optimizer_.getGeneratedTrajectories(), "Candidate Trajectories");
   trajectory_visualizer_.add(optimizer_.getOptimizedTrajectory(), "Optimal Trajectory");
   trajectory_visualizer_.visualize(std::move(transformed_plan));
+}
+
+// Added: Function to publish the optimal trajectory as a nav_msgs/msg/Path on optimal_trajectory topic
+void MPPIController::publishOptimalTrajectory()
+{
+  // Commented out lazy subscriber check to publish even if there are no listeners:
+  // if (optimal_trajectory_pub_ && optimal_trajectory_pub_->get_subscription_count() > 0) {
+  // Added: Non-lazy publishing check (publishes whenever publisher exists)
+  if (optimal_trajectory_pub_) {
+    auto trajectory = optimizer_.getOptimizedTrajectory();
+    auto path = std::make_unique<nav_msgs::msg::Path>();
+    path->header.frame_id = costmap_ros_->getGlobalFrameID();
+    path->header.stamp = clock_->now();
+
+    const size_t size = trajectory.shape()[0];
+    path->poses.resize(size);
+
+    for (size_t i = 0; i < size; ++i) {
+      path->poses[i].header = path->header;
+      path->poses[i].pose.position.x = trajectory(i, 0);
+      path->poses[i].pose.position.y = trajectory(i, 1);
+      path->poses[i].pose.position.z = 0.0;
+      path->poses[i].pose.orientation.x = 0.0;
+      path->poses[i].pose.orientation.y = 0.0;
+      path->poses[i].pose.orientation.z = sinf(trajectory(i, 2) * 0.5f);
+      path->poses[i].pose.orientation.w = cosf(trajectory(i, 2) * 0.5f);
+    }
+
+    optimal_trajectory_pub_->publish(std::move(path));
+  }
 }
 
 void MPPIController::setPlan(const nav_msgs::msg::Path & path)

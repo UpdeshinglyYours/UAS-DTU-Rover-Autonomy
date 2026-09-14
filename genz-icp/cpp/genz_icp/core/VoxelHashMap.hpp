@@ -29,6 +29,7 @@
 #include <tsl/robin_map.h>
 
 #include <Eigen/Core>
+#include <cstddef>
 #include <sophus/se3.hpp>
 #include <vector>
 
@@ -74,6 +75,8 @@ struct VoxelHashMap {
     void AddPoints(const std::vector<Eigen::Vector3d> &points);
     void RemovePointsFarFromLocation(const Eigen::Vector3d &origin);
     std::vector<Eigen::Vector3d> Pointcloud() const;
+    size_t PointCount() const;
+    bool HasNeighborWithin(const Eigen::Vector3d &query, double radius) const;
     std::tuple<Eigen::Vector3d, size_t, Eigen::Matrix3d, double> GetClosestNeighbor(const Eigen::Vector3d &query) const;
     std::pair<bool, Eigen::Vector3d> DeterminePlanarity(const Eigen::Matrix3d &covariance) const;
 

@@ -13,6 +13,10 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <unordered_map>
+#include <cmath>
+#include <cstdint>
+#include <algorithm>
 
 #include "sensor_msgs/point_cloud2_iterator.hpp"
 #include "tf2_sensor_msgs/tf2_sensor_msgs.hpp"
@@ -37,6 +41,14 @@ PointCloudToLaserScanNode::PointCloudToLaserScanNode(const rclcpp::NodeOptions &
   range_max_ = this->declare_parameter("range_max", std::numeric_limits<double>::max());
   inf_epsilon_ = this->declare_parameter("inf_epsilon", 1.0);
   use_inf_ = this->declare_parameter("use_inf", true);
+
+  // =========================================================================
+  // [NEW ADDITION] Declare 3D Pointcloud Outlier Filter Parameters
+  // Allows 3D spatial voxel density filtering on raw XYZ points (Default: Off)
+  // =========================================================================
+  enable_3d_point_filter_ = this->declare_parameter("enable_3d_point_filter", false);
+  filter_voxel_size_ = this->declare_parameter("filter_voxel_size", 0.15);
+  min_points_per_voxel_ = this->declare_parameter("min_points_per_voxel", 2);
 
   pub_ = this->create_publisher<sensor_msgs::msg::LaserScan>("scan", rclcpp::SensorDataQoS());
 
@@ -104,12 +116,56 @@ void PointCloudToLaserScanNode::cloudCallback(
     }
   }
 
+  // =========================================================================
+  // [NEW ADDITION] Pass 1: Build 3D Spatial Voxel Hash Density Map
+  // Only executes if enable_3d_point_filter is set to True (Default: False)
+  // Counts how many 3D points fall inside each spatial 3D cube
+  // =========================================================================
+  std::unordered_map<uint64_t, int> voxel_point_counts;
+  if (enable_3d_point_filter_) {
+    const double inv_voxel_size = 1.0 / std::max(0.01, filter_voxel_size_);
+    for (sensor_msgs::PointCloud2ConstIterator<float> iter_x(*cloud_msg, "x"),
+      iter_y(*cloud_msg, "y"), iter_z(*cloud_msg, "z");
+      iter_x != iter_x.end(); ++iter_x, ++iter_y, ++iter_z)
+    {
+      if (std::isnan(*iter_x) || std::isnan(*iter_y) || std::isnan(*iter_z)) continue;
+      if (*iter_z > max_height_ || *iter_z < min_height_) continue;
+
+      int64_t gx = static_cast<int64_t>(std::floor(*iter_x * inv_voxel_size));
+      int64_t gy = static_cast<int64_t>(std::floor(*iter_y * inv_voxel_size));
+      int64_t gz = static_cast<int64_t>(std::floor(*iter_z * inv_voxel_size));
+
+      uint64_t key = (static_cast<uint64_t>(gx & 0x1FFFFF) << 42) |
+                     (static_cast<uint64_t>(gy & 0x1FFFFF) << 21) |
+                     (static_cast<uint64_t>(gz & 0x1FFFFF));
+      voxel_point_counts[key]++;
+    }
+  }
+
   for (sensor_msgs::PointCloud2ConstIterator<float> iter_x(*cloud_msg, "x"),
     iter_y(*cloud_msg, "y"), iter_z(*cloud_msg, "z");
     iter_x != iter_x.end(); ++iter_x, ++iter_y, ++iter_z)
   {
     if (std::isnan(*iter_x) || std::isnan(*iter_y) || std::isnan(*iter_z)) continue;
     if (*iter_z > max_height_ || *iter_z < min_height_) continue;
+
+    // =========================================================================
+    // [NEW ADDITION] 3D Outlier Check: Skip isolated 3D points with too few neighbors
+    // =========================================================================
+    if (enable_3d_point_filter_) {
+      const double inv_voxel_size = 1.0 / std::max(0.01, filter_voxel_size_);
+      int64_t gx = static_cast<int64_t>(std::floor(*iter_x * inv_voxel_size));
+      int64_t gy = static_cast<int64_t>(std::floor(*iter_y * inv_voxel_size));
+      int64_t gz = static_cast<int64_t>(std::floor(*iter_z * inv_voxel_size));
+
+      uint64_t key = (static_cast<uint64_t>(gx & 0x1FFFFF) << 42) |
+                     (static_cast<uint64_t>(gy & 0x1FFFFF) << 21) |
+                     (static_cast<uint64_t>(gz & 0x1FFFFF));
+
+      if (voxel_point_counts[key] < min_points_per_voxel_) {
+        continue; // Discard isolated 3D noise point!
+      }
+    }
 
     double range = hypot(*iter_x, *iter_y);
     if (range < range_min_ || range > range_max_) continue;

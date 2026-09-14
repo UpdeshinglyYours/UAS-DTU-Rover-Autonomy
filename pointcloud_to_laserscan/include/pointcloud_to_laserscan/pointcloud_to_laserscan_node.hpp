@@ -61,6 +61,14 @@ private:
     range_max_;
   bool use_inf_;
   double inf_epsilon_;
+
+  // =========================================================================
+  // [NEW ADDITION] 3D Pointcloud Outlier Filter Parameters (Defaults to Disabled/Off)
+  // Filters raw 3D (X,Y,Z) points based on 3D spatial voxel density
+  // =========================================================================
+  bool enable_3d_point_filter_;
+  double filter_voxel_size_;
+  int min_points_per_voxel_;
 };
 
 }  // namespace pointcloud_to_laserscan

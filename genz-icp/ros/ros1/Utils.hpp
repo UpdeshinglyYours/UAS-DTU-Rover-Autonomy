@@ -87,34 +87,18 @@ inline std::string FixFrameId(const std::string &frame_id) {
     return std::regex_replace(frame_id, std::regex("^/"), "");
 }
 
-// inline auto GetTimestampField(const PointCloud2::ConstPtr msg) {
-//     PointField timestamp_field;
-//     for (const auto &field : msg->fields) {
-//         if ((field.name == "t" || field.name == "timestamp" || field.name == "time")) {
-//             timestamp_field = field;
-//         }
-//     }
-//     if (!timestamp_field.count) {
-//         throw std::runtime_error("Field 't', 'timestamp', or 'time'  does not exist");
-//     }
-//     return timestamp_field;
-// }
-
-/*ye upar wala block meine replace kiya niche wale block se taki mera time field (point_time_offset) ye le paye*/
 inline auto GetTimestampField(const PointCloud2::ConstPtr msg) {
     PointField timestamp_field;
     for (const auto &field : msg->fields) {
-        if ((field.name == "t" || field.name == "timestamp" || field.name == "time" || field.name == "point_time_offset")) {
+        if ((field.name == "t" || field.name == "timestamp" || field.name == "time")) {
             timestamp_field = field;
         }
     }
     if (!timestamp_field.count) {
-        throw std::runtime_error("Field 't', 'timestamp', 'time', or 'point_time_offset' does not exist");
+        throw std::runtime_error("Field 't', 'timestamp', or 'time'  does not exist");
     }
     return timestamp_field;
 }
-//..............................................
-
 
 // Normalize timestamps from 0.0 to 1.0
 inline auto NormalizeTimestamps(const std::vector<double> &timestamps) {

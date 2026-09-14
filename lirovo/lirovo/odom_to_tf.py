@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 import rclpy
+# Added: math module for quaternion to RPY and back conversion
+import math
 from rclpy.node import Node
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import TransformStamped
@@ -23,7 +25,7 @@ class OdomToTf(Node):
         # Subscribe to MAVROS odometry with Best Effort QoS
         self.subscription = self.create_subscription(
             Odometry,
-            '/bcr_bot/odom',
+            '/mavros/local_position/odom',
             self.odom_callback,
             qos_profile)
             
@@ -40,10 +42,44 @@ class OdomToTf(Node):
         # Copy position
         t.transform.translation.x = msg.pose.pose.position.x
         t.transform.translation.y = msg.pose.pose.position.y
-        t.transform.translation.z = msg.pose.pose.position.z
+        # Commented out dynamic Z:
+        # t.transform.translation.z = msg.pose.pose.position.z
+        # Added: Hardcode Z to 0.0
+        t.transform.translation.z = 0.0
 
         # Copy orientation
-        t.transform.rotation = msg.pose.pose.orientation
+        # Commented out original orientation:
+        # t.transform.rotation = msg.pose.pose.orientation
+        # Added: Convert quaternion to RPY, zero out roll and pitch, and convert back to quaternion
+        q = msg.pose.pose.orientation
+        t0 = +2.0 * (q.w * q.x + q.y * q.z)
+        t1 = +1.0 - 2.0 * (q.x * q.x + q.y * q.y)
+        roll = math.atan2(t0, t1)
+
+        t2 = +2.0 * (q.w * q.y - q.z * q.x)
+        t2 = +1.0 if t2 > +1.0 else t2
+        t2 = -1.0 if t2 < -1.0 else t2
+        pitch = math.asin(t2)
+
+        t3 = +2.0 * (q.w * q.z + q.x * q.y)
+        t4 = +1.0 - 2.0 * (q.y * q.y + q.z * q.z)
+        yaw = math.atan2(t3, t4)
+
+        # Explicitly zero out roll and pitch
+        roll = 0.0
+        pitch = 0.0
+
+        # Convert back from (roll=0, pitch=0, yaw) to quaternion
+        cy = math.cos(yaw * 0.5)
+        sy = math.sin(yaw * 0.5)
+        # Added: Match hemisphere sign of original quaternion to prevent antipodal jumps in TF when w < 0
+        if q.w < 0.0:
+            cy = -cy
+            sy = -sy
+        t.transform.rotation.x = 0.0
+        t.transform.rotation.y = 0.0
+        t.transform.rotation.z = sy
+        t.transform.rotation.w = cy
 
         # Publish transform
         self.tf_broadcaster.sendTransform(t)
