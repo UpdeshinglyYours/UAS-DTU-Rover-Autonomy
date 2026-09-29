@@ -1,0 +1,29 @@
+navsat_transform_node:
+  ros__parameters:
+
+    # Core settings
+    frequency: 10.0               # 10Hz is typical and sufficient
+    delay: 3.0                    # Wait time before initializing
+
+    # IMU settings
+    magnetic_declination_radians: 0.0
+    yaw_offset: 0.0
+    zero_altitude: true           # We usually ignore altitude in 2D maps
+    use_odometry_yaw: false       # You are using IMU for heading
+
+    # Transform settings
+    broadcast_utm_transform: false
+    broadcast_utm_transform_as_parent_frame: false
+
+    # GPS output
+    publish_filtered_gps: true    # Optional, publish corrected GPS fix
+
+    # Datum settings (manual origin)
+    wait_for_datum: false
+    datum: [55.944904, -3.186693, 0.0]
+
+    # Topic remapping
+    gps0: /mavros/global_position/global
+    imu0: /mavros/imu/data
+    odom0: /odometry/filtered
+

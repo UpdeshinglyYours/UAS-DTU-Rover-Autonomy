@@ -1,0 +1,699 @@
+
+# from launch import LaunchDescription
+# from launch_ros.actions import Node
+# from launch.actions import IncludeLaunchDescription
+# from launch.launch_description_sources import PythonLaunchDescriptionSource
+# from launch.actions import TimerAction
+# from launch.actions import DeclareLaunchArgument
+# from launch.substitutions import LaunchConfiguration, PythonExpression
+# from launch.conditions import IfCondition
+# from nav2_common.launch import ReplaceString
+# import os
+# from ament_index_python.packages import get_package_share_directory
+
+# #extra addition, meine kiya
+# from launch_ros.actions import SetParameter
+
+# def generate_launch_description():
+#     namePackage = 'lirovo'
+#     slam_params_path = os.path.join(get_package_share_directory(namePackage),'config','slam_params.yaml')
+#     nav2_params_path = os.path.join(get_package_share_directory(namePackage),'config','nav2_params.yaml')
+#     print(f"SLAM params path: {slam_params_path}")
+
+#     # robot_namespace here is the Gazebo robot_namespace the bcr_bot sim instance this
+#     # lirovo stack is driving was spawned with (see bcr_bot_gazebo_spawn.launch.py). Default
+#     # "bcr_bot" matches that launch file's own default for single-robot use.
+#     bcr_bot_robot_namespace = LaunchConfiguration('bcr_bot_robot_namespace')
+
+#     # The OTHER rover's namespace, for the peer obstacle relay (see peer_obstacle_relay.py).
+#     # Empty default disables the relay node entirely - single-robot runs don't need it.
+#     peer_robot_namespace = LaunchConfiguration('peer_robot_namespace')
+
+#     # This rover's known offset FROM the peer's map origin, i.e. where <own>/map sits inside
+#     # <peer>/map - the real relative Gazebo spawn offset (or, on hardware, the real surveyed/
+#     # GPS-derived offset between the two rovers' start poses). Defaults below (0, 5, 0) match
+#     # the current sim spawn (rover1 at ~0,0 ; rover2 at ~0,5 in the world frame) - override
+#     # per-run if you spawn them somewhere else.
+#     peer_map_offset_x = LaunchConfiguration('peer_map_offset_x')
+#     peer_map_offset_y = LaunchConfiguration('peer_map_offset_y')
+#     peer_map_offset_yaw = LaunchConfiguration('peer_map_offset_yaw')
+
+#     # nav2_bringup's own use_namespace mechanism substitutes "<robot_namespace>" with "/" +
+#     # namespace - correct for TOPICS (which want a leading slash for an absolute path) but
+#     # tf2 rejects frame_ids that start with '/' outright ("tf2 frame_ids cannot start with a
+#     # '/'" - this crashed local_costmap's transform lookups and took the whole nav2_container
+#     # down when first tried). So nav2_params.yaml uses a second, different token
+#     # ("<robot_ns_noslash>") on frame_id fields only (global_frame, robot_base_frame,
+#     # local_frame), and this pre-processing pass substitutes THAT one with the raw namespace
+#     # (no slash) before handing the file to nav2_launch below, which then runs its own
+#     # <robot_namespace> substitution on top for the topic fields.
+#     nav2_params_path_namespaced = ReplaceString(
+#         source_file=nav2_params_path,
+#         replacements={'<robot_ns_noslash>': bcr_bot_robot_namespace},
+#     )
+
+#     pkg_genz_icp_dir = get_package_share_directory('genz_icp')
+
+#     # genz_icp's odometry.launch.py now declares its own 'namespace' arg (namespaces
+#     # odometry_node's name and its relative topics, e.g. "genz/odometry" -> the
+#     # OdometryServer.cpp publishers used to be hardcoded absolute "/genz/..." topics, which no
+#     # namespace argument could ever affect - fixed directly in OdometryServer.cpp so both
+#     # rovers actually get their own /rover1/genz/odometry, /rover2/genz/odometry, etc.
+#     # odom_frame/base_frame are passed in already prefixed by hand, matching every other
+#     # frame_id in this pipeline's tf_prefix convention (namespace args never touch frame_ids).
+#     genz_icp_launch = IncludeLaunchDescription(
+#         PythonLaunchDescriptionSource(
+#             os.path.join(pkg_genz_icp_dir, 'launch', 'odometry.launch.py')
+#         ),
+#         launch_arguments={
+#             'namespace': bcr_bot_robot_namespace,
+#             # points_out from pointcloud_deskew_field below - a plain PointCloud2 with the
+#             # added point_time_offset field genz-icp's GetTimestampField() reads (see
+#             # genz-icp/ros/ros2/Utils.hpp) - NOT the livox_ros_driver2/CustomMsg from
+#             # livox_deskew_converter, which genz_icp cannot consume at all.
+#             'topic': PythonExpression(['"/', bcr_bot_robot_namespace, '/livox/lidar_deskewed"']),
+#             'odom_frame': PythonExpression(['"', bcr_bot_robot_namespace, '/odom"']),
+#             'base_frame': PythonExpression(['"', bcr_bot_robot_namespace, '/base_footprint"']),
+#             'publish_odom_tf': 'false',
+#             'deskew': 'true',
+#             'visualize': 'false',  # avoid spawning one rviz2 per rover by default
+#         }.items(),
+#     )
+
+#     pkg_nav2_dir = get_package_share_directory('nav2_bringup')
+#     pkg_lirovo_dir = get_package_share_directory('lirovo')
+
+#     nav2_launch = IncludeLaunchDescription(
+#         PythonLaunchDescriptionSource(
+#             # Patched copy (see bringup_launch_shared_tf.py) - stock nav2_bringup/bringup_launch.py
+#             # unconditionally remaps /tf -> tf for every composed nav2 node, which under
+#             # use_namespace:=True isolates each rover onto its own <namespace>/tf topic instead
+#             # of the shared global /tf everything else in this project publishes to. That was
+#             # the actual cause of local_costmap/global_costmap never finding "<namespace>/map".
+#             os.path.join(pkg_lirovo_dir, 'launch', 'bringup_launch_shared_tf.py')
+#         ),
+#         launch_arguments={
+#             'params_file': nav2_params_path_namespaced,
+#             'autostart': 'True',
+#             'map': 'map',
+#             # No real map yaml exists - map_server was throwing on this placeholder path and
+#             # aborting lifecycle_manager_localization entirely (which took amcl down with it,
+#             # both stuck 'unconfigured' forever). Skips map_server/amcl outright instead -
+#             # map->odom already comes from static_tf_odom below, and static_layer isn't in
+#             # nav2_params.yaml's active costmap plugins, so nothing actually needs /map.
+#             'use_localization': 'False',
+#             # use_namespace:=True triggers nav2_bringup's ReplaceString step, substituting the
+#             # literal <robot_namespace> token in nav2_params.yaml with "/" + this namespace -
+#             # verified against the real nav2_common.launch.RewrittenYaml/ReplaceString
+#             # mechanics earlier this session, not guessed at. Also pushes every nav2 node
+#             # (bt_navigator, controller_server, costmaps, ...) under this ROS namespace, so two
+#             # simultaneous rover instances no longer collide on node names either.
+#             'namespace': bcr_bot_robot_namespace,
+#             'use_namespace': 'True',
+#         }.items()
+#     )
+#     delayed_nav2_launch = TimerAction(
+#     period=3.0,
+#     actions=[nav2_launch]
+# )
+
+#     return LaunchDescription([
+
+#         DeclareLaunchArgument(
+#             'bcr_bot_robot_namespace',
+#             default_value='bcr_bot',
+#             description='robot_namespace the bcr_bot Gazebo sim instance was spawned with; the remapper node bridges nav2\'s cmd_vel output to <this>/cmd_vel'
+#         ),
+#         DeclareLaunchArgument(
+#             'peer_robot_namespace',
+#             default_value='',
+#             description='The OTHER rover\'s namespace, e.g. rover2 when this instance is rover1. Empty (default) disables the peer obstacle relay - single-robot runs don\'t need it.'
+#         ),
+#         DeclareLaunchArgument(
+#             'peer_map_offset_x',
+#             default_value='0.0',
+#             description='X offset (m) of peer_robot_namespace/map inside this rover\'s own map frame - the real relative spawn/survey offset between the two rovers. Only used when this instance is rover1 (see static_tf_rover_bridge).'
+#         ),
+#         DeclareLaunchArgument(
+#             'peer_map_offset_y',
+#             default_value='5.0',
+#             description='Y offset (m) of peer_robot_namespace/map inside this rover\'s own map frame. Default 5.0 matches the current sim spawn (rover2 ~5m +Y from rover1).'
+#         ),
+#         DeclareLaunchArgument(
+#             'peer_map_offset_yaw',
+#             default_value='0.0',
+#             description='Yaw offset (rad) of peer_robot_namespace/map relative to this rover\'s own map frame.'
+#         ),
+
+#         SetParameter(name='use_sim_time', value=True), #extra addition, meine kiya
+        
+#          #Node(
+#          #    package='tf2_ros',
+#          #    executable='static_transform_publisher',
+#          #    arguments=['0.25', '-0.15', '0.0', '0', '0', '0', 'base_link', 'livox_frame'],
+#          #    parameters=[{'use_sim_time': False}], #False
+#          #    name='static_tf_lidar'
+#          #),
+#          #Node(
+#          #    package='tf2_ros',
+#          #    executable='static_transform_publisher',
+#          #    arguments=['0', '0', '0', '1.5708', '0', '0', 'base_link', 'base_footprint'],
+#          #    parameters=[{'use_sim_time':False}], #False
+#          #    name='static_tf_base_footprint'
+#          #),
+#         # Node(
+#         #    package='lirovo',
+#         #     executable='pointcloud_processor',
+#         #     name='pointcloud_processor',
+#         #     output='screen',
+#         #     parameters=[{'use_sim_time':False}]
+#         # ),
+#          Node(
+#              package='pointcloud_to_laserscan',
+#              executable='pointcloud_to_laserscan_node',
+#              name='pointcloud_to_laserscan',
+#              parameters=[{
+#                  'target_frame': PythonExpression(['"', bcr_bot_robot_namespace, '/base_link"']),
+#                  'transform_tolerance': 0.05, #0.5,
+#                  'min_height': 0.2, #0.0 , #-0.3, # bcr bot 3d lidar is 40.5 cm above ground
+#                  'max_height': 1.0, #0.7 , #1.0,
+#                  'angle_min': -0.6293,  # -35 degrees
+#                  'angle_max': 0.6293,   # +35 degrees
+#                  #'angle_min': -3.14159,
+#                  #'angle_max': +3.14159,
+#                  'angle_increment': 0.00872665,
+#                  'scan_time': 0.1, #0.8, #0.07, #0.8,
+#                  'range_min': 1.5, #0.2,
+#                  'range_max': 41.0, #100.0,
+#                  'use_inf': True,
+#                  'inf_epsilon': 1.0,
+#                  'queue_size': 50,
+#                  'use_sim_time':False, #False,
+#              }],
+#              remappings=[
+#                  # bcr_bot's simulated 3D lidar actually publishes on <namespace>/livox/lidar,
+#                  # not the real-hardware "/bf_lidar/point_cloud_out" topic this was hardcoded
+#                  # to - that topic has zero publishers in sim, so this node (and therefore
+#                  # obstacle_layer, which reads /scan) got zero data. This was the actual cause
+#                  # of nav2's costmaps staying empty.
+#                  ('cloud_in', PythonExpression(['"/', bcr_bot_robot_namespace, '/livox/lidar"'])),
+#                  # nav2's obstacle_layer.scan.topic is now <robot_namespace>/scan (see
+#                  # nav2_params.yaml) - this output must match or obstacle_layer sees nothing.
+#                  ('scan', PythonExpression(['"/', bcr_bot_robot_namespace, '/scan"'])),
+#              ],
+#              ),
+        
+#         Node(
+#              package='tf2_ros',
+#              executable='static_transform_publisher',
+#              # Both ends now namespaced: nav2's global_frame is <robot_namespace>/map (see
+#              # nav2_params.yaml), and this rover's own map frame must be a DISTINCT frame from
+#              # any other rover's - required for the peer_obstacle_relay static TF
+#              # (<own>/map <-> <peer>/map) to mean anything; a single shared bare "map" frame
+#              # would make that link nonsensical (two different frames can't share one name).
+#              arguments=['0', '0', '0', '0', '0', '0',
+#                         PythonExpression(['"', bcr_bot_robot_namespace, '/map"']),
+#                         PythonExpression(['"', bcr_bot_robot_namespace, '/odom"'])],
+#              name='static_tf_odom'
+#          ),
+
+#         # THE MISSING BRIDGE: without this, rover1/map and rover2/map are two completely
+#         # disconnected TF trees (confirmed live via `tf2_echo rover2/map rover1/map` ->
+#         # "Tf has two or more unconnected trees") - peer_obstacle_layer's lookups of the
+#         # peer's scan frame_id against this costmap's own global_frame silently fail, and
+#         # rviz can't place the peer rover at all when Fixed Frame is set to one rover's map.
+#         # Only launched from rover1's own instance (IfCondition below) so the two rovers'
+#         # separate `ros2 launch` invocations don't both try to publish the same edge.
+#         # COMMENTED OUT FOR NOW - running this externally instead (`ros2 run tf2_ros
+#         # static_transform_publisher --x 0 --y 5 --z 0 --roll 0 --pitch 0 --yaw 0
+#         # --frame-id rover1/map --child-frame-id rover2/map`) so it can be started/stopped/
+#         # retuned without restarting nav2. Uncomment to make it part of the launch again.
+#         # Node(
+#         #      package='tf2_ros',
+#         #      executable='static_transform_publisher',
+#         #      arguments=[peer_map_offset_x, peer_map_offset_y, '0',
+#         #                 peer_map_offset_yaw, '0', '0',
+#         #                 PythonExpression(['"', bcr_bot_robot_namespace, '/map"']),
+#         #                 PythonExpression(['"', peer_robot_namespace, '/map"'])],
+#         #      name='static_tf_rover_bridge',
+#         #      condition=IfCondition(PythonExpression([
+#         #          '"', bcr_bot_robot_namespace, '" == "rover1" and "', peer_robot_namespace, '" != ""'
+#         #      ])),
+#         #  ),
+#         # Node(
+#         #     package='lirovo',
+#         #     executable='mavros_bridge',
+#         #     name='mavros_bridge',
+#         #     output='screen',
+#         #     parameters=[{'use_sim_time':False}] #False
+#         # ),
+#         #THE MISSING ENGINE: Start GenZ-ICP to generate odometry from the bag
+#         #IncludeLaunchDescription(
+#         #    PythonLaunchDescriptionSource(
+#         #        os.path.join(get_package_share_directory('genz_icp'), 'launch', 'odometry.launch.py') # Make sure this filename is correct!
+#         #    ),
+#         #    launch_arguments={
+#         #        'topic': '/bf_lidar/point_cloud_out', # <--- REPLACE WITH YOUR BAG'S PC2 TOPIC
+#         #        'publish_odom_tf': 'false',            # Let EKF handle the TF
+#         #        'use_sim_time': 'false'
+#         #    }.items()
+#         #),
+#       #  vins
+#         # IncludeLaunchDescription(
+#         # PythonLaunchDescriptionSource(
+#         #     os.path.join(get_package_share_directory('vins'), 'launch', 'euroc.launch.py')
+#         # ),
+#         # launch_arguments={
+#         #     # If you want to use a different config than the default in that file:
+#         #     'config_path': os.path.join(get_package_share_directory('vins'), 'config', 'realsense_d435i', 'realsense_stereo_imu_config.yaml')
+#         # }.items()
+#         # ), 
+        
+#          # Node(
+#          # package='robot_localization',
+#          # executable='ekf_node',
+#          # name='ekf_filter_node',
+#          # output='screen',
+#          # parameters=[os.path.join(
+#          #     get_package_share_directory(namePackage),
+#          #     'config', 'ekf_localization.yaml')],
+#          # ),
+
+#          # With EKF disabled above, nav2's bt_navigator still needs *some* topic at its
+#          # configured odom_topic (<robot_namespace>/odometry/filtered) for velocity/pose
+#          # feedback. This relays bcr_bot's ground-truth Gazebo odometry there directly - no EKF
+#          # fusion, just a passthrough. TF (odom->base_footprint->base_link) is unaffected
+#          # either way - Gazebo's diff-drive plugin and robot_state_publisher already cover that
+#          # on their own.
+#          Node(
+#          package='lirovo',
+#          executable='odom_relay',
+#          name=PythonExpression(["'odom_relay_' + '", bcr_bot_robot_namespace, "'"]),
+#          output='screen',
+#          remappings=[
+#              ('odom_in', PythonExpression(['"/', bcr_bot_robot_namespace, '/odom"'])),
+#              ('odom_out', PythonExpression(['"/', bcr_bot_robot_namespace, '/odometry/filtered"'])),
+#          ],
+#          ),
+
+#          #..............................
+#          #TimerAction(
+#          #   period=3.0,
+#          #   actions=[
+#          #       IncludeLaunchDescription(
+#          #           PythonLaunchDescriptionSource(
+#          #               os.path.join(get_package_share_directory('slam_toolbox'), 'launch', 'online_async_launch.py')
+#          #           ),
+#          #           launch_arguments={
+#          #               'slam_params_file': slam_params_path,
+#          #               'use_sim_time': 'False'
+#          #           }.items()
+#          #       )
+#          #   ]
+#         #),
+#         # Node(
+#         #     package='lirovo',
+#         #     executable='navigator',
+#         #     name='navigator',
+#         #     output='screen',
+#         #     parameters=[{'use_sim_time':True}] #False
+#         # ),
+#         # Node(
+#         #     package='lirovo',
+#         #     executable='converter',
+#         #     name='converter',
+#         #     output='screen',
+#         #     parameters=[{'use_sim_time':False}] #False
+#         # ),
+#         # TimerAction(
+#         #     period=1.0,
+#         #     actions=[
+#         #         Node(
+#         #             package='slam_toolbox',
+#         #             executable='async_slam_toolbox_node',
+#         #             name='slam_toolbox',
+#         #             output='screen',
+#         #             parameters=[slam_params_path],
+#         #         ),
+#         #     ]
+#         # ),
+	
+#         Node( #bcr bot ke liye add kiya
+#         package='bcr_bot',
+#         executable='remapper.py',
+#         name=PythonExpression(["'remapper_' + '", bcr_bot_robot_namespace, "'"]),
+#         output='screen',
+#         parameters=[{'target_robot_namespace': bcr_bot_robot_namespace}],
+#         ),
+
+#         # Disabled: livox_deskew_converter and pointcloud_deskew_field both only ever fed
+#         # genz_icp_launch, which is disabled below - two more CPU-costly processes doing work
+#         # nothing consumes. Re-enable alongside genz_icp_launch if you actually want GenZ-ICP's
+#         # output used again.
+#         # Node(
+#         # package='lirovo',
+#         # executable='livox_deskew_converter',
+#         # name=PythonExpression(["'livox_deskew_converter_' + '", bcr_bot_robot_namespace, "'"]),
+#         # output='screen',
+#         # parameters=[{
+#         #     'horizontal_samples': 333,
+#         #     'vertical_lasers': 24,
+#         #     'scan_period_s': 1.0 / 11.1,
+#         # }],
+#         # remappings=[
+#         #     ('points_in', PythonExpression(['"/', bcr_bot_robot_namespace, '/livox/lidar"'])),
+#         #     ('custom_out', PythonExpression(['"/', bcr_bot_robot_namespace, '/livox/lidar_custom"'])),
+#         # ],
+#         # ),
+
+#         # Node(
+#         # package='lirovo',
+#         # executable='pointcloud_deskew_field',
+#         # name=PythonExpression(["'pointcloud_deskew_field_' + '", bcr_bot_robot_namespace, "'"]),
+#         # output='screen',
+#         # parameters=[{
+#         #     'horizontal_samples': 333,
+#         #     'vertical_lasers': 24,
+#         # }],
+#         # remappings=[
+#         #     ('points_in', PythonExpression(['"/', bcr_bot_robot_namespace, '/livox/lidar"'])),
+#         #     ('points_out', PythonExpression(['"/', bcr_bot_robot_namespace, '/livox/lidar_deskewed"'])),
+#         # ],
+#         # ),
+
+#         # Relays this rover's own /scan UNCHANGED (frame_id stays this rover's own sensor
+#         # frame) straight into the peer rover's nav2 input topic (<peer>/obstacles_in, matching
+#         # peer_obstacle_layer.peer_ring.topic in nav2_params.yaml). No transform math here at
+#         # all - nav2's own ObstacleLayer resolves the frame via TF itself, which is what makes
+#         # its raytrace-based clearing (clearing:true) work correctly - see
+#         # peer_obstacle_relay.py's docstring for why pre-transforming would have broken that.
+#         # Only active when peer_robot_namespace is set (single-robot runs skip it entirely).
+#         Node(
+#         package='lirovo',
+#         executable='peer_obstacle_relay',
+#         name=PythonExpression(["'peer_obstacle_relay_' + '", bcr_bot_robot_namespace, "'"]),
+#         output='screen',
+#         parameters=[{
+#             'publish_rate_hz': 5.0,
+#         }],
+#         remappings=[
+#             ('scan_in', PythonExpression(['"/', bcr_bot_robot_namespace, '/scan"'])),
+#             ('scan_out', PythonExpression(['"/', peer_robot_namespace, '/obstacles_in"'])),
+#         ],
+#         condition=IfCondition(PythonExpression(['"', peer_robot_namespace, '" != ""'])),
+#         ),
+
+#         # genz_icp_launch,  # disabled: unused since odom_relay feeds nav2 instead, and its
+#         # odometry_node was burning 300%+ CPU on this already-overloaded box (system load
+#         # average 54 with it running), starving nav2_container's component-load service calls
+#         # entirely. Re-enable once you actually want GenZ-ICP's output consumed by something.
+
+#         #     TimerAction(
+#         #period=3.0, #10.0,
+#         # actions=[
+#         #Node(
+#         #     package='slam_toolbox',
+#         #     executable='async_slam_toolbox_node',
+#         #     name='slam_toolbox',
+#         #     output='screen',
+#         #     # We separate the YAML and the explicit dictionary
+#         #     parameters=[
+#         #         slam_params_path, 
+#         #        {'use_sim_time':True} # This MUST be a separate dictionary entry
+#         #     ],
+#         #     # HARD OVERRIDE: Force it at the command line level
+#         #     arguments=['--ros-args', '-p', 'use_sim_time:=true'] 
+#         #),
+#      #]
+#      #),
+     
+#      #Node(
+# 	#    package='octomap_server',
+# 	#    executable='octomap_server_node',
+# 	#    name='octomap_server',
+# 	#    output='screen',
+# 	#    parameters=[{
+# 	#        'use_sim_time': True,
+# 	#	'resolution': 0.05,                   # 5cm voxel size (matches your costmap)
+# 	#	'frame_id': 'map',                    # The global frame to attach the map to
+# 	#	'base_frame_id': 'base_',    # The robot's base frame
+# 	#	
+# 	#	# Sensor characteristics
+# 	#	'sensor_model.max_range': 50.0,       # Only integrate points within 20m to save CPU
+# 	#	'sensor_model.hit': 0.7,              # Probability increase on a hit
+# 	#	'sensor_model.miss': 0.4,             # Probability decrease on a miss (clearing ghosts)
+# 	#	
+# 	#	# Slicing the map
+# 	#	'pointcloud_min_z': 0.5,              # Ignore the floor so it doesn't become an obstacle
+# 	#	'pointcloud_max_z': 1.0,              # Only map up to 1 meter high
+# 	#	'occupancy_min_z': 0.5,
+# 	#	'occupancy_max_z': 1.0,
+# 	#	
+# 	#	# Ground filtering (highly recommended for 3D LiDARs)
+# 	#	'filter_ground_plane': False, #True,
+# 	#	'ground_filter.distance': 0.20, #0.05,       
+# 	#	'ground_filter.angle': 0.15,          
+# 	 #   }],
+# 	  #  remappings=[
+# 	#	('cloud_in', '/bf_lidar/point_cloud_out'),         # Input: Your simulated 3D LiDAR
+# 	 #   ]
+# 	#),
+     
+     
+#         delayed_nav2_launch
+#     ])
+
+from launch import LaunchDescription
+from launch_ros.actions import Node
+from launch.actions import IncludeLaunchDescription
+from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch.actions import TimerAction
+import os
+from ament_index_python.packages import get_package_share_directory
+
+#extra addition, meine kiya
+from launch_ros.actions import SetParameter
+
+def generate_launch_description():
+    namePackage = 'lirovo'
+    slam_params_path = os.path.join(get_package_share_directory(namePackage),'config','slam_params.yaml')
+    nav2_params_path = os.path.join(get_package_share_directory(namePackage),'config','nav2_params.yaml')
+    print(f"SLAM params path: {slam_params_path}")
+
+    pkg_nav2_dir = get_package_share_directory('nav2_bringup')
+
+    nav2_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(pkg_nav2_dir, 'launch', 'bringup_launch.py')
+        ),
+        launch_arguments={
+            'params_file': nav2_params_path,
+            'autostart': 'True',
+            'map': 'map',  
+        }.items() 
+    )
+    delayed_nav2_launch = TimerAction(
+    period=3.0,
+    actions=[nav2_launch]
+)
+
+    return LaunchDescription([
+    
+        SetParameter(name='use_sim_time', value=True), #extra addition, meine kiya 
+        
+         Node(
+             package='tf2_ros',
+             executable='static_transform_publisher',
+             arguments=['0.27', '-0.12', '0.59', '0', '0', '0', 'base_link', 'lidar'],
+             parameters=[{'use_sim_time': True}], #False
+             name='static_tf_lidar'
+         ),
+         #Node(
+         #    package='tf2_ros',
+         #    executable='static_transform_publisher',
+         #    arguments=['0', '0', '0', '1.5708', '0', '0', 'base_link', 'base_footprint'],
+         #    parameters=[{'use_sim_time':False}], #False
+         #    name='static_tf_base_footprint'
+         #),
+        # Node(
+        #    package='lirovo',
+        #     executable='pointcloud_processor',
+        #     name='pointcloud_processor',
+        #     output='screen',
+        #     parameters=[{'use_sim_time':False}]
+        # ),
+         Node(
+             package='pointcloud_to_laserscan',
+             executable='pointcloud_to_laserscan_node',
+             name='pointcloud_to_laserscan',
+             parameters=[{
+                 'target_frame': 'base_link',
+                 'transform_tolerance': 0.05, #0.5,
+                 'min_height': 0.1, #0.0 , #-0.3, # bcr bot 3d lidar is 40.5 cm above ground
+                 'max_height': 1.0, #0.7 , #1.0,
+                 'angle_min': -0.6293,  # -35 degrees
+                 'angle_max': 0.6293,   # +35 degrees
+                 #'angle_min': -3.14159,
+                 #'angle_max': +3.14159,
+                 'angle_increment': 0.0055, #0.00872665,
+                 'scan_time': 0.1, #0.8, #0.07, #0.8,
+                 'range_min': 1.5, #0.2,
+                 'range_max': 41.0, #100.0,
+                 'use_inf': True,
+                 'inf_epsilon': 1.0,
+                 'queue_size': 50,
+                 'use_sim_time':True, #False,
+             }],
+             remappings=[
+                 ('cloud_in', '/bf_lidar/point_cloud_out'),
+                 ('scan', '/scan'),
+             ],
+             ),
+        
+        Node(
+             package='tf2_ros',
+             executable='static_transform_publisher',
+             arguments=['0', '0', '0', '0', '0', '0', 'map', 'odom'],
+             name='static_tf_odom'
+         ),
+        # Node(
+        #     package='lirovo',
+        #     executable='mavros_bridge',
+        #     name='mavros_bridge',
+        #     output='screen',
+        #     parameters=[{'use_sim_time':False}] #False
+        # ),
+        #THE MISSING ENGINE: Start GenZ-ICP to generate odometry from the bag
+        #IncludeLaunchDescription(
+        #    PythonLaunchDescriptionSource(
+        #        os.path.join(get_package_share_directory('genz_icp'), 'launch', 'odometry.launch.py') # Make sure this filename is correct!
+        #    ),
+        #    launch_arguments={
+        #        'topic': '/bf_lidar/point_cloud_out', # <--- REPLACE WITH YOUR BAG'S PC2 TOPIC
+        #        'publish_odom_tf': 'false',            # Let EKF handle the TF
+        #        'use_sim_time': 'false'
+        #    }.items()
+        #),
+      #  vins
+        # IncludeLaunchDescription(
+        # PythonLaunchDescriptionSource(
+        #     os.path.join(get_package_share_directory('vins'), 'launch', 'euroc.launch.py')
+        # ),
+        # launch_arguments={
+        #     # If you want to use a different config than the default in that file:
+        #     'config_path': os.path.join(get_package_share_directory('vins'), 'config', 'realsense_d435i', 'realsense_stereo_imu_config.yaml')
+        # }.items()
+        # ), 
+        
+         #Node(
+         #package='robot_localization',
+         #executable='ekf_node',
+         #name='ekf_filter_node',
+         #output='screen',
+         #parameters=[os.path.join(
+         #    get_package_share_directory(namePackage),
+         #    'config', 'ekf_localization.yaml')],
+         #),
+         
+         #..............................
+         #TimerAction(
+         #   period=3.0,
+         #   actions=[
+         #       IncludeLaunchDescription(
+         #           PythonLaunchDescriptionSource(
+         #               os.path.join(get_package_share_directory('slam_toolbox'), 'launch', 'online_async_launch.py')
+         #           ),
+         #           launch_arguments={
+         #               'slam_params_file': slam_params_path,
+         #               'use_sim_time': 'False'
+         #           }.items()
+         #       )
+         #   ]
+        #),
+        # Node(
+        #     package='lirovo',
+        #     executable='navigator',
+        #     name='navigator',
+        #     output='screen',
+        #     parameters=[{'use_sim_time':True}] #False
+        # ),
+        # Node(
+        #     package='lirovo',
+        #     executable='converter',
+        #     name='converter',
+        #     output='screen',
+        #     parameters=[{'use_sim_time':False}] #False
+        # ),
+        # TimerAction(
+        #     period=1.0,
+        #     actions=[
+        #         Node(
+        #             package='slam_toolbox',
+        #             executable='async_slam_toolbox_node',
+        #             name='slam_toolbox',
+        #             output='screen',
+        #             parameters=[slam_params_path],
+        #         ),
+        #     ]
+        # ),
+	
+        #Node( #bcr bot ke liye add kiya
+        #package='bcr_bot',
+        #executable='remapper.py',
+        #name='remapper',
+        #output='screen',
+       #),        
+        #     TimerAction(
+        #period=3.0, #10.0,
+        # actions=[
+        #Node(
+        #     package='slam_toolbox',
+        #     executable='async_slam_toolbox_node',
+        #     name='slam_toolbox',
+        #     output='screen',
+        #     # We separate the YAML and the explicit dictionary
+        #     parameters=[
+        #         slam_params_path, 
+        #        {'use_sim_time':True} # This MUST be a separate dictionary entry
+        #     ],
+        #     # HARD OVERRIDE: Force it at the command line level
+        #     arguments=['--ros-args', '-p', 'use_sim_time:=true'] 
+        #),
+     #]
+     #),
+     
+     #Node(
+	#    package='octomap_server',
+	#    executable='octomap_server_node',
+	#    name='octomap_server',
+	#    output='screen',
+	#    parameters=[{
+	#        'use_sim_time': True,
+	#	'resolution': 0.05,                   # 5cm voxel size (matches your costmap)
+	#	'frame_id': 'map',                    # The global frame to attach the map to
+	#	'base_frame_id': 'base_',    # The robot's base frame
+	#	
+	#	# Sensor characteristics
+	#	'sensor_model.max_range': 50.0,       # Only integrate points within 20m to save CPU
+	#	'sensor_model.hit': 0.7,              # Probability increase on a hit
+	#	'sensor_model.miss': 0.4,             # Probability decrease on a miss (clearing ghosts)
+	#	
+	#	# Slicing the map
+	#	'pointcloud_min_z': 0.5,              # Ignore the floor so it doesn't become an obstacle
+	#	'pointcloud_max_z': 1.0,              # Only map up to 1 meter high
+	#	'occupancy_min_z': 0.5,
+	#	'occupancy_max_z': 1.0,
+	#	
+	#	# Ground filtering (highly recommended for 3D LiDARs)
+	#	'filter_ground_plane': False, #True,
+	#	'ground_filter.distance': 0.20, #0.05,       
+	#	'ground_filter.angle': 0.15,          
+	 #   }],
+	  #  remappings=[
+	#	('cloud_in', '/bf_lidar/point_cloud_out'),         # Input: Your simulated 3D LiDAR
+	 #   ]
+	#),
+     
+     
+        delayed_nav2_launch
+    ])

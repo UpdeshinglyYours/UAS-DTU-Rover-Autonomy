@@ -1,0 +1,104 @@
+Contributing
+============
+
+1. Fork the repo. [<img src="https://upload.wikimedia.org/wikipedia/commons/3/38/GitHub_Fork_Button.png" height="30"/>](https://github.com/mavlink/mavros/fork)
+2. Clone the repo into your workspace:
+
+  ```bash
+  git clone https://github.com/mavlink/mavros.git
+  ```
+
+3. Configure remotes for upstream + your fork:
+
+  ```bash
+  git remote rename origin upstream
+  git remote add origin git@github.com:<YourGitUser>/mavros.git
+  ```
+
+4. Create a feature/dev branch:
+
+  ```bash
+  git checkout -b <feature_branch>
+  ```
+
+5. Make your changes.
+6. Commit the changes using the commit subject format `<component>: ...`.
+
+  ```bash
+  git add -A
+  git commit -m "plugin: <short description>"
+  ```
+
+7. Check your code style:
+
+  ```bash
+  ament_uncrustify --reformat
+  ```
+
+8. Fix small code style errors and typos.
+9. Keep style-only commits separate from logic changes and use the same subject format `<component>: ...`, for example: `mavros: uncrustify`, `docs: typo fixes`.
+10. Source ROS and workspace environments before build/test commands:
+
+  ```bash
+  source /opt/ros/<distro>/setup.bash
+  source install/setup.bash  # if workspace is already built
+  ```
+
+11. Run tests:
+
+  ```bash
+  colcon test --packages-select mavros mavros_extras mavros_msgs
+  colcon test-result --verbose
+  ```
+
+12. If everything goes as planned, push the changes and issue a pull request.
+
+  ```bash
+  git push -u origin <feature_branch>
+  ```
+
+
+Devcontainer (optional)
+-----------------------
+
+For a reproducible development environment, see `.devcontainer/README.md`.
+
+
+Security reporting
+------------------
+
+For security issue reporting policy, see `SECURITY.md`.
+
+
+cog.py generators
+-----------------
+
+In many places we need to copy some data from MAVLink, and in many places we have regular patterns of code (e.g. copied message fields).
+To avoid manual copy-paste work (and errors!) we use the the [cog.py][cog] code generator/preprocessor.
+
+Cog generates C++ code from code blocks written in Python that you add into your C++ code file as specially formatted comments.
+Since you are now using Python, you can import and make use of the [pymavlink][pml] module, which already comes with MAVlink message definitions that you can reuse.
+An example you may look at is the `utils::to_string()` implementation for some enums in [lib/enum_to_string.cpp][ets].
+
+Install cog and pymavlink you need [uv][uv]:
+
+```bash
+uv tool install ./tools
+```
+
+Add your generator code to your file as comments enclosed in the `[[[cog:]]]` and `[[[end]]]` tags. Then invoke cog so that it updates your file:
+
+```bash
+mr-cog -cr your_file.h/cpp
+```
+
+In addition, this script will re-generate all files with cog code:
+
+```bash
+./tools/cogall.sh
+```
+
+[cog]: https://nedbatchelder.com/code/cog/
+[ets]: https://github.com/mavlink/mavros/blob/ros2/mavros/src/lib/enum_to_string.cpp
+[pml]: https://mavlink.io/en/mavgen_python/
+[uv]: https://github.com/astral-sh/uv

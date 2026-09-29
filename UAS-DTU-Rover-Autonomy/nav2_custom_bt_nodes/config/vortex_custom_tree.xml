@@ -1,0 +1,174 @@
+<?xml version="1.0"?>
+<!--
+  ROOT NODE:
+  The main entry point for the Behavior Tree.
+  `main_tree_to_execute` specifies the ID of the tree to run when Nav2 loads this file.
+-->
+<root main_tree_to_execute="MainTree">
+  <BehaviorTree ID="MainTree">
+    
+    <!--
+      KEEPRUNNINGUNTILFAILURE:
+      This decorator loops its child sequence continuously.
+      It will only stop (and return FAILURE to Nav2) if the child fails.
+      We use this to loop through our array of casualties. When the array is empty,
+      our custom `PopNextGoal` node will intentionally return FAILURE, breaking this loop
+      and gracefully ending the mission.
+    -->
+    <KeepRunningUntilFailure>
+      <Sequence name="ProcessSingleCasualty">
+        
+        <!-- ========================================================================= -->
+        <!-- 1. POP THE NEXT CASUALTY GOAL & CALCULATE APPROACH                        -->
+        <!-- ========================================================================= -->
+
+        <!--
+          PopNextGoal (Custom Node):
+          Takes the list of {goals} from the blackboard, extracts the first one into {casualty_center},
+          and updates the {goals} list on the blackboard.
+        -->
+        <PopNextGoal input_goals="{goals}" output_goals="{goals}" output_goal="{casualty_center}"/>
+        
+        <!--
+          CalculateApproachPose (Custom Node):
+          Uses the robot's CURRENT physical location via TF, draws a straight line to the casualty,
+          and drops a destination goal exactly 4.2m away on that line. 
+          This prevents the global planner from planning a path inside our dynamic keepout zone.
+        -->
+        <CalculateApproachPose center="{casualty_center}" radius="3.5" output_pose="{approach_pose}"/>
+
+        <!-- ========================================================================= -->
+        <!-- 2. THE STANDOFF PHASE (Fully Robust with Replanning and Recoveries)       -->
+        <!-- ========================================================================= -->
+
+        <!--
+          RecoveryNode (NavigateRecovery):
+          Tries its first child (the PipelineSequence). If the first child fails (e.g., getting stuck),
+          it executes the second child (RecoveryFallback). It will retry this cycle up to 6 times.
+        -->
+        <RecoveryNode number_of_retries="6" name="NavigateRecovery">
+          
+          <!--
+            PipelineSequence:
+            Nav2's custom control node. It concurrently ticks both the planner and the controller.
+            This allows the robot to dynamically replan its path while actively driving.
+          -->
+          <PipelineSequence name="NavigateWithReplanning">
+            
+            <!--
+              RateController (Planner Branch):
+              Throttles the global planner to run only at 1.0 Hz (once per second) to save CPU.
+            -->
+            <RateController hz="1.0">
+              <RecoveryNode number_of_retries="1" name="ComputePathToPose">
+                <!-- Plans the global path to the 4.2m standoff point using A* or Dijkstra -->
+                <ComputePathToPose goal="{approach_pose}" path="{approach_path}" planner_id="GridBased"/>
+                <!-- If planning fails, clear the global costmap and try one more time -->
+                <ClearEntireCostmap name="ClearGlobalCostmap-Context" service_name="global_costmap/clear_entirely_global_costmap"/>
+              </RecoveryNode>
+            </RateController>
+            
+            <!--
+              Controller Branch:
+              Runs at the BT tick rate (typically 100Hz).
+            -->
+            <RecoveryNode number_of_retries="1" name="FollowPath">
+              <!-- Follows the path using the standard fast/normal controller settings -->
+              <FollowPath path="{approach_path}" controller_id="FollowPath"/>
+              <!-- If the controller gets stuck locally, clear the local costmap -->
+              <ClearEntireCostmap name="ClearLocalCostmap-Context" service_name="local_costmap/clear_entirely_local_costmap"/>
+            </RecoveryNode>
+          </PipelineSequence>
+          
+          <!--
+            ReactiveFallback (The Escalation Recoveries):
+            If the approach completely fails (costmaps cleared, but still physically stuck),
+            the tree falls back to these physical recovery actions.
+          -->
+          <ReactiveFallback name="RecoveryFallback">
+            <!-- Preemption check: If a new goal array is received, stop recovering! -->
+            <GoalUpdated/>
+            <!--
+              RoundRobin:
+              Tries a different recovery action sequentially each time the robot gets stuck.
+              Cycle 1: Clear both costmaps.
+              Cycle 2: Spin in place.
+              Cycle 3: Wait for dynamic obstacles to move.
+              Cycle 4: Back up slightly.
+            -->
+            <RoundRobin name="RecoveryActions">
+              <Sequence name="ClearingActions">
+                <ClearEntireCostmap name="ClearLocalCostmap-Subtree" service_name="local_costmap/clear_entirely_local_costmap"/>
+                <ClearEntireCostmap name="ClearGlobalCostmap-Subtree" service_name="global_costmap/clear_entirely_global_costmap"/>
+              </Sequence>
+              <Spin spin_dist="1.57"/>
+              <Wait wait_duration="5"/>
+              <BackUp backup_dist="0.30" backup_speed="0.05"/>
+            </RoundRobin>
+          </ReactiveFallback>
+          
+        </RecoveryNode>
+
+        <!-- ========================================================================= -->
+        <!-- 3. THE 360 ORBIT PHASE (Strict tracking, NO recoveries allowed)           -->
+        <!-- ========================================================================= -->
+
+        <!--
+          Sequence (OrbitPhase):
+          The robot has successfully reached the 4.2m standoff point.
+          Now we lock in and perform the tight 350-degree orbit.
+        -->
+        <Sequence name="OrbitPhase">
+          <!--
+            GenerateOrbitPath (Custom Node):
+            Reads the robot's current parked position, and generates a dense circular path 
+            (counter-clockwise) at a 4.2m radius around the casualty.
+          -->
+          <GenerateOrbitPath center="{casualty_center}" radius="3.5" output_path="{orbit_path}"/>
+          
+          <!--
+            ForceSuccess:
+            Acts like a try/catch block. If the watchdog (below) kills the controller because
+            of a safety breach, this absorbs the FAILURE, preventing the entire mission from aborting.
+            It forces the sequence to advance to the "Analyze" Wait phase.
+          -->
+          <!-- <ForceSuccess> -->
+            <!--
+              ReactiveSequence (StrictKeepoutWatchdog):
+              Runs at 100Hz. It constantly checks the condition (IsGoalCloserThan) BEFORE ticking
+              the controller (FollowPath).
+            -->
+            <ReactiveSequence name="StrictKeepoutWatchdog">
+              
+              <!--
+                100Hz Watchdog Kill Switch:
+                Succeeds ONLY if the robot is > 4.0m away. If the robot slips inward to 3.99m,
+                this condition succeeds, the Inverter flips it to FAILURE, and the
+                ReactiveSequence instantly halts the FollowPath controller.
+              -->
+              <Inverter>
+                 <IsGoalCloserThan distance="2.0" goal="{casualty_center}"/>
+              </Inverter>
+              
+              <!--
+                Orbit Controller (Controller Swap):
+                Drives the circular path using the specially tuned 'OrbitController' profile
+                (short lookahead distance, slower speeds) loaded from nav2_params.yaml.
+              -->
+              <FollowPath path="{orbit_path}" controller_id="OrbitController"/>
+              
+            </ReactiveSequence>
+          <!-- </ForceSuccess> -->
+        </Sequence>
+        
+        <!-- ========================================================================= -->
+        <!-- 4. TRANSMIT/ANALYZE                                                       -->
+        <!-- ========================================================================= -->
+        <!-- Wait here for 5 seconds to process camera feeds / transmit data before moving on -->
+        <Wait wait_duration="5.0" server_timeout="10.0"/>
+
+      </Sequence>
+    </KeepRunningUntilFailure>
+    
+  </BehaviorTree>
+</root>

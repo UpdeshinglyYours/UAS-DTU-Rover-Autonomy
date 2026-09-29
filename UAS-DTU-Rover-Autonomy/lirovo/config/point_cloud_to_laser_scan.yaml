@@ -1,0 +1,28 @@
+pointcloud_to_laserscan:
+  ros__parameters:
+    # rover1 hardware values, verified live 2026-08-30 against the real Blickfeld lidar and
+    # the current static_tf_lidar mount TF (base_link -> lidar, x=0 y=0 z=0, yaw=1.57, roll=0,
+    # pitch=0 - see lirovo_hardware.launch.py). Real points land at z ~ -0.69 to 0.63 and
+    # angle ~ 0.94 to 2.20 rad in base_link frame (measured directly, not derived from mount
+    # geometry by hand) - min_height/max_height/angle_min/angle_max below have margin either
+    # side of that. If static_tf_lidar's x/y/z/yaw ever changes, THIS WINDOW GOES STALE -
+    # re-measure with a live TF-transform check rather than trusting these numbers on faith.
+    #
+    # NOTE: lirovo_hardware.launch.py currently sets these same values inline in its own
+    # pointcloud_to_laserscan Node() rather than loading this file - the launch file's inline
+    # values are what actually take effect. This file is kept in sync as the documented
+    # reference/default; if you want the launch file loading this file directly instead of
+    # inlining, say so and I'll wire it in.
+    target_frame: base_link
+    min_height: -0.8
+    max_height: 0.7
+    angle_min: 0.85
+    angle_max: 2.3
+    angle_increment: 0.00872665
+    scan_time: 0.1
+    range_min: 1.5
+    range_max: 41.0
+    use_inf: true
+    inf_epsilon: 1.0
+    transform_tolerance: 0.05
+    queue_size: 50

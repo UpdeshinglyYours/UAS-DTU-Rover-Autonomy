@@ -1,0 +1,27 @@
+bf_lidar:
+  ros__parameters:
+    host: "192.168.26.26"
+    frame_id: "lidar"
+    remap: true
+    publish_ambient_light: false
+    publish_explicit_range: false
+    publish_intensities: false
+    publish_no_return_points: false
+    publish_point_id: true
+    publish_point_time_offset: false
+    no_return_point_range: 1.0
+    returns_publishing_options: "strongest"
+    projection_type: angle_preserving
+    publish_ambient_image: false
+    publish_intensity_image: false
+    publish_range_image: false
+    publish_point_id_image: true
+    imu_acceleration_unit: "g"
+    publish_imu: true
+    publish_imu_static_tf_at_start: true
+    use_lidar_timestamp: false
+    logging_throttled_interval: 10000
+    use_background_subtraction: false
+    use_neighbor_filter: false
+    background_subtraction_exponential_decay_rate: 0.005
+    background_subtraction_num_initialization_frames: 10
