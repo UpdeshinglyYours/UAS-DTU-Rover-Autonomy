@@ -83,6 +83,11 @@ elif [ -f /workspace/DARPA_ws/install/setup.bash ]; then
     source /workspace/DARPA_ws/install/setup.bash
 elif [ -f /home/vortex/DARPA_ws/install/setup.bash ]; then
     source /home/vortex/DARPA_ws/install/setup.bash
+else
+    echo -e "\033[1;31m[ERROR] No compiled workspace install/setup.bash found!\033[0m"
+    echo -e "\033[1;33mPlease compile your workspace first inside the container:\033[0m"
+    echo -e "   \033[1;36mcd ${WORKSPACE_DIR} && colcon build --symlink-install\033[0m\n"
+    exit 1
 fi
 
 echo -e "\033[1;34m=========================================================="
@@ -127,16 +132,30 @@ sleep 2
 # -----------------------------------------------------------------------------
 # 5. RViz2
 # -----------------------------------------------------------------------------
-if [ -n "${DISPLAY}" ] && [ -f "${RVIZ_CONFIG}" ]; then
-    echo -e "\033[1;33m[5/5] Launching RViz2 with ${RVIZ_CONFIG}...\033[0m"
-    rviz2 -d "${RVIZ_CONFIG}" &
-    PIDS+=($!)
-elif [ -n "${DISPLAY}" ]; then
-    echo -e "\033[1;33m[5/5] Launching RViz2 (default config)...\033[0m"
-    rviz2 &
-    PIDS+=($!)
+# if [ -n "${DISPLAY}" ] && [ -f "${RVIZ_CONFIG}" ]; then
+#     echo -e "\033[1;33m[5/5] Launching RViz2 with ${RVIZ_CONFIG}...\033[0m"
+#     rviz2 -d "${RVIZ_CONFIG}" &
+#     PIDS+=($!)
+# elif [ -n "${DISPLAY}" ]; then
+#     echo -e "\033[1;33m[5/5] Launching RViz2 (default config)...\033[0m"
+#     rviz2 &
+#     PIDS+=($!)
+# else
+#     echo -e "\033[1;35m[5/5] DISPLAY not set, skipping RViz2 GUI launch.\033[0m"
+# fi
+if [ -n "${DISPLAY}" ] && xset q >/dev/null 2>&1; then
+    if [ -f "${RVIZ_CONFIG}" ]; then
+        echo -e "\033[1;33m[5/5] Launching RViz2 with ${RVIZ_CONFIG}...\033[0m"
+        rviz2 -d "${RVIZ_CONFIG}" &
+        PIDS+=($!)
+    else
+        echo -e "\033[1;33m[5/5] Launching RViz2 (default config)...\033[0m"
+        rviz2 &
+        PIDS+=($!)
+    fi
 else
-    echo -e "\033[1;35m[5/5] DISPLAY not set, skipping RViz2 GUI launch.\033[0m"
+    echo -e "\033[1;35m[5/5] X11 GUI display not available/authorized, skipping RViz2.\033[0m"
+    echo -e "\033[1;35m      (Rover nodes are running! View topics in RViz2 on your laptop via CycloneDDS).\033[0m"
 fi
 
 echo -e "\n\033[1;32m=========================================================="

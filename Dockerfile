@@ -165,11 +165,13 @@ RUN ARCH=$(dpkg --print-architecture) \
     else \
         echo "Detected architecture $ARCH (e.g. Jetson Orin NX). Building Blickfeld C++ library from source..." \
         && git clone --depth 1 --branch v2.20.6 https://github.com/Blickfeld/blickfeld-scanner-lib.git /tmp/bsl \
-        && cd /tmp/bsl && mkdir -p build && cd build \
+        && cd /tmp/bsl \
+        && git submodule update --init thirdparty/asio \
+        && mkdir -p build && cd build \
         && cmake .. -DCMAKE_BUILD_TYPE=Release -DBF_BUILD_EXAMPLES=OFF -DBF_BUILD_TESTS=OFF \
         && make -j$(nproc) && make install \
         && ldconfig \
-        && rm -rf /tmp/bsl || true; \
+        && rm -rf /tmp/bsl; \
     fi
 
 # -----------------------------------------------------------------------------
