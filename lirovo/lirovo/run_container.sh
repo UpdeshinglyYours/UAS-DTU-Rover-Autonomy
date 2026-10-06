@@ -27,10 +27,13 @@ fi
 WORKSPACE_NAME="$(basename "${WORKSPACE_DIR}")"
 
 # Auto-detect GPU runtime:
-# Jetson Orin NX natively uses '--runtime nvidia', while desktops support both '--runtime nvidia' and '--gpus all'
-GPU_ARGS="--gpus all"
-if docker info 2>/dev/null | grep -i "Runtimes" | grep -q "nvidia"; then
+# Jetson Tegra (aarch64) strictly requires '--runtime nvidia'. Desktops (x86_64) support both.
+if [ -f /etc/nv_tegra_release ] || [ -d /usr/lib/aarch64-linux-gnu/tegra ] || [ "$(uname -m)" = "aarch64" ]; then
     GPU_ARGS="--runtime nvidia"
+elif docker info 2>/dev/null | grep -i "Runtimes" | grep -q "nvidia"; then
+    GPU_ARGS="--runtime nvidia"
+else
+    GPU_ARGS="--gpus all"
 fi
 
 echo "=========================================================="
