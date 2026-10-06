@@ -9,7 +9,8 @@
 # -----------------------------------------------------------------------------
 # 1. Base Image
 # -----------------------------------------------------------------------------
-FROM nvcr.io/nvidia/cuda:12.6.3-cudnn-devel-ubuntu22.04
+ARG BASE_IMAGE=nvcr.io/nvidia/cuda:12.6.3-cudnn-devel-ubuntu22.04
+FROM ${BASE_IMAGE}
 
 # -----------------------------------------------------------------------------
 # 2. Environment Configuration
@@ -147,9 +148,29 @@ RUN geographiclib-get-geoids egm96-5 \
 # -----------------------------------------------------------------------------
 # 7. Blickfeld Scanner Library (BSL v2.20.6)
 # -----------------------------------------------------------------------------
-RUN wget -q https://github.com/Blickfeld/blickfeld-scanner-lib/releases/download/v2.20.6/blickfeld-scanner-lib-dev-Linux.deb -O /tmp/blickfeld.deb \
-    && dpkg -i /tmp/blickfeld.deb \
-    && rm /tmp/blickfeld.deb
+# Ubuntu 18/20 deb (relies on libprotobuf17):
+# RUN wget -q https://github.com/Blickfeld/blickfeld-scanner-lib/releases/download/v2.20.6/blickfeld-scanner-lib-dev-Linux.deb -O /tmp/blickfeld.deb \
+#     && dpkg -i /tmp/blickfeld.deb \
+#     && rm /tmp/blickfeld.deb
+# Ubuntu 22.04 deb (matches libprotobuf23):
+# RUN wget -q https://github.com/Blickfeld/blickfeld-scanner-lib/releases/download/v2.20.6/blickfeld-scanner-lib-dev-testing-Linux.deb -O /tmp/blickfeld.deb \
+#     && dpkg -i /tmp/blickfeld.deb \
+#     && rm /tmp/blickfeld.deb
+# Multi-architecture support: amd64 deb on laptop/PC, source build on Jetson Orin NX (arm64):
+RUN ARCH=$(dpkg --print-architecture) \
+    && if [ "$ARCH" = "amd64" ]; then \
+        wget -q https://github.com/Blickfeld/blickfeld-scanner-lib/releases/download/v2.20.6/blickfeld-scanner-lib-dev-testing-Linux.deb -O /tmp/blickfeld.deb \
+        && dpkg -i /tmp/blickfeld.deb \
+        && rm /tmp/blickfeld.deb; \
+    else \
+        echo "Detected architecture $ARCH (e.g. Jetson Orin NX). Building Blickfeld C++ library from source..." \
+        && git clone --depth 1 --branch v2.20.6 https://github.com/Blickfeld/blickfeld-scanner-lib.git /tmp/bsl \
+        && cd /tmp/bsl && mkdir -p build && cd build \
+        && cmake .. -DCMAKE_BUILD_TYPE=Release -DBF_BUILD_EXAMPLES=OFF -DBF_BUILD_TESTS=OFF \
+        && make -j$(nproc) && make install \
+        && ldconfig \
+        && rm -rf /tmp/bsl || true; \
+    fi
 
 # -----------------------------------------------------------------------------
 # 8. rosdep Init & Auto-Sourcing Environment
