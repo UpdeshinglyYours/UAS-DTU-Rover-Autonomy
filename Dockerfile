@@ -115,6 +115,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-humble-geographic-msgs \
     libgeographic-dev \
     geographiclib-tools \
+    libasio-dev \
+    libconsole-bridge-dev \
+    python3-empy \
+    python3-zmq \
+    ros-humble-robot-localization \
+    ros-humble-test-msgs \
+    ros-humble-behaviortree-cpp-v3 \
+    ros-humble-bondcpp \
+    ros-humble-ompl \
+    libgraphicsmagick++1-dev \
+    libnanoflann-dev \
+    libomp-dev \
     # Ceres & SLAM Toolbox / VINS math dependencies
     libceres-dev \
     libsuitesparse-dev \
@@ -192,6 +204,7 @@ RUN echo "" >> /root/.bashrc \
     && echo "if [ -f /workspace/lightwarelidar/install/setup.bash ]; then source /workspace/lightwarelidar/install/setup.bash; fi" >> /root/.bashrc \
     && echo "if [ -f /workspace/uas_nav/install/setup.bash ]; then source /workspace/uas_nav/install/setup.bash; fi" >> /root/.bashrc \
     && echo "if [ -f /workspace/DARPA_ws/install/setup.bash ]; then source /workspace/DARPA_ws/install/setup.bash; fi" >> /root/.bashrc \
+    && echo "if [ -f /workspace/rover_docker/install/setup.bash ]; then source /workspace/rover_docker/install/setup.bash; fi" >> /root/.bashrc \
     && echo "export PS1='\[\e[1;31m\]\u@uas-rover\[\e[0m\]:\[\e[1;34m\]\w\[\e[0m\]\$ '" >> /root/.bashrc
 
 # -----------------------------------------------------------------------------
@@ -200,7 +213,8 @@ RUN echo "" >> /root/.bashrc \
 # Ensures any hardcoded /home/vortex paths resolve seamlessly inside container
 RUN mkdir -p /home/vortex \
     && ln -s /workspace/DARPA_ws /home/vortex/DARPA_ws \
-    && ln -s /workspace/uas_nav /home/vortex/uas_nav
+    && ln -s /workspace/uas_nav /home/vortex/uas_nav \
+    && ln -s /workspace/rover_docker /home/vortex/rover_docker
 
 WORKDIR /workspace
 CMD ["/bin/bash"]
