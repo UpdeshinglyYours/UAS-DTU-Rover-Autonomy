@@ -1,0 +1,23 @@
+/lightwarelidar/sf45b:
+  ros__parameters:
+    port: "/dev/ttyUSB0"
+    baudrate: 115200
+    frame_id: "laser"
+    publish_laser_scan: true
+    updateRate: 12
+    cycleDelay: 5
+    lowAngleLimit: -45.0
+    highAngleLimit: 45.0
+    maxPoints: 100
+
+/**:
+  ros__parameters:
+    port: "/dev/ttyUSB0"
+    baudrate: 115200
+    frame_id: "laser"
+    publish_laser_scan: true
+    updateRate: 12
+    cycleDelay: 5
+    lowAngleLimit: -45.0
+    highAngleLimit: 45.0
+    maxPoints: 100

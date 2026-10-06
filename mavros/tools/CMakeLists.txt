@@ -1,0 +1,35 @@
+cmake_minimum_required(VERSION 3.16)
+project(mavros_tools_cpp LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+add_executable(plugin_doc_extract plugin_doc_extract.cpp)
+
+# Humble typically provides yaml-cpp via yaml_cpp_vendor.
+# Newer distros may provide a system CMake config target.
+if(DEFINED ENV{ROS_DISTRO} AND "$ENV{ROS_DISTRO}" STREQUAL "humble")
+  find_package(yaml_cpp_vendor REQUIRED)
+  target_link_libraries(plugin_doc_extract PRIVATE yaml-cpp)
+else()
+  find_package(yaml-cpp QUIET CONFIG)
+  if(yaml-cpp_FOUND)
+    target_link_libraries(plugin_doc_extract PRIVATE yaml-cpp::yaml-cpp)
+  else()
+    find_package(yaml_cpp_vendor QUIET)
+    if(yaml_cpp_vendor_FOUND)
+      target_link_libraries(plugin_doc_extract PRIVATE yaml-cpp)
+    else()
+      find_package(PkgConfig REQUIRED)
+      pkg_check_modules(YAMLCPP REQUIRED yaml-cpp)
+      target_include_directories(plugin_doc_extract PRIVATE ${YAMLCPP_INCLUDE_DIRS})
+      target_link_directories(plugin_doc_extract PRIVATE ${YAMLCPP_LIBRARY_DIRS})
+      target_link_libraries(plugin_doc_extract PRIVATE ${YAMLCPP_LIBRARIES})
+    endif()
+  endif()
+endif()
+
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+  target_compile_options(plugin_doc_extract PRIVATE -O3 -Wall -Wextra -Wpedantic)
+endif()

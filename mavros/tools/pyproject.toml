@@ -1,0 +1,66 @@
+[project]
+name = "mavros-tools"
+version = "0.2.1"
+description = "Mavros development tools"
+readme = "README.md"
+requires-python = ">=3.11"
+
+dependencies = [
+    "pymavlink",
+    "cogapp",
+    "attrs",
+    "comment-parser",
+    # docs - `uv tool install` do not have `--group` similar to `uv sync`.
+    "mkdocs",
+    "mkdocs-material",
+    "mkdocstrings-python",
+    "mkdocs-click",
+    "sphinx",
+    "griffe-sphinx",
+    "griffe-typingdoc",
+    "griffe-fieldz",
+    "markdown-include",
+    "markdown-exec",
+    # api-gen
+    "loguru",
+    "jinja2",
+]
+
+[dependency-groups]
+dev = [
+    # "black",
+    "ruff",
+    "mypy",
+    "pytest",
+    "pytest-cov",
+]
+docs = [
+    "mkdocs",
+    "mkdocs-material",
+    "mkdocstrings-python",
+    "mkdocs-click",
+    "sphinx",
+    "griffe-sphinx",
+    "griffe-typingdoc",
+    "griffe-fieldz",
+    "markdown-include",
+    "markdown-exec",
+]
+
+[project.scripts]
+mr-cog = "cogapp:main"
+mr-mkdocs = "mkdocs.__main__:cli"
+mr-plugin-doc-gen = "plugin_doc_gen:main"
+
+[tool.hatch.build.targets.sdist]
+include = ["*.py"]
+
+#[tool.hatch.build.targets.wheel]
+#packages = ["mavros_cog"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"./" = "./"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
