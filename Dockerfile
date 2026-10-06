@@ -126,6 +126,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Blickfeld protobuf dependencies
     libprotobuf-dev \
     libprotobuf23 \
+    protobuf-compiler \
     # Colcon tools & Python libraries
     python3-colcon-common-extensions \
     python3-rosdep \
