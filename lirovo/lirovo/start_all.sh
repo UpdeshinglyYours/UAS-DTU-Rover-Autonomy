@@ -94,13 +94,14 @@ echo -e "\033[1;34m=========================================================="
 echo " UAS Rover Full Autonomy Stack Bringup"
 echo " FCU Port:      ${FCU_URL}"
 echo " SF45/B Port:   ${SF45B_PORT}"
-echo " RViz Config:   ${RVIZ_CONFIG}"
+# echo " RViz Config:   ${RVIZ_CONFIG}"
 echo -e "==========================================================\033[0m\n"
 
 # -----------------------------------------------------------------------------
 # 1. MAVROS
 # -----------------------------------------------------------------------------
-echo -e "\033[1;33m[1/5] Launching MAVROS (FCU: ${FCU_URL})...\033[0m"
+# echo -e "\033[1;33m[1/5] Launching MAVROS (FCU: ${FCU_URL})...\033[0m"
+echo -e "\033[1;33m[1/4] Launching MAVROS (FCU: ${FCU_URL})...\033[0m"
 ros2 launch mavros apm.launch fcu_url:="${FCU_URL}" &
 PIDS+=($!)
 sleep 2
@@ -108,7 +109,8 @@ sleep 2
 # -----------------------------------------------------------------------------
 # 2. Blickfeld LiDAR Driver
 # -----------------------------------------------------------------------------
-echo -e "\033[1;33m[2/5] Launching Blickfeld LiDAR Driver...\033[0m"
+# echo -e "\033[1;33m[2/5] Launching Blickfeld LiDAR Driver...\033[0m"
+echo -e "\033[1;33m[2/4] Launching Blickfeld LiDAR Driver...\033[0m"
 ros2 launch blickfeld_driver live_scanner_node.launch.py &
 PIDS+=($!)
 sleep 2
@@ -116,7 +118,8 @@ sleep 2
 # -----------------------------------------------------------------------------
 # 3. LightWare SF45/B LiDAR Driver
 # -----------------------------------------------------------------------------
-echo -e "\033[1;33m[3/5] Launching LightWare SF45/B LiDAR Driver (Port: ${SF45B_PORT})...\033[0m"
+# echo -e "\033[1;33m[3/5] Launching LightWare SF45/B LiDAR Driver (Port: ${SF45B_PORT})...\033[0m"
+echo -e "\033[1;33m[3/4] Launching LightWare SF45/B LiDAR Driver (Port: ${SF45B_PORT})...\033[0m"
 ros2 launch lightwarelidar sf45b.launch.py port:="${SF45B_PORT}" &
 PIDS+=($!)
 sleep 1
@@ -124,13 +127,14 @@ sleep 1
 # -----------------------------------------------------------------------------
 # 4. LIROVO Navigation Stack
 # -----------------------------------------------------------------------------
-echo -e "\033[1;33m[4/5] Launching LIROVO Navigation Stack...\033[0m"
+# echo -e "\033[1;33m[4/5] Launching LIROVO Navigation Stack...\033[0m"
+echo -e "\033[1;33m[4/4] Launching LIROVO Navigation Stack...\033[0m"
 ros2 launch lirovo lirovo.launch.py &
 PIDS+=($!)
 sleep 2
 
 # -----------------------------------------------------------------------------
-# 5. RViz2
+# 5. RViz2 (Disabled per user request - view topics on laptop via CycloneDDS)
 # -----------------------------------------------------------------------------
 # if [ -n "${DISPLAY}" ] && [ -f "${RVIZ_CONFIG}" ]; then
 #     echo -e "\033[1;33m[5/5] Launching RViz2 with ${RVIZ_CONFIG}...\033[0m"
@@ -143,23 +147,24 @@ sleep 2
 # else
 #     echo -e "\033[1;35m[5/5] DISPLAY not set, skipping RViz2 GUI launch.\033[0m"
 # fi
-if [ -n "${DISPLAY}" ] && xset q >/dev/null 2>&1; then
-    if [ -f "${RVIZ_CONFIG}" ]; then
-        echo -e "\033[1;33m[5/5] Launching RViz2 with ${RVIZ_CONFIG}...\033[0m"
-        rviz2 -d "${RVIZ_CONFIG}" &
-        PIDS+=($!)
-    else
-        echo -e "\033[1;33m[5/5] Launching RViz2 (default config)...\033[0m"
-        rviz2 &
-        PIDS+=($!)
-    fi
-else
-    echo -e "\033[1;35m[5/5] X11 GUI display not available/authorized, skipping RViz2.\033[0m"
-    echo -e "\033[1;35m      (Rover nodes are running! View topics in RViz2 on your laptop via CycloneDDS).\033[0m"
-fi
+# if [ -n "${DISPLAY}" ] && xset q >/dev/null 2>&1; then
+#     if [ -f "${RVIZ_CONFIG}" ]; then
+#         echo -e "\033[1;33m[5/5] Launching RViz2 with ${RVIZ_CONFIG}...\033[0m"
+#         rviz2 -d "${RVIZ_CONFIG}" &
+#         PIDS+=($!)
+#     else
+#         echo -e "\033[1;33m[5/5] Launching RViz2 (default config)...\033[0m"
+#         rviz2 &
+#         PIDS+=($!)
+#     fi
+# else
+#     echo -e "\033[1;35m[5/5] X11 GUI display not available/authorized, skipping RViz2.\033[0m"
+#     echo -e "\033[1;35m      (Rover nodes are running! View topics in RViz2 on your laptop via CycloneDDS).\033[0m"
+# fi
 
 echo -e "\n\033[1;32m=========================================================="
-echo " All 5 Rover Subsystems Running!"
+# echo " All 5 Rover Subsystems Running!"
+echo " All 4 Rover Subsystems Running! (MAVROS, Blickfeld, SF45/B, LIROVO)"
 echo " Press Ctrl+C at any time to instantly kill everything."
 echo -e "==========================================================\033[0m\n"
 
