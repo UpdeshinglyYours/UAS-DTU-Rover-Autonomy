@@ -193,28 +193,34 @@ RUN ARCH=$(dpkg --print-architecture) \
 RUN rosdep init 2>/dev/null || true \
     && rosdep update --include-eol-distros
 
-# Auto-source ROS 2, Mavros_ws, and uas_nav when opening bash shells
+# Auto-source ROS 2 and Workspaces dynamically when opening bash shells
+# (Preserved previous hardcoded workspace sourcing as comments per policy):
+# echo "if [ -f /workspace/Mavros_ws/install/setup.bash ]; then source /workspace/Mavros_ws/install/setup.bash; fi" >> /root/.bashrc
+# echo "if [ -f /workspace/Blickfeld_ws/install/setup.bash ]; then source /workspace/Blickfeld_ws/install/setup.bash; fi" >> /root/.bashrc
+# echo "if [ -f /workspace/ros2_ws/install/setup.bash ]; then source /workspace/ros2_ws/install/setup.bash; fi" >> /root/.bashrc
+# echo "if [ -f /workspace/lightwarelidar/install/setup.bash ]; then source /workspace/lightwarelidar/install/setup.bash; fi" >> /root/.bashrc
+# echo "if [ -f /workspace/uas_nav/install/setup.bash ]; then source /workspace/uas_nav/install/setup.bash; fi" >> /root/.bashrc
+# echo "if [ -f /workspace/DARPA_ws/install/setup.bash ]; then source /workspace/DARPA_ws/install/setup.bash; fi" >> /root/.bashrc
+# echo "if [ -f /workspace/rover_docker/install/setup.bash ]; then source /workspace/rover_docker/install/setup.bash; fi" >> /root/.bashrc
 RUN echo "" >> /root/.bashrc \
-    && echo "# Auto-source ROS 2 and Workspaces" >> /root/.bashrc \
+    && echo "# Auto-source ROS 2 and Workspaces dynamically" >> /root/.bashrc \
     && echo "source /opt/ros/humble/setup.bash" >> /root/.bashrc \
     && echo "export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp" >> /root/.bashrc \
-    && echo "if [ -f /workspace/Mavros_ws/install/setup.bash ]; then source /workspace/Mavros_ws/install/setup.bash; fi" >> /root/.bashrc \
-    && echo "if [ -f /workspace/Blickfeld_ws/install/setup.bash ]; then source /workspace/Blickfeld_ws/install/setup.bash; fi" >> /root/.bashrc \
-    && echo "if [ -f /workspace/ros2_ws/install/setup.bash ]; then source /workspace/ros2_ws/install/setup.bash; fi" >> /root/.bashrc \
-    && echo "if [ -f /workspace/lightwarelidar/install/setup.bash ]; then source /workspace/lightwarelidar/install/setup.bash; fi" >> /root/.bashrc \
-    && echo "if [ -f /workspace/uas_nav/install/setup.bash ]; then source /workspace/uas_nav/install/setup.bash; fi" >> /root/.bashrc \
-    && echo "if [ -f /workspace/DARPA_ws/install/setup.bash ]; then source /workspace/DARPA_ws/install/setup.bash; fi" >> /root/.bashrc \
-    && echo "if [ -f /workspace/rover_docker/install/setup.bash ]; then source /workspace/rover_docker/install/setup.bash; fi" >> /root/.bashrc \
+    && echo 'if [ -f /workspace/install/setup.bash ]; then source /workspace/install/setup.bash; fi' >> /root/.bashrc \
+    && echo 'for ws in /workspace/*/install/setup.bash; do if [ -f "$ws" ]; then source "$ws"; fi; done' >> /root/.bashrc \
+    && echo 'mkdir -p /home/vortex 2>/dev/null || true' >> /root/.bashrc \
+    && echo 'for d in /workspace/*; do if [ -d "$d" ]; then b=$(basename "$d"); [ ! -e "/home/vortex/$b" ] && ln -s "$d" "/home/vortex/$b" 2>/dev/null || true; fi; done' >> /root/.bashrc \
     && echo "export PS1='\[\e[1;31m\]\u@uas-rover\[\e[0m\]:\[\e[1;34m\]\w\[\e[0m\]\$ '" >> /root/.bashrc
 
 # -----------------------------------------------------------------------------
 # 9. Path Compatibility & Workspace Directory
 # -----------------------------------------------------------------------------
-# Ensures any hardcoded /home/vortex paths resolve seamlessly inside container
-RUN mkdir -p /home/vortex \
-    && ln -s /workspace/DARPA_ws /home/vortex/DARPA_ws \
-    && ln -s /workspace/uas_nav /home/vortex/uas_nav \
-    && ln -s /workspace/rover_docker /home/vortex/rover_docker
+# Ensures any paths resolve seamlessly inside container
+# (Preserved previous hardcoded workspace symlinks as comments per policy):
+# ln -s /workspace/DARPA_ws /home/vortex/DARPA_ws
+# ln -s /workspace/uas_nav /home/vortex/uas_nav
+# ln -s /workspace/rover_docker /home/vortex/rover_docker
+RUN mkdir -p /home/vortex
 
 WORKDIR /workspace
 CMD ["/bin/bash"]
