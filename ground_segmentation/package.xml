@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>ground_segmentation</name>
+  <version>1.0.0</version>
+  <description>
+    Terrain-aware 3D PointCloud ground filtering and LaserScan projection node.
+    Performs dynamic slope analysis, step-height validation, and gravity-aligned
+    traversability classification before projecting true obstacles into a 2D LaserScan.
+    Designed as a seamless drop-in replacement for pointcloud_to_laserscan.
+  </description>
+
+  <maintainer email="vortex@uasdtu.com">Vortex</maintainer>
+  <author email="vortex@uasdtu.com">Vortex</author>
+  <license>BSD-3-Clause</license>
+
+  <buildtool_depend>ament_cmake_auto</buildtool_depend>
+
+  <depend>rclcpp</depend>
+  <depend>rclcpp_components</depend>
+  <depend>sensor_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>tf2</depend>
+  <depend>tf2_ros</depend>
+  <depend>tf2_sensor_msgs</depend>
+  <depend>tf2_geometry_msgs</depend>
+  <depend>laser_geometry</depend>
+  <depend>eigen</depend>
+
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

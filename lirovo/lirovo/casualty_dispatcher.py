@@ -172,7 +172,8 @@ def main(args=None):
     casualty_locations = [ #(225.0, -114.0), #(3.0, 0.0) #, (6.0, 2.0), (3.0, 0.0)
         #(-21.0, 30.0),
         #(274.0, 5.0),
-        (-2.0, 0.0),
+        (13.0, 5.0),
+        (25.0, 3.0),
     ]
 
     dispatcher.send_mission(casualty_locations)

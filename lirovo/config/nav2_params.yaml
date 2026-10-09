@@ -322,7 +322,7 @@
           enabled: true
           observation_sources: scan
           scan:
-            topic: /lightwarelidar/scan
+            topic: /scan_2d_filtered
             raytrace_max_range: 2.0  
             raytrace_min_range: 0.3 
             obstacle_max_range: 2.0 
@@ -335,71 +335,71 @@
             data_type: "LaserScan"
         
 
-        stvl_camera_layer:
-          plugin: "spatio_temporal_voxel_layer/SpatioTemporalVoxelLayer"
+        # stvl_camera_layer:
+        #   plugin: "spatio_temporal_voxel_layer/SpatioTemporalVoxelLayer"
 
-          enabled:                  true
-          voxel_decay:              3600.0 #2.5 #0.5
-          decay_model:              0 #2 .. persistent #-1 #0
-          voxel_size:               0.05
-          track_unknown_space:      true
-          mark_threshold:           0
-          update_footprint_enabled: true
-          combination_method:       1
-          origin_z:                 0.0
-          publish_voxel_map:        true
-          transform_tolerance:      0.3
-          mapping_mode:             false
-          map_save_duration:        60.0
-          publish_z_max:            2.0 #new addition
-          observation_sources:      livox_mark livox_clear
-          livox_mark:
-            data_type: PointCloud2
-            topic: /camera/depth/points #/segmentation/obstacle
-            marking: true
-            clearing: false
-            obstacle_range: 2.0 #3.0 
-            obstacle_min_range: 0.4 #new addition
-            min_obstacle_height: 0.15 #0.1 #-0.4
-            max_obstacle_height: 1.0 #2.0
-            expected_update_rate: 3600.0 #0.3 #seconds #0.0
-            observation_persistence: 0.0
-            inf_is_valid: false
-            filter: "voxel"
-            voxel_min_points: 0 #2 #0
-            clear_after_reading: true
-          livox_clear:
-            enabled: true
-            data_type: PointCloud2
-            topic: /camera/depth/points #/segmentation/obstacle
-            marking: false
-            clearing: true
-            max_z: 2.1 #8.0
-            min_z: 0.3 #1.0
-            expected_update_rate: 3600.0 #0.3 #seconds # new addition
-            vertical_fov_angle: 0.8 #1.029
-            vertical_fov_padding: 0.05
-            horizontal_fov_angle: 1.221 #6.29
-            decay_acceleration: 7200.0 #5.0
-            model_type: 1
-            clear_after_reading: true #new addition
+        #   enabled:                  true
+        #   voxel_decay:              3600.0 #2.5 #0.5
+        #   decay_model:              0 #2 .. persistent #-1 #0
+        #   voxel_size:               0.05
+        #   track_unknown_space:      true
+        #   mark_threshold:           0
+        #   update_footprint_enabled: true
+        #   combination_method:       1
+        #   origin_z:                 0.0
+        #   publish_voxel_map:        true
+        #   transform_tolerance:      0.3
+        #   mapping_mode:             false
+        #   map_save_duration:        60.0
+        #   publish_z_max:            2.0 #new addition
+        #   observation_sources:      livox_mark livox_clear
+        #   livox_mark:
+        #     data_type: PointCloud2
+        #     topic: /camera/depth/points #/segmentation/obstacle
+        #     marking: true
+        #     clearing: false
+        #     obstacle_range: 2.0 #3.0 
+        #     obstacle_min_range: 0.4 #new addition
+        #     min_obstacle_height: 0.15 #0.1 #-0.4
+        #     max_obstacle_height: 1.0 #2.0
+        #     expected_update_rate: 3600.0 #0.3 #seconds #0.0
+        #     observation_persistence: 0.0
+        #     inf_is_valid: false
+        #     filter: "voxel"
+        #     voxel_min_points: 0 #2 #0
+        #     clear_after_reading: true
+        #   livox_clear:
+        #     enabled: true
+        #     data_type: PointCloud2
+        #     topic: /camera/depth/points #/segmentation/obstacle
+        #     marking: false
+        #     clearing: true
+        #     max_z: 2.1 #8.0
+        #     min_z: 0.3 #1.0
+        #     expected_update_rate: 3600.0 #0.3 #seconds # new addition
+        #     vertical_fov_angle: 0.8 #1.029
+        #     vertical_fov_padding: 0.05
+        #     horizontal_fov_angle: 1.221 #6.29
+        #     decay_acceleration: 7200.0 #5.0
+        #     model_type: 1
+        #     clear_after_reading: true #new addition
 
-        camera_layer:
-          plugin: "nav2_costmap_2d::ObstacleLayer"
-          enabled: true
-          observation_sources: scan
-          scan:
-            topic: /camera/scan
-            raytrace_max_range: 2.0 #15.0 #30.0 
-            raytrace_min_range: 0.4 #1.5 #0.55 #new addition  # actually exact 43cm hai
-            obstacle_max_range: 2.0 
-            obstacle_min_range: 0.4 #1.5 #0.2 #0.1
-            min_obstacle_height: -1.0 #new addition
-            max_obstacle_height: 1.0 
-            clearing: true
-            marking: true
-            inf_is_valid: true
-            data_type: "LaserScan"
+        # camera_layer:
+        #   plugin: "nav2_costmap_2d::ObstacleLayer"
+        #   enabled: true
+        #   observation_sources: scan
+        #   scan:
+        #     topic: /camera/scan
+        #     raytrace_max_range: 2.0 #15.0 #30.0 
+        #     raytrace_min_range: 0.4 #1.5 #0.55 #new addition  # actually exact 43cm hai
+        #     obstacle_max_range: 2.0 
+        #     obstacle_min_range: 0.4 #1.5 #0.2 #0.1
+        #     min_obstacle_height: -1.0 #new addition
+        #     max_obstacle_height: 1.0 
+        #     clearing: true
+        #     marking: true
+        #     inf_is_valid: true
+        #     data_type: "LaserScan"
 
         obstacle_layer:
           plugin: "nav2_costmap_2d::ObstacleLayer"
@@ -418,11 +418,11 @@
             inf_is_valid: true
             data_type: "LaserScan"
             
-        new_static_layer:
-          plugin: "nav2_costmap_2d::StaticLayer"
-          footprint_clearing_enabled: True
-          map_subscribe_transient_local: True
-          map_topic: /map_expanded
+        # new_static_layer:
+        #   plugin: "nav2_costmap_2d::StaticLayer"
+        #   footprint_clearing_enabled: True
+        #   map_subscribe_transient_local: True
+        #   map_topic: /map_expanded
             
         inflation_layer:
           plugin: "nav2_costmap_2d::InflationLayer"
@@ -451,26 +451,26 @@
         #plugins: ["static_layer", "stvl_layer", "casualty_layer", "inflation_layer"]
         plugins: ["scan_layer", "obstacle_layer", "casualty_layer", "inflation_layer"]
         
-        peer_rover_layer:
-        plugin: "nav2_costmap_2d::ObstacleLayer"
-        enabled: true
-        observation_sources: rover1_obstacles
-        rover1_obstacles:
-          data_type: PointCloud2
-          topic: /obstacle_keepout1
-          marking: true
-          clearing: false
-          obstacle_max_range: 500.0
-          raytrace_max_range: 500.0
-          min_obstacle_height: 0.0
-          max_obstacle_height: 1.5
+        # peer_rover_layer:
+        # plugin: "nav2_costmap_2d::ObstacleLayer"
+        # enabled: true
+        # observation_sources: rover1_obstacles
+        # rover1_obstacles:
+        #   data_type: PointCloud2
+        #   topic: /obstacle_keepout1
+        #   marking: true
+        #   clearing: false
+        #   obstacle_max_range: 500.0
+        #   raytrace_max_range: 500.0
+        #   min_obstacle_height: 0.0
+        #   max_obstacle_height: 1.5
         
         scan_layer:
           plugin: "nav2_costmap_2d::ObstacleLayer"
           enabled: true
           observation_sources: scan
           scan:
-            topic: /lightwarelidar/scan
+            topic: /scan_2d_filtered
             raytrace_max_range: 2.0  
             raytrace_min_range: 0.3 
             obstacle_max_range: 2.0 
@@ -482,71 +482,71 @@
             inf_is_valid: true
             data_type: "LaserScan"
 
-        camera_layer:
-          plugin: "nav2_costmap_2d::ObstacleLayer"
-          enabled: true
-          observation_sources: scan
-          scan:
-            topic: /camera/scan
-            raytrace_max_range: 2.0 #15.0 #30.0 
-            raytrace_min_range: 0.4 #1.5 #0.55 #new addition  # actually exact 43cm hai
-            obstacle_max_range: 2.0 
-            obstacle_min_range: 0.4 #1.5 #0.2 #0.1
-            min_obstacle_height: -1.0 #new addition
-            max_obstacle_height: 1.0 
-            clearing: true
-            marking: true
-            inf_is_valid: true
-            data_type: "LaserScan"
+        # camera_layer:
+        #   plugin: "nav2_costmap_2d::ObstacleLayer"
+        #   enabled: true
+        #   observation_sources: scan
+        #   scan:
+        #     topic: /camera/scan
+        #     raytrace_max_range: 2.0 #15.0 #30.0 
+        #     raytrace_min_range: 0.4 #1.5 #0.55 #new addition  # actually exact 43cm hai
+        #     obstacle_max_range: 2.0 
+        #     obstacle_min_range: 0.4 #1.5 #0.2 #0.1
+        #     min_obstacle_height: -1.0 #new addition
+        #     max_obstacle_height: 1.0 
+        #     clearing: true
+        #     marking: true
+        #     inf_is_valid: true
+        #     data_type: "LaserScan"
 
-        stvl_camera_layer:
-          plugin: "spatio_temporal_voxel_layer/SpatioTemporalVoxelLayer"
+        # stvl_camera_layer:
+        #   plugin: "spatio_temporal_voxel_layer/SpatioTemporalVoxelLayer"
 
-          enabled:                  true
-          voxel_decay:              3600.0 #2.5 #0.5
-          decay_model:              0 #2 .. persistent #-1 #0
-          voxel_size:               0.05
-          track_unknown_space:      true
-          mark_threshold:           0
-          update_footprint_enabled: true
-          combination_method:       1
-          origin_z:                 0.0
-          publish_voxel_map:        true
-          transform_tolerance:      0.3
-          mapping_mode:             false
-          map_save_duration:        60.0
-          publish_z_max:            2.0 #new addition
-          observation_sources:      livox_mark livox_clear
-          livox_mark:
-            data_type: PointCloud2
-            topic: /camera/depth/points #/segmentation/obstacle
-            marking: true
-            clearing: false
-            obstacle_range: 2.0 #3.0 
-            obstacle_min_range: 0.4 #new addition
-            min_obstacle_height: 0.15 #0.1 #-0.4
-            max_obstacle_height: 1.0 #2.0
-            expected_update_rate: 3600.0 #0.3 #seconds #0.0
-            observation_persistence: 0.0
-            inf_is_valid: false
-            filter: "voxel"
-            voxel_min_points: 0 #2 #0
-            clear_after_reading: true
-          livox_clear:
-            enabled: true
-            data_type: PointCloud2
-            topic: /camera/depth/points #/segmentation/obstacle
-            marking: false
-            clearing: true
-            max_z: 2.1 #8.0
-            min_z: 0.3 #1.0
-            expected_update_rate: 3600.0 #0.3 #seconds # new addition
-            vertical_fov_angle: 0.8 #1.029
-            vertical_fov_padding: 0.05
-            horizontal_fov_angle: 1.221 #6.29
-            decay_acceleration: 7200.0 #5.0
-            model_type: 1
-            clear_after_reading: true #new addition
+        #   enabled:                  true
+        #   voxel_decay:              3600.0 #2.5 #0.5
+        #   decay_model:              0 #2 .. persistent #-1 #0
+        #   voxel_size:               0.05
+        #   track_unknown_space:      true
+        #   mark_threshold:           0
+        #   update_footprint_enabled: true
+        #   combination_method:       1
+        #   origin_z:                 0.0
+        #   publish_voxel_map:        true
+        #   transform_tolerance:      0.3
+        #   mapping_mode:             false
+        #   map_save_duration:        60.0
+        #   publish_z_max:            2.0 #new addition
+        #   observation_sources:      livox_mark livox_clear
+        #   livox_mark:
+        #     data_type: PointCloud2
+        #     topic: /camera/depth/points #/segmentation/obstacle
+        #     marking: true
+        #     clearing: false
+        #     obstacle_range: 2.0 #3.0 
+        #     obstacle_min_range: 0.4 #new addition
+        #     min_obstacle_height: 0.15 #0.1 #-0.4
+        #     max_obstacle_height: 1.0 #2.0
+        #     expected_update_rate: 3600.0 #0.3 #seconds #0.0
+        #     observation_persistence: 0.0
+        #     inf_is_valid: false
+        #     filter: "voxel"
+        #     voxel_min_points: 0 #2 #0
+        #     clear_after_reading: true
+        #   livox_clear:
+        #     enabled: true
+        #     data_type: PointCloud2
+        #     topic: /camera/depth/points #/segmentation/obstacle
+        #     marking: false
+        #     clearing: true
+        #     max_z: 2.1 #8.0
+        #     min_z: 0.3 #1.0
+        #     expected_update_rate: 3600.0 #0.3 #seconds # new addition
+        #     vertical_fov_angle: 0.8 #1.029
+        #     vertical_fov_padding: 0.05
+        #     horizontal_fov_angle: 1.221 #6.29
+        #     decay_acceleration: 7200.0 #5.0
+        #     model_type: 1
+        #     clear_after_reading: true #new addition
 
         #global costmap mein obstacle layer maine add kari ..local costmap mein pehle se thi
         obstacle_layer:
@@ -631,15 +631,15 @@
             model_type: 1
             clear_after_reading: true #new addition
 
-        static_layer:
-          plugin: "nav2_costmap_2d::StaticLayer"
-          footprint_clearing_enabled: True
-          map_subscribe_transient_local: True
-        new_static_layer:
-          plugin: "nav2_costmap_2d::StaticLayer"
-          footprint_clearing_enabled: True
-          map_subscribe_transient_local: True
-          map_topic: /map_expanded
+        # static_layer:
+        #   plugin: "nav2_costmap_2d::StaticLayer"
+        #   footprint_clearing_enabled: True
+        #   map_subscribe_transient_local: True
+        # new_static_layer:
+        #   plugin: "nav2_costmap_2d::StaticLayer"
+        #   footprint_clearing_enabled: True
+        #   map_subscribe_transient_local: True
+        #   map_topic: /map_expanded
         inflation_layer:
           plugin: "nav2_costmap_2d::InflationLayer"
           cost_scaling_factor: 1.0 #3.0 #8.0
