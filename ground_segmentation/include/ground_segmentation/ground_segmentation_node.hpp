@@ -140,6 +140,7 @@ private:
   double radial_bin_size_{0.10}; // Bin size along radial rays for slope calculation (Default: 0.10m)
   double max_gap_distance_{0.40}; // Maximum radial distance between consecutive ground points before breaking continuity (Default: 0.40m)
   bool debug_publish_clouds_{false}; // Flag to publish debug point clouds (Default: false)
+  bool visualise_{false};            // Flag to publish color-coded traversable (green) & non-traversable (red) pointclouds (Default: false)
   // -----------------------------------------------------------------------------------------------
   // [NEW] Direct Odometry Topic Subscription (Bypasses TF lookup delays entirely)
   // -----------------------------------------------------------------------------------------------
@@ -254,6 +255,10 @@ private:
   std::vector<BinData> radial_ray_bins_;
   std::vector<Point3D> all_valid_points_;
   std::unordered_map<uint64_t, int> voxel_point_counts_;
+
+  // Pre-allocated buffers for two-pass ray processing (zero heap allocations in callback)
+  std::vector<int> first_bins_;
+  std::vector<uint8_t> pass1_anchored_;
 };
 
 }  // namespace ground_segmentation

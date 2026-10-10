@@ -25,7 +25,7 @@ class OdomToTf(Node):
         # Subscribe to MAVROS odometry with Best Effort QoS
         self.subscription = self.create_subscription(
             Odometry,
-            '/mavros/local_position/odom',
+            '/genz/odometry', #'/mavros/local_position/odom',
             self.odom_callback,
             qos_profile)
             

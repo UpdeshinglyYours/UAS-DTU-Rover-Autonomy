@@ -1,9 +1,15 @@
+import os
+from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
+from launch.conditions import IfCondition
 from launch_ros.actions import Node
 
 def generate_launch_description():
+    pkg_ground_segmentation = get_package_share_directory('ground_segmentation')
+    rviz_config_file = os.path.join(pkg_ground_segmentation, 'rviz', 'ground_segmentation_visualize.rviz')
+
     return LaunchDescription([
         DeclareLaunchArgument(
             name='target_frame',
@@ -67,6 +73,11 @@ def generate_launch_description():
             default_value='4.0',
             description='Maximum range in meters to mark drop-off ledges across unobserved gaps'
         ),
+        DeclareLaunchArgument(
+            name='visualise',
+            default_value='false',
+            description='Whether to visualize traversable (green) and obstacle (red) point clouds in RViz2'
+        ),
 
         Node(
             package='ground_segmentation',
@@ -88,6 +99,7 @@ def generate_launch_description():
                 'use_inf': True,
                 'inf_epsilon': 1.0,
                 'queue_size': 50,
+                'visualise': LaunchConfiguration('visualise'),
                 # Dynamic Ground & Slope Filtering Parameters
                 'enable_ground_filtering': True,
                 'gravity_frame': 'map',
@@ -116,5 +128,14 @@ def generate_launch_description():
                 ('cloud_in', '/bf_lidar/point_cloud_out'),
                 ('scan', '/scan'),
             ],
+        ),
+
+        Node(
+            package='rviz2',
+            executable='rviz2',
+            name='rviz2_ground_segmentation',
+            arguments=['-d', rviz_config_file],
+            condition=IfCondition(LaunchConfiguration('visualise')),
+            output='screen',
         )
     ])

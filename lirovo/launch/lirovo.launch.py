@@ -1,19 +1,21 @@
 
 from launch import LaunchDescription
-from launch_ros.actions import Node
-from launch.actions import IncludeLaunchDescription
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, TimerAction
+from launch.substitutions import LaunchConfiguration
+from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.actions import TimerAction
 import os
 from ament_index_python.packages import get_package_share_directory
 
 #extra addition, meine kiya
-from launch_ros.actions import SetParameter
+from launch_ros.actions import Node, SetParameter
 
 def generate_launch_description():
     namePackage = 'lirovo'
     slam_params_path = os.path.join(get_package_share_directory(namePackage),'config','slam_params.yaml')
     nav2_params_path = os.path.join(get_package_share_directory(namePackage),'config','nav2_params.yaml')
+    pkg_ground_seg = get_package_share_directory('ground_segmentation')
+    rviz_ground_seg_config = os.path.join(pkg_ground_seg, 'rviz', 'ground_segmentation_visualize.rviz')
     print(f"SLAM params path: {slam_params_path}")
 
     pkg_nav2_dir = get_package_share_directory('nav2_bringup')
@@ -34,13 +36,18 @@ def generate_launch_description():
 )
 
     return LaunchDescription([
+        DeclareLaunchArgument(
+            name='visualise',
+            default_value='false', #'false',
+            description='Whether to launch RViz2 and publish traversable/obstacle debug clouds'
+        ),
     
         SetParameter(name='use_sim_time', value=False), #extra addition, meine kiya 
         
          Node(
              package='tf2_ros',
              executable='static_transform_publisher',
-             arguments=['0.23', '0.0', '0.52', '0', '0', '0', 'base_link', 'lidar'],
+             arguments=['-0.17', '0.0', '0.56', '0', '0', '0', 'base_link', 'lidar'],
              parameters=[{'use_sim_time': False}], #False
              name='static_tf_lidar'
          ),
@@ -48,7 +55,7 @@ def generate_launch_description():
          Node(
              package='tf2_ros',
              executable='static_transform_publisher',
-             arguments=['-0.19', '0.0', '0.19', '0', '0', '0', 'base_link', 'laser'],
+             arguments=['0.25', '0.0', '0.19', '0', '0', '0', 'base_link', 'laser'],
              parameters=[{'use_sim_time': False}], #False
              name='static_tf_2d_lidar'
          ),
@@ -122,8 +129,8 @@ def generate_launch_description():
                  # Dynamic Terrain & Slope Filtering Parameters
                  'enable_ground_filtering': True,
                  'gravity_frame': 'map',
-                 'max_slope_angle_deg': 30.0, # <= 30 deg slope is traversable
-                 'max_step_height': 0.12,     # 12cm obstacle step jump threshold
+                 'max_slope_angle_deg': 45.0, #30.0, # <= 30 deg slope is traversable
+                 'max_step_height': 0.15, #0.12,     # 12cm obstacle step jump threshold
                  'max_drop_height': 0.18,     # 18cm drop-off / ditch threshold
                  'enable_drop_detection': True,
                  'max_drop_range': 4.0,       # 4.0m cap for gap drop detection
@@ -134,7 +141,7 @@ def generate_launch_description():
                  'odom_topic': '/mavros/local_position/odom',
                  # 3D Voxel Outlier Filter (Preserved from Vortex's fork)
                  'enable_3d_point_filter': True,
-                 'filter_voxel_size': 0.15,         # 15cm 3D voxel box
+                 'filter_voxel_size': 0.12, #0.15,         # 15cm 3D voxel box
                  'min_points_per_voxel': 2,         # Must have >= 2 points in the 3D voxel
                  # -----------------------------------------------------------------
                  # 2D LiDAR Slope-Filtering Parameters (SF45/B Close-Range Blind Zone Assist)
@@ -144,7 +151,8 @@ def generate_launch_description():
                  'scan_2d_out_topic': '/scan_2d_filtered',
                  'scan_2d_max_range': 20.0, #50.0,    # Cleared fake ramp points are projected to 50.0m for Nav2 free-space raytracing
                  'ramp_hit_tolerance': 0.12, #0.15,   # Distance / height tolerance (m) for detecting ramp surface hits
-                 'use_sim_time': False,
+                 'visualise': LaunchConfiguration('visualise'),
+                 'use_sim_time': True, #False,
              }],
              remappings=[
                  ('cloud_in', '/bf_lidar/point_cloud_out'),
@@ -161,6 +169,26 @@ def generate_launch_description():
              parameters=[{'use_sim_time':False}] 
         ),
         
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
+                os.path.join(get_package_share_directory('genz_icp'), 'launch', 'bf_lidar_genz_pipeline.launch.py') # Make sure this filename is correct!
+            ),
+            #launch_arguments={
+            #    'topic': '/bf_lidar/point_cloud_out', # <--- REPLACE WITH YOUR BAG'S PC2 TOPIC
+            #    'publish_odom_tf': 'false',            # Let EKF handle the TF
+            #    'use_sim_time': 'false'
+            #}.items()
+        ),
         
-        delayed_nav2_launch
+        
+        delayed_nav2_launch,
+
+        Node(
+            package='rviz2',
+            executable='rviz2',
+            name='rviz2_ground_segmentation',
+            arguments=['-d', rviz_ground_seg_config],
+            condition=IfCondition(LaunchConfiguration('visualise')),
+            output='screen',
+        )
     ])

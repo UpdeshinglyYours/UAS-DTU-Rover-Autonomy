@@ -150,9 +150,16 @@ GroundSegmentationNode::GroundSegmentationNode(const rclcpp::NodeOptions & optio
   double max_ground_r = range_max_;
   num_bins_ = static_cast<int>(std::ceil(max_ground_r / std::max(0.01, radial_bin_size_))) + 1;
   radial_ray_bins_.resize(num_rays_ * num_bins_);
+  first_bins_.resize(num_rays_, -1);
+  pass1_anchored_.resize(num_rays_, 0);
   all_valid_points_.reserve(30000);
 
   debug_publish_clouds_ = this->declare_parameter<bool>("debug_publish_clouds", false);
+  visualise_ = this->declare_parameter<bool>("visualise", false);
+  bool alt_vis = this->declare_parameter<bool>("visualize", false);
+  if (alt_vis) {
+    visualise_ = true;
+  }
 
   // [NEW] Direct Odometry Topic Subscription (Bypasses TF lookup delays entirely)
   use_odom_topic_ = this->declare_parameter<bool>("use_odom_topic", true);
@@ -200,11 +207,13 @@ GroundSegmentationNode::GroundSegmentationNode(const rclcpp::NodeOptions & optio
     "Expected ground Z: %.2fm relative to '%s' (set to negative chassis height if base_link is above ground).",
     expected_ground_z_, target_frame_.c_str());
 
-  if (debug_publish_clouds_) {
+  if (visualise_ || debug_publish_clouds_) {
     debug_ground_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-      "debug/ground_cloud", rclcpp::SensorDataQoS());
+      "~/traversable", rclcpp::SensorDataQoS());
     debug_obstacle_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-      "debug/obstacle_cloud", rclcpp::SensorDataQoS());
+      "~/non_traversable", rclcpp::SensorDataQoS());
+    RCLCPP_INFO(this->get_logger(),
+      "Ground Segmentation visualization enabled: publishing '~/traversable' (Green) and '~/non_traversable' (Red).");
   }
 
   // Setup TF Buffer and TransformListener
@@ -432,7 +441,13 @@ void GroundSegmentationNode::cloudCallback(
   if (radial_ray_bins_.size() != static_cast<size_t>(num_rays_ * num_bins_)) {
     radial_ray_bins_.resize(num_rays_ * num_bins_);
   }
+  if (first_bins_.size() != static_cast<size_t>(num_rays_)) {
+    first_bins_.resize(num_rays_, -1);
+    pass1_anchored_.resize(num_rays_, 0);
+  }
   std::fill(radial_ray_bins_.begin(), radial_ray_bins_.end(), BinData{});
+  std::fill(first_bins_.begin(), first_bins_.end(), -1);
+  std::fill(pass1_anchored_.begin(), pass1_anchored_.end(), 0);
   all_valid_points_.clear();
 
   const double inv_bin_size = 1.0 / std::max(0.01, radial_bin_size_);
@@ -560,34 +575,14 @@ void GroundSegmentationNode::cloudCallback(
       return flat_ok || plane_ok || down_ok;
     };
 
-    for (int ray_idx = 0; ray_idx < num_rays_; ++ray_idx) {
+    // Ray processing lambda: traverses bins along a ray starting from first_bin
+    auto processRay = [&](int ray_idx, int first_bin, bool anchor_ok) {
       const int ray_offset = ray_idx * num_bins_;
-
-      // Find the first populated bin along this ray
-      int first_bin = -1;
-      for (int r_bin = 0; r_bin < num_bins_; ++r_bin) {
-        if (radial_ray_bins_[ray_offset + r_bin].valid) {
-          first_bin = r_bin;
-          break;
-        }
-      }
-      if (first_bin < 0) continue; // No points on this ray
-      rays_with_points++;
-
       auto & first = radial_ray_bins_[ray_offset + first_bin];
-      // Ground anchor check: First surface point must start near ground or in wheel plane.
-      // NOTE: Do NOT re-introduce single-ray ramp-foot extrapolation here. A fitted
-      // line along one ray is indistinguishable from an inclined obstacle face
-      // (angled vehicle hood, wedged barrier), which would be fatal to clear.
-      // Occluded ramp feet are deliberately treated as obstacles until the rover
-      // closes to anchor range. See design review, v6->v7.
-      const bool anchor_ok = anchorOk(first.pt);
       first.is_obstacle = !anchor_ok;
       first.ground_z = anchor_ok ? first.pt.z : expected_ground_z_;
       first.has_ground = anchor_ok;
-      if (!anchor_ok) {
-        anchor_failed_rays++;
-      }
+
       BinData * ref_bin = anchor_ok ? &first : nullptr;      // last confirmed ground bin
       const Point3D * ref = anchor_ok ? &first.pt : nullptr; // last confirmed ground contact
       const Point3D * trail_ref = ref;                       // trailing ground reference for multi-bin baseline slope check
@@ -783,6 +778,89 @@ void GroundSegmentationNode::cloudCallback(
           }
         }
       }
+    };
+
+    // Pass 1: Standard primary ground anchor & ray processing
+    const bool is_full_circle = (scan_msg->angle_max - scan_msg->angle_min >= 2.0 * M_PI - 0.05);
+    for (int ray_idx = 0; ray_idx < num_rays_; ++ray_idx) {
+      const int ray_offset = ray_idx * num_bins_;
+      int first_bin = -1;
+      for (int r_bin = 0; r_bin < num_bins_; ++r_bin) {
+        if (radial_ray_bins_[ray_offset + r_bin].valid) {
+          first_bin = r_bin;
+          break;
+        }
+      }
+      if (first_bin < 0) continue; // No points on this ray
+      rays_with_points++;
+      first_bins_[ray_idx] = first_bin;
+
+      auto & first = radial_ray_bins_[ray_offset + first_bin];
+      if (anchorOk(first.pt)) {
+        pass1_anchored_[ray_idx] = 1;
+        processRay(ray_idx, first_bin, true);
+      }
+    }
+
+    // Pass 2: Lateral Neighbor Cross-Anchor for shadowed / occluded rays
+    // If a ray is occluded near the rover (e.g. by front bumper or SF45/B sensor mount),
+    // its first ground return starts further out (3m - 7m) where the strict near anchor cone has faded.
+    // Cross-check if adjacent rays (left or right +-1, +-2) confirmed a valid ground plane in Pass 1.
+    //
+    // Safety guarantees:
+    //   1. NO CHAINING: Only Pass 1 ground-anchored rays may rescue others (pass1_anchored_[nb_ray] == 1).
+    //   2. SLOPE-BOUNDED TOLERANCE: Allowed elevation difference is strictly scaled by the physical lateral
+    //      arc distance between rays: tol = z_noise_ + tan_max * (range * |off| * angle_increment_).
+    //   3. 360 WRAP-AROUND: Supported when angular span covers full circle.
+    for (int ray_idx = 0; ray_idx < num_rays_; ++ray_idx) {
+      if (pass1_anchored_[ray_idx] == 1 || first_bins_[ray_idx] < 0) continue;
+
+      const int first_bin = first_bins_[ray_idx];
+      const int ray_offset = ray_idx * num_bins_;
+      auto & first = radial_ray_bins_[ray_offset + first_bin];
+
+      bool rescued = false;
+      if (first.pt.range_level <= 8.0) {
+        const int neighbor_offsets[4] = {-1, 1, -2, 2};
+        for (int off : neighbor_offsets) {
+          int nb_ray = ray_idx + off;
+          if (is_full_circle) {
+            nb_ray = (nb_ray % num_rays_ + num_rays_) % num_rays_;
+          } else if (nb_ray < 0 || nb_ray >= num_rays_) {
+            continue;
+          }
+
+          // Only unshadowed rays anchored in Pass 1 may rescue; prevents chaining across wedges
+          if (pass1_anchored_[nb_ray] != 1) continue;
+
+          // Lateral distance between the two rays at this range
+          const double lateral_dist = first.pt.range_level * std::abs(off) * angle_increment_;
+          const double slope_tol = z_noise_ + tan_max * lateral_dist;
+
+          const int nb_offset = nb_ray * num_bins_;
+          for (int db = -1; db <= 1; ++db) {
+            int test_bin = first_bin + db;
+            if (test_bin >= 0 && test_bin < num_bins_) {
+              const auto & nb_b = radial_ray_bins_[nb_offset + test_bin];
+              if (nb_b.valid && !nb_b.is_obstacle && nb_b.has_ground) {
+                if (std::abs(first.pt.z - nb_b.ground_z) <= slope_tol) {
+                  rescued = true;
+                  break;
+                }
+              }
+            }
+            if (rescued) break;
+          }
+          if (rescued) break;
+        }
+      }
+
+      if (rescued) {
+        processRay(ray_idx, first_bin, true);
+      } else {
+        anchor_failed_rays++;
+        processRay(ray_idx, first_bin, false);
+      }
     }
 
     if (rays_with_points >= 10 && (anchor_failed_rays * 100 / rays_with_points) > 75) {
@@ -917,11 +995,11 @@ void GroundSegmentationNode::cloudCallback(
   }
 
   // -----------------------------------------------------------------------------------------------
-  // Step 7: Squish remaining true obstacles into 2D LaserScan
+  // Step 7: Squish remaining true obstacles into 2D LaserScan & Visualise Traversable / Obstacle
   // -----------------------------------------------------------------------------------------------
-  const bool has_ground_sub = debug_publish_clouds_ && debug_ground_pub_ && (debug_ground_pub_->get_subscription_count() > 0);
-  const bool has_obstacle_sub = debug_publish_clouds_ && debug_obstacle_pub_ && (debug_obstacle_pub_->get_subscription_count() > 0);
-  const bool collect_debug_clouds = has_ground_sub || has_obstacle_sub;
+  const bool has_ground_sub = debug_ground_pub_ && (debug_ground_pub_->get_subscription_count() > 0 || visualise_);
+  const bool has_obstacle_sub = debug_obstacle_pub_ && (debug_obstacle_pub_->get_subscription_count() > 0 || visualise_);
+  const bool collect_debug_clouds = (visualise_ || debug_publish_clouds_) && (has_ground_sub || has_obstacle_sub);
 
   std::vector<Point3D> debug_ground_pts;
   std::vector<Point3D> debug_obstacle_pts;
@@ -949,20 +1027,22 @@ void GroundSegmentationNode::cloudCallback(
     }
 
     if (is_ground) {
-      if (has_ground_sub) debug_ground_pts.push_back(pt);
+      if (collect_debug_clouds) debug_ground_pts.push_back(pt);
       continue; // Successfully filtered out traversable ground surface!
     }
 
+    // Partition Invariant: If not ground, it is non-traversable (Green + Red == Original Cloud)
+    if (collect_debug_clouds) debug_obstacle_pts.push_back(pt);
+
     // Local ceiling check relative to terrain surface:
-    // Discard overhead points (tree branches, overhead cables, ceilings) that are more than max_height_
-    // above the local ground level. This preserves the sensing horizon on hills while maintaining overhead clearance.
+    // Discard overhead points (tree branches, overhead cables, ceilings) from 2D LaserScan
+    // that are more than max_height_ above the local ground level. This preserves the sensing
+    // horizon on hills while maintaining overhead clearance.
     if (pt.z - local_ground_z > max_height_) {
       continue;
     }
 
     // Surviving point is a TRUE OBSTACLE! Project onto 2D LaserScan ranges[]
-    if (has_obstacle_sub) debug_obstacle_pts.push_back(pt);
-
     if (pt.ray_idx >= 0 && pt.ray_idx < static_cast<int>(scan_msg->ranges.size())) {
       if (pt.range < scan_msg->ranges[pt.ray_idx]) {
         scan_msg->ranges[pt.ray_idx] = pt.range;
@@ -971,7 +1051,7 @@ void GroundSegmentationNode::cloudCallback(
   }
 
   if (collect_debug_clouds) {
-    auto create_cloud = [&](const std::vector<Point3D> & pts) {
+    auto create_cloud = [&](const std::vector<Point3D> & pts, uint8_t r, uint8_t g, uint8_t b) {
       auto cloud = std::make_unique<sensor_msgs::msg::PointCloud2>();
       cloud->header = scan_msg->header;
       cloud->height = 1;
@@ -979,21 +1059,30 @@ void GroundSegmentationNode::cloudCallback(
       cloud->is_dense = true;
       cloud->is_bigendian = false;
       sensor_msgs::PointCloud2Modifier modifier(*cloud);
-      modifier.setPointCloud2FieldsByString(1, "xyz");
+      modifier.setPointCloud2FieldsByString(2, "xyz", "rgb");
       modifier.resize(pts.size());
       sensor_msgs::PointCloud2Iterator<float> it_x(*cloud, "x");
       sensor_msgs::PointCloud2Iterator<float> it_y(*cloud, "y");
       sensor_msgs::PointCloud2Iterator<float> it_z(*cloud, "z");
+      sensor_msgs::PointCloud2Iterator<uint8_t> it_rgb(*cloud, "rgb");
       for (const auto & p : pts) {
         *it_x = p.x;
         *it_y = p.y;
         *it_z = p.raw_z; // Matches raw base_link height perfectly in RViz!
-        ++it_x; ++it_y; ++it_z;
+        // In ROS/PCL PointXYZRGB little-endian layout: byte 0 = B, byte 1 = G, byte 2 = R
+        it_rgb[0] = b;
+        it_rgb[1] = g;
+        it_rgb[2] = r;
+        ++it_x; ++it_y; ++it_z; ++it_rgb;
       }
       return cloud;
     };
-    if (has_ground_sub) debug_ground_pub_->publish(*create_cloud(debug_ground_pts));
-    if (has_obstacle_sub) debug_obstacle_pub_->publish(*create_cloud(debug_obstacle_pts));
+    if (debug_ground_pub_ && (has_ground_sub || debug_ground_pub_->get_subscription_count() > 0)) {
+      debug_ground_pub_->publish(*create_cloud(debug_ground_pts, 0, 255, 0)); // Bright Green
+    }
+    if (debug_obstacle_pub_ && (has_obstacle_sub || debug_obstacle_pub_->get_subscription_count() > 0)) {
+      debug_obstacle_pub_->publish(*create_cloud(debug_obstacle_pts, 255, 0, 0)); // Bright Red
+    }
   }
 
   // -----------------------------------------------------------------------------------------------

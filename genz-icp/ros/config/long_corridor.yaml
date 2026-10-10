@@ -1,0 +1,46 @@
+# Parameter set for Long_Corridor sequence of SubT-MRS dataset
+# If this config doesn't work stably in your env., please refer to parameter tuning guide in README.md
+
+# topic: /velodyne_points (set in launch file or command line)
+deskew: false
+max_range: 100.0
+min_range: 0.5
+voxel_size: 0.25
+map_cleanup_radius: 300.0
+desired_num_voxelized_points: 2000
+planarity_threshold: 0.2
+max_points_per_voxel: 1
+initial_threshold: 2.0
+min_motion_th: 0.1
+max_num_iterations: 100
+convergence_criterion: 0.0001
+enable_registration_quality_gate: true
+min_registration_correspondences: 300
+registration_rmse_reject_ratio: 2.5
+registration_rmse_ema_alpha: 0.05
+max_registration_translation_per_frame: 1.0
+max_registration_rotation_per_frame_deg: 45.0
+max_consecutive_registration_rejections: 5
+absolute_registration_rmse_limit: 1.0
+enable_yaw_search_initializer: false
+yaw_search_degrees: [-12.0, -8.0, -4.0, 0.0, 4.0, 8.0, 12.0]
+yaw_search_score_max_correspondence_distance: 1.5
+yaw_search_min_correspondences: 500
+yaw_search_use_weighted_rmse: true
+yaw_search_vertical_axis: z
+yaw_search_debug: true
+enable_motion_prior: false
+motion_prior_translation_sigma: 0.35
+motion_prior_z_sigma: 0.12
+motion_prior_roll_pitch_sigma_deg: 6.0
+motion_prior_yaw_sigma_deg: 30.0
+motion_prior_weight: 1.0
+motion_prior_apply_during_recovery: true
+motion_prior_debug: true
+enable_map_update_quality_gate: false
+map_update_max_weighted_rmse_ratio: 1.25
+map_update_max_rmse: 0.35
+map_update_max_translation_delta: 0.75
+map_update_max_rotation_delta_deg: 10.0
+map_update_min_correspondences: 2500
+map_update_debug: true

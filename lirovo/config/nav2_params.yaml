@@ -123,11 +123,11 @@
         plugin: "nav2_mppi_controller::MPPIController"
         time_steps: 56 #56
         model_dt: 0.05
-        batch_size: 2000 #2000 #2000 pf #1500
+        batch_size: 2500 #2000 #2000 #2000 pf #1500
         vx_std: 0.3 #0.3 perfect follow #0.2
         vy_std: 0.0
         wz_std: 0.3 #0.3 pf #0.4
-        vx_max: 0.9 #0.5 pf
+        vx_max: 1.1 #0.9 #0.5 pf
         vx_min: 0.0 #-0.2 #-0.3 pf
         vy_max: 0.0
         wz_max: 0.9 #1.0
@@ -227,11 +227,11 @@
         plugin: "nav2_mppi_controller::MPPIController"
         time_steps: 56 #56
         model_dt: 0.05
-        batch_size: 2000 #2000 #2000 pf #1500
+        batch_size: 2500 #2000 #2000 #2000 pf #1500
         vx_std: 0.3 #0.3 perfect follow #0.2
         vy_std: 0.0
         wz_std: 0.3 #0.3 pf #0.4
-        vx_max: 0.9 #0.6 #0.5 pf
+        vx_max: 1.1 #0.9 #0.6 #0.5 pf
         vx_min: 0.0 #-0.2 #-0.3 pf
         vy_max: 0.0
         wz_max: 0.9 #1.0
