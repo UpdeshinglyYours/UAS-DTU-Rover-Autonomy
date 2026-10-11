@@ -87,6 +87,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-humble-spatio-temporal-voxel-layer \
     ros-humble-pointcloud-to-laserscan \
     ros-humble-laser-geometry \
+    ros-humble-pcl-ros \
     # RViz2 & Plugins
     ros-humble-rviz2 \
     ros-humble-nav2-rviz-plugins \
@@ -212,7 +213,7 @@ RUN echo "" >> /root/.bashrc \
     && echo 'mkdir -p /home/vortex 2>/dev/null || true' >> /root/.bashrc \
     && echo 'for d in /workspace/*; do if [ -d "$d" ]; then b=$(basename "$d"); [ ! -e "/home/vortex/$b" ] && ln -s "$d" "/home/vortex/$b" 2>/dev/null || true; fi; done' >> /root/.bashrc \
     && echo "export PS1='\[\e[1;31m\]\u@uas-rover\[\e[0m\]:\[\e[1;34m\]\w\[\e[0m\]\$ '" >> /root/.bashrc \
-    && echo "alias colcon-release='colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release'" >> /root/.bashrc
+    && echo "alias colcon-release='colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF'" >> /root/.bashrc
 
 # -----------------------------------------------------------------------------
 # 9. Path Compatibility & Workspace Directory

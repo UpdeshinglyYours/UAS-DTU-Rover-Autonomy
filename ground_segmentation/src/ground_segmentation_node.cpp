@@ -66,10 +66,26 @@ GroundSegmentationNode::GroundSegmentationNode(const rclcpp::NodeOptions & optio
   inf_epsilon_ = this->declare_parameter<double>("inf_epsilon", 1.0);
   use_inf_ = this->declare_parameter<bool>("use_inf", true);
 
+  // Point Cloud Mode & Obstacle Cloud Publishing (for STVL / 3D Nav2 layers)
+  point_cloud_mode_ = this->declare_parameter<bool>("point_cloud_mode", false);
+  publish_obstacle_cloud_ = this->declare_parameter<bool>("publish_obstacle_cloud", point_cloud_mode_);
+  publish_scan_ = this->declare_parameter<bool>("publish_scan", true);
+  obstacle_cloud_topic_ = this->declare_parameter<std::string>("obstacle_cloud_topic", "~/non_traversable");
+  filter_ceiling_for_obstacles_ = this->declare_parameter<bool>("filter_ceiling_for_obstacles", true);
+
   // 3D Voxel Outlier Density Filter (Preserved from Vortex's fork)
-  enable_3d_point_filter_ = this->declare_parameter<bool>("enable_3d_point_filter", true);
+  // When point_cloud_mode is active, 3D voxel filtering defaults to FALSE to preserve raw full-density points for STVL
+  bool default_3d_voxel_filter = !point_cloud_mode_;
+  enable_3d_point_filter_ = this->declare_parameter<bool>("enable_3d_point_filter", default_3d_voxel_filter);
   filter_voxel_size_ = this->declare_parameter<double>("filter_voxel_size", 0.15);
   min_points_per_voxel_ = this->declare_parameter<int>("min_points_per_voxel", 2);
+
+  if (point_cloud_mode_) {
+    RCLCPP_INFO(this->get_logger(),
+      "Ground Segmentation Point Cloud Mode enabled: publishing non-traversable obstacle cloud on '%s' for STVL (3D voxel filter: %s, ceiling filter: %s, publish scan: %s).",
+      obstacle_cloud_topic_.c_str(), enable_3d_point_filter_ ? "ON" : "OFF (Full Density)",
+      filter_ceiling_for_obstacles_ ? "ON" : "OFF", publish_scan_ ? "ON" : "OFF");
+  }
 
   // -----------------------------------------------------------------------------------------------
   // 2. Declare [NEW] Ground Segmentation & Dynamic Slope Filtering Parameters
@@ -180,7 +196,9 @@ GroundSegmentationNode::GroundSegmentationNode(const rclcpp::NodeOptions & optio
   // -----------------------------------------------------------------------------------------------
   // 3. Initialize Publishers & Subscriptions
   // -----------------------------------------------------------------------------------------------
-  scan_pub_ = this->create_publisher<sensor_msgs::msg::LaserScan>("scan", rclcpp::SensorDataQoS());
+  if (publish_scan_) {
+    scan_pub_ = this->create_publisher<sensor_msgs::msg::LaserScan>("scan", rclcpp::SensorDataQoS());
+  }
 
   if (enable_2d_lidar_filtering_) {
     scan_2d_pub_ = this->create_publisher<sensor_msgs::msg::LaserScan>(
@@ -207,13 +225,16 @@ GroundSegmentationNode::GroundSegmentationNode(const rclcpp::NodeOptions & optio
     "Expected ground Z: %.2fm relative to '%s' (set to negative chassis height if base_link is above ground).",
     expected_ground_z_, target_frame_.c_str());
 
+  // Non-traversable obstacle cloud publisher (always available for STVL / Nav2)
+  debug_obstacle_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+    obstacle_cloud_topic_, rclcpp::SensorDataQoS());
+
   if (visualise_ || debug_publish_clouds_) {
     debug_ground_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
       "~/traversable", rclcpp::SensorDataQoS());
-    debug_obstacle_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-      "~/non_traversable", rclcpp::SensorDataQoS());
     RCLCPP_INFO(this->get_logger(),
-      "Ground Segmentation visualization enabled: publishing '~/traversable' (Green) and '~/non_traversable' (Red).");
+      "Ground Segmentation visualization enabled: publishing '~/traversable' (Green) and '%s' (Red).",
+      obstacle_cloud_topic_.c_str());
   }
 
   // Setup TF Buffer and TransformListener
@@ -379,13 +400,14 @@ void GroundSegmentationNode::cloudCallback(
       current_roll = 0.0;
       current_pitch = 0.0;
       RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000,
-        "Chassis tilt unavailable from TF/Odometry! Fail-safe: bypassing ground filtering to prevent false clearing.");
+        "Chassis tilt unavailable from TF/Odometry! Operating in level-frame fallback (roll=0, pitch=0).");
     }
   }
 
-  // Fail-safe: if attitude is unavailable, do NOT run ground filter (prevents false terrain clearing)
-  const bool run_ground_filter = enable_ground_filtering_ && attitude_valid;
-  if (!run_ground_filter && enable_2d_lidar_filtering_) {
+  // Even if chassis attitude is temporarily unavailable, STILL run the ground filter
+  // assuming nominal level rover to prevent ground returns from becoming fake obstacles!
+  const bool run_ground_filter = enable_ground_filtering_;
+  if ((!attitude_valid || !run_ground_filter) && enable_2d_lidar_filtering_) {
     std::lock_guard<std::mutex> lock(terrain_mutex_);
     latest_terrain_.valid = false;
   }
@@ -397,9 +419,11 @@ void GroundSegmentationNode::cloudCallback(
 
   // -----------------------------------------------------------------------------------------------
   // Step 4 (Optional): 3D Spatial Voxel Outlier Filter (Preserved from Vortex's fork)
+  // Bypassed in Point Cloud Mode to preserve raw full-density non-traversable points for STVL
   // -----------------------------------------------------------------------------------------------
+  const bool run_3d_voxel_filter = enable_3d_point_filter_ && !point_cloud_mode_;
   const int64_t VOXEL_BIAS = 1048576; // 2^20 offset prevents negative coordinate two's-complement hash collisions
-  if (enable_3d_point_filter_) {
+  if (run_3d_voxel_filter) {
     voxel_point_counts_.clear();
     const double inv_voxel_size = 1.0 / std::max(0.01, filter_voxel_size_);
     for (sensor_msgs::PointCloud2ConstIterator<float> iter_x(*processed_cloud, "x"),
@@ -483,8 +507,8 @@ void GroundSegmentationNode::cloudCallback(
       if (*iter_z > (max_height_ + 2.0) || *iter_z < (min_height_ - 2.0)) continue;
     }
 
-    // 3D Voxel Outlier check: Skip isolated points with insufficient neighbors
-    if (enable_3d_point_filter_) {
+    // 3D Voxel Outlier check: Skip isolated points with insufficient neighbors (bypassed in Point Cloud Mode)
+    if (run_3d_voxel_filter) {
       const double inv_voxel_size = 1.0 / std::max(0.01, filter_voxel_size_);
       int64_t gx = static_cast<int64_t>(std::floor(*iter_x * inv_voxel_size)) + VOXEL_BIAS;
       int64_t gy = static_cast<int64_t>(std::floor(*iter_y * inv_voxel_size)) + VOXEL_BIAS;
@@ -995,17 +1019,22 @@ void GroundSegmentationNode::cloudCallback(
   }
 
   // -----------------------------------------------------------------------------------------------
-  // Step 7: Squish remaining true obstacles into 2D LaserScan & Visualise Traversable / Obstacle
+  // Step 7: Squish remaining true obstacles into 2D LaserScan & Visualise / Output PointClouds
   // -----------------------------------------------------------------------------------------------
   const bool has_ground_sub = debug_ground_pub_ && (debug_ground_pub_->get_subscription_count() > 0 || visualise_);
-  const bool has_obstacle_sub = debug_obstacle_pub_ && (debug_obstacle_pub_->get_subscription_count() > 0 || visualise_);
-  const bool collect_debug_clouds = (visualise_ || debug_publish_clouds_) && (has_ground_sub || has_obstacle_sub);
+  const bool has_obstacle_sub = debug_obstacle_pub_ &&
+    (debug_obstacle_pub_->get_subscription_count() > 0 || publish_obstacle_cloud_ || point_cloud_mode_ || visualise_);
+  const bool collect_debug_clouds = (visualise_ || debug_publish_clouds_);
+  const bool collect_obstacle_cloud = has_obstacle_sub;
+  const bool collect_ground_cloud = has_ground_sub && collect_debug_clouds;
 
   std::vector<Point3D> debug_ground_pts;
-  std::vector<Point3D> debug_obstacle_pts;
-  if (collect_debug_clouds) {
+  std::vector<Point3D> obstacle_pts;
+  if (collect_ground_cloud) {
     debug_ground_pts.reserve(all_valid_points_.size());
-    debug_obstacle_pts.reserve(all_valid_points_.size());
+  }
+  if (collect_obstacle_cloud) {
+    obstacle_pts.reserve(all_valid_points_.size());
   }
 
   for (const auto & pt : all_valid_points_) {
@@ -1027,68 +1056,116 @@ void GroundSegmentationNode::cloudCallback(
     }
 
     if (is_ground) {
-      if (collect_debug_clouds) debug_ground_pts.push_back(pt);
+      if (collect_ground_cloud) debug_ground_pts.push_back(pt);
       continue; // Successfully filtered out traversable ground surface!
     }
 
-    // Partition Invariant: If not ground, it is non-traversable (Green + Red == Original Cloud)
-    if (collect_debug_clouds) debug_obstacle_pts.push_back(pt);
-
+    // Partition Invariant: If not ground, it is non-traversable!
     // Local ceiling check relative to terrain surface:
-    // Discard overhead points (tree branches, overhead cables, ceilings) from 2D LaserScan
-    // that are more than max_height_ above the local ground level. This preserves the sensing
-    // horizon on hills while maintaining overhead clearance.
-    if (pt.z - local_ground_z > max_height_) {
+    // Discard overhead points (tree branches, overhead cables, ceilings)
+    // that are more than max_height_ above the local ground level.
+    if (filter_ceiling_for_obstacles_ && (pt.z - local_ground_z > max_height_)) {
       continue;
     }
 
-    // Surviving point is a TRUE OBSTACLE! Project onto 2D LaserScan ranges[]
-    if (pt.ray_idx >= 0 && pt.ray_idx < static_cast<int>(scan_msg->ranges.size())) {
-      if (pt.range < scan_msg->ranges[pt.ray_idx]) {
-        scan_msg->ranges[pt.ray_idx] = pt.range;
+    if (collect_obstacle_cloud) {
+      obstacle_pts.push_back(pt);
+    }
+
+    // Surviving point is a TRUE OBSTACLE! Project onto 2D LaserScan ranges[] if enabled
+    if (publish_scan_ && scan_pub_) {
+      if (pt.ray_idx >= 0 && pt.ray_idx < static_cast<int>(scan_msg->ranges.size())) {
+        if (pt.range < scan_msg->ranges[pt.ray_idx]) {
+          scan_msg->ranges[pt.ray_idx] = pt.range;
+        }
       }
     }
   }
 
-  if (collect_debug_clouds) {
-    auto create_cloud = [&](const std::vector<Point3D> & pts, uint8_t r, uint8_t g, uint8_t b) {
+  // Publish non-traversable obstacle point cloud (for STVL or RViz)
+  if (collect_obstacle_cloud && debug_obstacle_pub_) {
+    if (visualise_) {
+      // Color-coded PointXYZRGB for RViz visualizer (Bright Red)
       auto cloud = std::make_unique<sensor_msgs::msg::PointCloud2>();
       cloud->header = scan_msg->header;
       cloud->height = 1;
-      cloud->width = pts.size();
+      cloud->width = obstacle_pts.size();
       cloud->is_dense = true;
       cloud->is_bigendian = false;
       sensor_msgs::PointCloud2Modifier modifier(*cloud);
       modifier.setPointCloud2FieldsByString(2, "xyz", "rgb");
-      modifier.resize(pts.size());
+      modifier.resize(obstacle_pts.size());
       sensor_msgs::PointCloud2Iterator<float> it_x(*cloud, "x");
       sensor_msgs::PointCloud2Iterator<float> it_y(*cloud, "y");
       sensor_msgs::PointCloud2Iterator<float> it_z(*cloud, "z");
       sensor_msgs::PointCloud2Iterator<uint8_t> it_rgb(*cloud, "rgb");
-      for (const auto & p : pts) {
+      for (const auto & p : obstacle_pts) {
         *it_x = p.x;
         *it_y = p.y;
-        *it_z = p.raw_z; // Matches raw base_link height perfectly in RViz!
-        // In ROS/PCL PointXYZRGB little-endian layout: byte 0 = B, byte 1 = G, byte 2 = R
-        it_rgb[0] = b;
-        it_rgb[1] = g;
-        it_rgb[2] = r;
+        *it_z = p.raw_z;
+        it_rgb[0] = 0;   // B
+        it_rgb[1] = 0;   // G
+        it_rgb[2] = 255; // R
         ++it_x; ++it_y; ++it_z; ++it_rgb;
       }
-      return cloud;
-    };
-    if (debug_ground_pub_ && (has_ground_sub || debug_ground_pub_->get_subscription_count() > 0)) {
-      debug_ground_pub_->publish(*create_cloud(debug_ground_pts, 0, 255, 0)); // Bright Green
+      debug_obstacle_pub_->publish(std::move(cloud));
+    } else {
+      // High-performance lean XYZ PointCloud2 specifically formatted for STVL / Nav2
+      auto cloud = std::make_unique<sensor_msgs::msg::PointCloud2>();
+      cloud->header = scan_msg->header;
+      cloud->height = 1;
+      cloud->width = obstacle_pts.size();
+      cloud->is_dense = true;
+      cloud->is_bigendian = false;
+      sensor_msgs::PointCloud2Modifier modifier(*cloud);
+      modifier.setPointCloud2FieldsByString(1, "xyz");
+      modifier.resize(obstacle_pts.size());
+      sensor_msgs::PointCloud2Iterator<float> it_x(*cloud, "x");
+      sensor_msgs::PointCloud2Iterator<float> it_y(*cloud, "y");
+      sensor_msgs::PointCloud2Iterator<float> it_z(*cloud, "z");
+      for (const auto & p : obstacle_pts) {
+        *it_x = p.x;
+        *it_y = p.y;
+        *it_z = p.raw_z;
+        ++it_x; ++it_y; ++it_z;
+      }
+      debug_obstacle_pub_->publish(std::move(cloud));
     }
-    if (debug_obstacle_pub_ && (has_obstacle_sub || debug_obstacle_pub_->get_subscription_count() > 0)) {
-      debug_obstacle_pub_->publish(*create_cloud(debug_obstacle_pts, 255, 0, 0)); // Bright Red
+  }
+
+  // Publish traversable ground debug cloud if requested
+  if (collect_ground_cloud && debug_ground_pub_) {
+    auto cloud = std::make_unique<sensor_msgs::msg::PointCloud2>();
+    cloud->header = scan_msg->header;
+    cloud->height = 1;
+    cloud->width = debug_ground_pts.size();
+    cloud->is_dense = true;
+    cloud->is_bigendian = false;
+    sensor_msgs::PointCloud2Modifier modifier(*cloud);
+    modifier.setPointCloud2FieldsByString(2, "xyz", "rgb");
+    modifier.resize(debug_ground_pts.size());
+    sensor_msgs::PointCloud2Iterator<float> it_x(*cloud, "x");
+    sensor_msgs::PointCloud2Iterator<float> it_y(*cloud, "y");
+    sensor_msgs::PointCloud2Iterator<float> it_z(*cloud, "z");
+    sensor_msgs::PointCloud2Iterator<uint8_t> it_rgb(*cloud, "rgb");
+    for (const auto & p : debug_ground_pts) {
+      *it_x = p.x;
+      *it_y = p.y;
+      *it_z = p.raw_z;
+      it_rgb[0] = 0;   // B
+      it_rgb[1] = 255; // G
+      it_rgb[2] = 0;   // R
+      ++it_x; ++it_y; ++it_z; ++it_rgb;
     }
+    debug_ground_pub_->publish(std::move(cloud));
   }
 
   // -----------------------------------------------------------------------------------------------
   // Step 8: Publish the final 2D LaserScan
   // -----------------------------------------------------------------------------------------------
-  scan_pub_->publish(std::move(scan_msg));
+  if (publish_scan_ && scan_pub_) {
+    scan_pub_->publish(std::move(scan_msg));
+  }
 }
 
 void GroundSegmentationNode::scan2dCallback(

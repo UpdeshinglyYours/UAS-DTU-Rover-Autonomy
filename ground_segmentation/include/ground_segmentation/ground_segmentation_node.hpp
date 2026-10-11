@@ -141,6 +141,16 @@ private:
   double max_gap_distance_{0.40}; // Maximum radial distance between consecutive ground points before breaking continuity (Default: 0.40m)
   bool debug_publish_clouds_{false}; // Flag to publish debug point clouds (Default: false)
   bool visualise_{false};            // Flag to publish color-coded traversable (green) & non-traversable (red) pointclouds (Default: false)
+
+  // -----------------------------------------------------------------------------------------------
+  // [NEW] Point Cloud Mode & Obstacle Cloud Publishing (for STVL / 3D Nav2 layers)
+  // -----------------------------------------------------------------------------------------------
+  bool point_cloud_mode_{false};          // If true, operates in point cloud mode (bypasses 3D voxel filter)
+  bool publish_obstacle_cloud_{false};    // If true, always publishes non-traversable obstacle cloud
+  bool publish_scan_{true};               // If false, disables 2D LaserScan publishing to save CPU
+  std::string obstacle_cloud_topic_{"~/non_traversable"}; // Topic name for obstacle cloud
+  bool filter_ceiling_for_obstacles_{true}; // If true, removes overhead points > max_height above terrain from obstacle cloud
+
   // -----------------------------------------------------------------------------------------------
   // [NEW] Direct Odometry Topic Subscription (Bypasses TF lookup delays entirely)
   // -----------------------------------------------------------------------------------------------

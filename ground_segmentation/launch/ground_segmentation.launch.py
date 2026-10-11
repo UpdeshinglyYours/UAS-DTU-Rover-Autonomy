@@ -78,6 +78,32 @@ def generate_launch_description():
             default_value='false',
             description='Whether to visualize traversable (green) and obstacle (red) point clouds in RViz2'
         ),
+        # Point Cloud Mode Arguments (for STVL / 3D Nav2 Layer)
+        DeclareLaunchArgument(
+            name='point_cloud_mode',
+            default_value='false',
+            description='Whether to enable Point Cloud Mode for STVL (bypasses 3D voxel filter)'
+        ),
+        DeclareLaunchArgument(
+            name='publish_obstacle_cloud',
+            default_value='true',
+            description='Whether to publish non-traversable obstacle PointCloud2'
+        ),
+        DeclareLaunchArgument(
+            name='publish_scan',
+            default_value='true',
+            description='Whether to publish 2D LaserScan'
+        ),
+        DeclareLaunchArgument(
+            name='enable_3d_point_filter',
+            default_value='false',
+            description='Whether to filter isolated points with 3D spatial voxel density check'
+        ),
+        DeclareLaunchArgument(
+            name='obstacle_cloud_topic',
+            default_value='~/non_traversable',
+            description='Topic name for non-traversable obstacle point cloud'
+        ),
 
         Node(
             package='ground_segmentation',
@@ -112,9 +138,13 @@ def generate_launch_description():
                 'radial_bin_size': 0.10,
                 # Direct Odometry Subscription (Bypasses TF lookup delay)
                 'use_odom_topic': LaunchConfiguration('use_odom_topic'),
-                'odom_topic': LaunchConfiguration('odom_topic'),
-                # 3D Voxel Outlier Filter
-                'enable_3d_point_filter': True,
+                # Point Cloud Mode & Obstacle Cloud Output
+                'point_cloud_mode': LaunchConfiguration('point_cloud_mode'),
+                'publish_obstacle_cloud': LaunchConfiguration('publish_obstacle_cloud'),
+                'publish_scan': LaunchConfiguration('publish_scan'),
+                'obstacle_cloud_topic': LaunchConfiguration('obstacle_cloud_topic'),
+                # 3D Voxel Outlier Filter (Bypassed if point_cloud_mode is true)
+                'enable_3d_point_filter': LaunchConfiguration('enable_3d_point_filter'),
                 'filter_voxel_size': 0.10,
                 'min_points_per_voxel': 2,
                 # 2D LiDAR Slope-Filtering Parameters (SF45/B Close-Range Blind Zone Assist)

@@ -16,6 +16,7 @@ setup(
         ('share/' + package_name + '/config', ['config/point_cloud_to_laser_scan.yaml']),
         #('share/' + package_name + '/config', ['config/localization.yaml']),
         #('share/' + package_name + '/config', ['config/ekf_localization.yaml']),
+        ('share/' + package_name + '/config', ['config/patchwork_plusplus_blickfeld.yaml']),
         ('share/' + package_name + '/launch', ['launch/lirovo.launch.py']),
     ],
     install_requires=['setuptools'],

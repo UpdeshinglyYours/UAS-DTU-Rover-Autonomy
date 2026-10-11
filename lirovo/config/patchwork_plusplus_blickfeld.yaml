@@ -1,0 +1,54 @@
+# Patchwork++ ground segmentation for the Blickfeld on this rover.
+# Same tuning as AryamanB_ws/patchwork_plusplus.param.yaml except input topic and
+# sensor_height. The cloud stays in the 'lidar' frame (x forward, z up, level mount).
+/**:
+  ros__parameters:
+    input_cloud_topic: /bf_lidar/point_cloud_out
+
+    # Lidar height above the ground: 0.540 / 0.543 m, plane fits in the lidar frame
+    # over both stationary windows of 9oct4_bag (perpendicular distance, so it does
+    # not depend on how the lidar is pitched). An earlier 0.61 m came from a live
+    # check with the rover standing on a step. Only the starting guess: Patchwork++
+    # re-estimates it from the nearest ground ring (update_elevation_thr), and while
+    # the ground looks tilted in the lidar frame that estimate drifts to ~0.35-0.43.
+    sensor_height: 0.54
+
+    save_flag: true
+    mode: "czm"
+    verbose: false
+    visualize: true
+
+    num_iter: 3
+    num_lpr: 10
+    num_min_pts: 5
+
+    th_seeds: 0.04
+    th_dist: 0.03
+
+    th_seeds_v: 0.25
+    th_dist_v: 0.12
+
+    # Points outside this horizontal range are passed straight to nonground
+    # (pc2czm). The Blickfeld's first ground hit is ~2.2 m away, and STVL only
+    # marks within 15 m, so neither limit adds false obstacles here.
+    max_range: 30.0
+    min_range: 1.5
+
+    uprightness_thr: 0.93
+    adaptive_seed_selection_margin: -1.2
+
+    num_zones: 4
+    num_sectors_each_zone: [16, 32, 54, 32]
+    # Misspelling is intentional: this ROS2 fork reads "mum_rings_each_zone".
+    mum_rings_each_zone: [2, 4, 4, 4]
+
+    elevation_thresholds: [0.0, 0.0, 0.0, 0.0]
+    flatness_thresholds: [0.0, 0.0, 0.0, 0.0]
+
+    # RNR uses intensity; it stays off (see the UINT32 intensity note in the node).
+    enable_RNR: false
+    enable_RVPF: true
+    enable_TGR: false
+
+    RNR_ver_angle_thr: -15.0
+    RNR_intensity_thr: 0.2
