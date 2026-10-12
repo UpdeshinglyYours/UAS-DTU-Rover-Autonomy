@@ -62,7 +62,7 @@ cleanup() {
 
     # 4. Instant nuke for any orphaned ROS 2 Python/C++ subprocesses
     # pkill -9 -f "mavros_node|apm\.launch|live_scanner|blickfeld_driver|sf45b|lirovo\.launch|adaptive_velocity|casualty_dispatcher|odom_to_tf|new_omega|pointcloud_processor|nav2_|rviz2" 2>/dev/null || true
-    pkill -9 -f "mavros_node|apm\.launch|live_scanner|blickfeld_driver|sf45b|lirovo\.launch|adaptive_velocity|casualty_dispatcher|odom_to_tf|new_omega|pointcloud_processor|pointcloud_to_laserscan|ground_segmentation|genz|imu_rotation_deskew|static_transform_publisher|robot_state_publisher|nav2_|rviz2" 2>/dev/null || true
+    pkill -9 -f "mavros_node|apm\.launch|live_scanner|blickfeld_driver|sf45b|lirovo\.launch|adaptive_velocity|casualty_dispatcher|odom_to_tf|new_omega|pointcloud_processor|pointcloud_to_laserscan|ground_segmentation|patchwork|genz|imu_rotation_deskew|static_transform_publisher|robot_state_publisher|nav2_|rviz2" 2>/dev/null || true
 
     echo -e "\033[1;32m[SHUTDOWN] All subsystems killed cleanly. Exited.\033[0m\n"
     exit 0
@@ -80,6 +80,8 @@ fi
 
 if [ -f "${WORKSPACE_DIR}/install/setup.bash" ]; then
     source "${WORKSPACE_DIR}/install/setup.bash"
+elif [ -f /workspace/rover_ws/install/setup.bash ]; then
+    source /workspace/rover_ws/install/setup.bash
 elif [ -f /workspace/DARPA_ws/install/setup.bash ]; then
     source /workspace/DARPA_ws/install/setup.bash
 elif [ -f /home/vortex/DARPA_ws/install/setup.bash ]; then
