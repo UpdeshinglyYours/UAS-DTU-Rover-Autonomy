@@ -21,5 +21,9 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 include(FetchContent)
-FetchContent_Declare(tessil SYSTEM URL https://github.com/Tessil/robin-map/archive/refs/tags/v1.2.1.tar.gz)
+if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/v1.2.1.tar.gz")
+  FetchContent_Declare(tessil SYSTEM URL ${CMAKE_CURRENT_LIST_DIR}/v1.2.1.tar.gz)
+else()
+  FetchContent_Declare(tessil SYSTEM URL https://github.com/Tessil/robin-map/archive/refs/tags/v1.2.1.tar.gz)
+endif()
 FetchContent_MakeAvailable(tessil)
