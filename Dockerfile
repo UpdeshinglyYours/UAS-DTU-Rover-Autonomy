@@ -190,6 +190,22 @@ RUN ARCH=$(dpkg --print-architecture) \
     fi
 
 # -----------------------------------------------------------------------------
+# 7c. tf2 >= 0.25.24 (fix for a tf2_ros::Buffer deadlock)
+# -----------------------------------------------------------------------------
+# tf2 0.25.23 can deadlock between Buffer::waitForTransform and
+# BufferCore::testTransformableRequests when a point cloud waits for a TF that arrives
+# at the same moment. STVL's message filter thread then hangs for good and both Nav2
+# costmaps stop getting clouds within minutes, with no error (seen on the Orin
+# 2026-10-18). Fixed upstream in ros2/geometry2 9997e96955, released in 0.25.24.
+# A cached apt layer above can still hold 0.25.23, so upgrade here and fail the
+# build if the fix is missing.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends --only-upgrade \
+       $(dpkg-query -W -f='${binary:Package}\n' 'ros-humble-tf2*') \
+    && dpkg --compare-versions "$(dpkg-query -W -f='${Version}' ros-humble-tf2-ros)" ge 0.25.24 \
+    && rm -rf /var/lib/apt/lists/*
+
+# -----------------------------------------------------------------------------
 # 8. rosdep Init & Auto-Sourcing Environment
 # -----------------------------------------------------------------------------
 RUN rosdep init 2>/dev/null || true \
