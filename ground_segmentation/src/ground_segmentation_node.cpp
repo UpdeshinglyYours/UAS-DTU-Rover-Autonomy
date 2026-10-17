@@ -181,6 +181,7 @@ GroundSegmentationNode::GroundSegmentationNode(const rclcpp::NodeOptions & optio
   use_odom_topic_ = this->declare_parameter<bool>("use_odom_topic", true);
   odom_topic_ = this->declare_parameter<std::string>("odom_topic", "/mavros/local_position/odom");
 
+
   // [NEW] 2D LiDAR Slope-Filtering Parameters (SF45/B Close-Range Blind Zone Assist)
   enable_2d_lidar_filtering_ = this->declare_parameter<bool>("enable_2d_lidar_filtering", true);
   scan_2d_in_topic_ = this->declare_parameter<std::string>("scan_2d_in_topic", "/lightwarelidar/scan");
@@ -266,6 +267,7 @@ GroundSegmentationNode::GroundSegmentationNode(const rclcpp::NodeOptions & optio
       odom_topic_.c_str());
   }
 
+
   RCLCPP_INFO(this->get_logger(),
     "GroundSegmentationNode initialized successfully (Max Slope: %.1f deg, Step: %.2fm, Ceiling: %.2fm).",
     max_slope_angle_deg_, max_step_height_, max_height_);
@@ -296,6 +298,7 @@ void GroundSegmentationNode::odomCallback(
 
 bool GroundSegmentationNode::getTilt(const rclcpp::Time & stamp, double & roll, double & pitch)
 {
+
   if (use_odom_topic_) {
     std::lock_guard<std::mutex> lock(odom_mutex_);
     if (odom_received_) {
@@ -419,9 +422,9 @@ void GroundSegmentationNode::cloudCallback(
 
   // -----------------------------------------------------------------------------------------------
   // Step 4 (Optional): 3D Spatial Voxel Outlier Filter (Preserved from Vortex's fork)
-  // Bypassed in Point Cloud Mode to preserve raw full-density non-traversable points for STVL
+  // Decoupled so sparse outliers never poison radial ground bins, while STVL keeps full cloud density
   // -----------------------------------------------------------------------------------------------
-  const bool run_3d_voxel_filter = enable_3d_point_filter_ && !point_cloud_mode_;
+  const bool run_3d_voxel_filter = enable_3d_point_filter_;
   const int64_t VOXEL_BIAS = 1048576; // 2^20 offset prevents negative coordinate two's-complement hash collisions
   if (run_3d_voxel_filter) {
     voxel_point_counts_.clear();
@@ -507,7 +510,8 @@ void GroundSegmentationNode::cloudCallback(
       if (*iter_z > (max_height_ + 2.0) || *iter_z < (min_height_ - 2.0)) continue;
     }
 
-    // 3D Voxel Outlier check: Skip isolated points with insufficient neighbors (bypassed in Point Cloud Mode)
+    // 3D Voxel Outlier check: Sparse voxels are excluded from ground modeling, but kept in Point Cloud Mode for STVL
+    bool sparse_voxel = false;
     if (run_3d_voxel_filter) {
       const double inv_voxel_size = 1.0 / std::max(0.01, filter_voxel_size_);
       int64_t gx = static_cast<int64_t>(std::floor(*iter_x * inv_voxel_size)) + VOXEL_BIAS;
@@ -519,7 +523,10 @@ void GroundSegmentationNode::cloudCallback(
                      (static_cast<uint64_t>(gz & 0x1FFFFF));
 
       if (voxel_point_counts_[key] < min_points_per_voxel_) {
-        continue;
+        sparse_voxel = true;
+        if (!point_cloud_mode_) {
+          continue; // In 2D LaserScan mode, drop isolated outliers immediately
+        }
       }
     }
 
@@ -544,9 +551,11 @@ void GroundSegmentationNode::cloudCallback(
     pt.range_level = range_level;
     pt.terrain_ray_idx = terrain_ray_idx;
     pt.terrain_r_bin = terrain_r_bin;
+    pt.is_sparse = sparse_voxel;
     all_valid_points_.push_back(pt);
 
-    if (run_ground_filter) {
+    // Only non-sparse points are permitted to establish or update ground contact in radial bins!
+    if (run_ground_filter && !sparse_voxel) {
       if (terrain_ray_idx >= 0 && terrain_ray_idx < num_rays_ &&
           terrain_r_bin >= 0 && terrain_r_bin < num_bins_)
       {
@@ -665,13 +674,14 @@ void GroundSegmentationNode::cloudCallback(
           const double dz_raw = p.raw_z - ref->raw_z; // height change relative to wheel plane
 
           // 1. Negative obstacle / drop-off / ledge check:
-          // If drop detection is enabled, flag drops deeper than max_drop_height_ (0.18m)
+          // If drop detection is enabled, flag drops deeper than allowable downward slope (max_drop_height_ + tan_max * dr)
           // within max_drop_range_ (<= 4.0m) in BOTH level frame and wheel plane (raw_z).
           // Beyond max_drop_range_, distant hill crest shadows are not flagged as lethal cliffs.
+          const double allowable_down_drop = -(max_drop_height_ + tan_max * dr);
           if (enable_drop_detection_ &&
               (ref->range_level <= max_drop_range_) &&
-              (dz < -max_drop_height_) &&
-              (dz_raw < -max_drop_height_))
+              (dz < allowable_down_drop) &&
+              (dz_raw < allowable_down_drop))
           {
             if (ref_bin != nullptr) {
               ref_bin->is_obstacle = true; // The upper ledge edge itself becomes the obstacle!
@@ -1039,6 +1049,7 @@ void GroundSegmentationNode::cloudCallback(
 
   for (const auto & pt : all_valid_points_) {
     bool is_ground = false;
+    bool has_local_ground = false;
     double local_ground_z = expected_ground_z_;
 
     if (run_ground_filter) {
@@ -1047,7 +1058,10 @@ void GroundSegmentationNode::cloudCallback(
       {
         const auto & bin = radial_ray_bins_[pt.terrain_ray_idx * num_bins_ + pt.terrain_r_bin];
         if (bin.valid) {
-          local_ground_z = bin.has_ground ? bin.ground_z : expected_ground_z_;
+          if (bin.has_ground) {
+            local_ground_z = bin.ground_z;
+            has_local_ground = true;
+          }
           if (!bin.is_obstacle && (pt.z - bin.pt.z <= max_step_height_)) {
             is_ground = true;
           }
@@ -1061,15 +1075,24 @@ void GroundSegmentationNode::cloudCallback(
     }
 
     // Partition Invariant: If not ground, it is non-traversable!
-    // Local ceiling check relative to terrain surface:
-    // Discard overhead points (tree branches, overhead cables, ceilings)
-    // that are more than max_height_ above the local ground level.
-    if (filter_ceiling_for_obstacles_ && (pt.z - local_ground_z > max_height_)) {
+    // Outlier rejection: An isolated sparse return (below min_points_per_voxel) that
+    // couldn't anchor to ground or correlate with local ground surface is dropped as noise.
+    if (pt.is_sparse && !has_local_ground) {
       continue;
     }
 
-    if (collect_obstacle_cloud) {
+    // Local ceiling check relative to terrain surface:
+    // Discard overhead points (tree branches, overhead cables, ceilings)
+    // that are more than max_height_ above the local ground level.
+    // If no ground reference was established along this ray, skip ceiling check to avoid discarding high-elevation obstacles on slopes.
+    const bool above_ceiling = has_local_ground && (pt.z - local_ground_z > max_height_);
+
+    if (collect_obstacle_cloud && !(filter_ceiling_for_obstacles_ && above_ceiling)) {
       obstacle_pts.push_back(pt);
+    }
+
+    if (above_ceiling) {
+      continue; // NEVER squish overhead structure into the 2D LaserScan!
     }
 
     // Surviving point is a TRUE OBSTACLE! Project onto 2D LaserScan ranges[] if enabled

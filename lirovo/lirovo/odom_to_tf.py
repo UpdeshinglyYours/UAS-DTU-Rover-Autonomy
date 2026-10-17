@@ -50,36 +50,36 @@ class OdomToTf(Node):
         # Copy orientation
         # Commented out original orientation:
         t.transform.rotation = msg.pose.pose.orientation
-        ## Added: Convert quaternion to RPY, zero out roll and pitch, and convert back to quaternion
-        #q = msg.pose.pose.orientation
-        #t0 = +2.0 * (q.w * q.x + q.y * q.z)
-        #t1 = +1.0 - 2.0 * (q.x * q.x + q.y * q.y)
-        #roll = math.atan2(t0, t1)
+        # Added: Convert quaternion to RPY, zero out roll and pitch, and convert back to quaternion
+        q = msg.pose.pose.orientation
+        t0 = +2.0 * (q.w * q.x + q.y * q.z)
+        t1 = +1.0 - 2.0 * (q.x * q.x + q.y * q.y)
+        roll = math.atan2(t0, t1)
 
-        #t2 = +2.0 * (q.w * q.y - q.z * q.x)
-        #t2 = +1.0 if t2 > +1.0 else t2
-        #t2 = -1.0 if t2 < -1.0 else t2
-        #pitch = math.asin(t2)
+        t2 = +2.0 * (q.w * q.y - q.z * q.x)
+        t2 = +1.0 if t2 > +1.0 else t2
+        t2 = -1.0 if t2 < -1.0 else t2
+        pitch = math.asin(t2)
 
-        #t3 = +2.0 * (q.w * q.z + q.x * q.y)
-        #t4 = +1.0 - 2.0 * (q.y * q.y + q.z * q.z)
-        #yaw = math.atan2(t3, t4)
+        t3 = +2.0 * (q.w * q.z + q.x * q.y)
+        t4 = +1.0 - 2.0 * (q.y * q.y + q.z * q.z)
+        yaw = math.atan2(t3, t4)
 
-        ## Explicitly zero out roll and pitch
-        #roll = 0.0
-        #pitch = 0.0
+        # Explicitly zero out roll and pitch
+        roll = 0.0
+        pitch = 0.0
 
-        ## Convert back from (roll=0, pitch=0, yaw) to quaternion
-        #cy = math.cos(yaw * 0.5)
-        #sy = math.sin(yaw * 0.5)
-        ## Added: Match hemisphere sign of original quaternion to prevent antipodal jumps in TF when w < 0
-        #if q.w < 0.0:
-        #    cy = -cy
-        #    sy = -sy
-        #t.transform.rotation.x = 0.0
-        #t.transform.rotation.y = 0.0
-        #t.transform.rotation.z = sy
-        #t.transform.rotation.w = cy
+        # Convert back from (roll=0, pitch=0, yaw) to quaternion
+        cy = math.cos(yaw * 0.5)
+        sy = math.sin(yaw * 0.5)
+        # Added: Match hemisphere sign of original quaternion to prevent antipodal jumps in TF when w < 0
+        if q.w < 0.0:
+            cy = -cy
+            sy = -sy
+        t.transform.rotation.x = 0.0
+        t.transform.rotation.y = 0.0
+        t.transform.rotation.z = sy
+        t.transform.rotation.w = cy
 
         # Publish transform
         self.tf_broadcaster.sendTransform(t)

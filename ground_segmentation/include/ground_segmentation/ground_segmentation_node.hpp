@@ -175,6 +175,7 @@ private:
    */
   void odomCallback(const nav_msgs::msg::Odometry::ConstSharedPtr & odom_msg);
 
+
   /**
    * @brief Extracts current chassis roll and pitch relative to gravity frame.
    * @param stamp Timestamp to query attitude for.
@@ -250,6 +251,7 @@ private:
     // Terrain grid indexing (strictly organized in gravity-aligned level frame)
     int terrain_ray_idx{-1};  // gravity-aligned level azimuth ray index
     int terrain_r_bin{-1};    // gravity-aligned level radial distance bin index
+    bool is_sparse{false};    // true if point fell into a sparse 3D voxel
   };
 
   struct BinData {
