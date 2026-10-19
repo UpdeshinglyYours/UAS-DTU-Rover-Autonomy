@@ -130,7 +130,7 @@
         vx_max: 1.2 #0.9 #0.5 pf
         vx_min: 0.0 #-0.2 #-0.3 pf
         vy_max: 0.0
-        wz_max: 0.9 #1.0
+        wz_max: 1.0 #0.9 #1.0
         iteration_count: 1
         prune_distance: 2.5 #1.0 #1.7 pf
         transform_tolerance: 0.1
@@ -153,10 +153,12 @@
         ObstaclesCritic:
           repulsion_weight: 4.0 #2.5 #1.5        # The strength of the magnetic push away from walls
           critical_weight: 25.0 #20.0        # Heavy penalty for getting dangerously close
-          consider_footprint: true #false    # Keep false to save CPU (uses center point instead of full chassis)
+          consider_footprint: false #true #false    # Keep false to save CPU (uses center point instead of full chassis)
           collision_cost: 100000.0
-          collision_margin_distance: 0.25 #0.1 # 10cm safety bubble
+          collision_margin_distance: 0.2 #0.25 #0.1 # 10cm safety bubble
           near_goal_distance: 0.5
+          inflation_radius: 1.0 #new addition
+          cost_scaling_factor: 1.75 # new addition
         GoalCritic:
           cost_weight: 5.0
           threshold_to_consider: 1.4    #important ..goal critic is off until you are within the threshold
@@ -176,7 +178,7 @@
           cost_weight: 20.0 #35.0
           # [vx, vy, wz] -> Skid-steer rovers require more torque to turn than to drive straight!
           # If forward movement requires 0.2 m/s, turning likely requires ~0.3 rad/s to break friction.
-          deadband_velocities: [0.2, 0.0, 0.0] 
+          deadband_velocities: [0.3, 0.0, 0.0] 
 
 
       #MPPIController:
@@ -231,10 +233,10 @@
         vx_std: 0.3 #0.3 perfect follow #0.2
         vy_std: 0.0
         wz_std: 0.3 #0.3 pf #0.4
-        vx_max: 1.1 #0.9 #0.6 #0.5 pf
+        vx_max: 1.2 #0.9 #0.6 #0.5 pf
         vx_min: 0.0 #-0.2 #-0.3 pf
         vy_max: 0.0
-        wz_max: 0.9 #1.0
+        wz_max: 1.0 #0.9 #1.0
         iteration_count: 1
         prune_distance: 2.5 #1.0 #1.7 pf
         transform_tolerance: 0.1
@@ -258,10 +260,12 @@
         ObstaclesCritic:
           repulsion_weight: 4.0 #1.5        # The strength of the magnetic push away from walls
           critical_weight: 25.0 #20.0        # Heavy penalty for getting dangerously close
-          consider_footprint: true #false    # Keep false to save CPU (uses center point instead of full chassis)
+          consider_footprint: false #true #false    # Keep false to save CPU (uses center point instead of full chassis)
           collision_cost: 100000.0
-          collision_margin_distance: 0.15 #0.1 # 10cm safety bubble
+          collision_margin_distance: 0.2 #0.15 #0.1 # 10cm safety bubble
           near_goal_distance: 0.5
+          inflation_radius: 1.0 #new addition
+          cost_scaling_factor: 1.75 # new addition
         GoalCritic:
           cost_weight: 5.0
           threshold_to_consider: 1.4 #4.0 #1.4    #important ..goal critic is off until you are within the threshold
@@ -281,7 +285,7 @@
           cost_weight: 20.0 #35.0
           # [vx, vy, wz] -> Skid-steer rovers require more torque to turn than to drive straight!
           # If forward movement requires 0.2 m/s, turning likely requires ~0.3 rad/s to break friction.
-          deadband_velocities: [0.2, 0.0, 0.0] 
+          deadband_velocities: [0.3, 0.0, 0.0] 
 
 
   local_costmap:
@@ -296,8 +300,8 @@
         width: 8 #5
         height: 8 #5
         resolution: 0.04 #0.02
-        #robot_radius: 1.0 #0.2
-        footprint: "[ [0.50, 0.45], [-0.50, 0.45], [-0.50, -0.45], [0.50, -0.45] ]"
+        robot_radius: 0.6 #1.0 #0.2
+        #footprint: "[ [0.50, 0.45], [-0.50, 0.45], [-0.50, -0.45], [0.50, -0.45] ]"
 
         plugins: ["scan_layer", "stvl_layer", "casualty_layer", "inflation_layer"]
 
@@ -361,7 +365,7 @@
             obstacle_min_range: 1.5 #new addition
             min_obstacle_height: 0.15 #-1.2 #0.1 #-0.4
             max_obstacle_height: 1.0 #1.2 #2.0
-            expected_update_rate: 3600.0 #0.3 #seconds #0.0
+            expected_update_rate: 0.0 #3600.0 #0.3 #seconds #0.0
             observation_persistence: 0.0
             inf_is_valid: false
             filter: "voxel"
@@ -405,7 +409,7 @@
           plugin: "nav2_costmap_2d::InflationLayer"
           cost_scaling_factor: 1.0 #3.0 #5.0
           inflation_radius: 1.0 #0.8 #0.8 #0.5 #0.5 #0.6
-        always_send_full_costmap: true
+        always_send_full_costmap: false #true maine false kiya 19oct ko
 
   global_costmap:
     global_costmap:
@@ -421,7 +425,7 @@
         robot_base_frame: base_link #base_link #base_link
         use_sim_time: False #False
         #robot_radius: 1.0 #0.2
-        robot_radius: 0.75 #0.67 hai calculated (inflated footprint ke according)
+        robot_radius: 0.7 #0.75 #0.67 hai calculated (inflated footprint ke according)
         resolution: 0.1 #0.04
         track_unknown_space: false #true
 
@@ -521,7 +525,7 @@
             clearing: true
             max_z: 15.0 #8.0
             min_z: 1.6 #1.5 #1.0
-            expected_update_rate: 3600.0 #0.3 #seconds # new addition
+            expected_update_rate: 0.0 #3600.0 #0.3 #seconds # new addition
             vertical_fov_angle: 0.576 #1.029
             vertical_fov_padding: 0.05
             horizontal_fov_angle: 1.221 #6.29
@@ -532,8 +536,8 @@
         inflation_layer:
           plugin: "nav2_costmap_2d::InflationLayer"
           cost_scaling_factor: 1.0 #3.0 #8.0
-          inflation_radius: 1.0 #0.8 #0.5 #0.7
-        always_send_full_costmap: True
+          inflation_radius: 1.25 #1.0 #0.8 #0.5 #0.7
+        always_send_full_costmap: false #true maine false kiya 19oct ko
 
   map_saver:
     ros__parameters:
