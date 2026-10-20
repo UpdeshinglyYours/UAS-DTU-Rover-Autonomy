@@ -1,0 +1,7 @@
+# Drive to an exact magnification (1-30x), not snapped to a detent.
+# The RC zoom knob is ignored until ~/zoom_to_rc hands control back.
+float64 ratio
+---
+bool success
+string message
+float64 ratio               # what was adopted, after clamping to 1-30x

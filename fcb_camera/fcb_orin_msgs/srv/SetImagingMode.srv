@@ -1,0 +1,7 @@
+# rgb | ir | rgb+ir | auto, or the aliases day, night, night_color,
+# color, colour, mono, bw, ir_color.
+string mode
+---
+bool success
+string message
+string mode                 # RGB, IR, RGB+IR or AUTO
