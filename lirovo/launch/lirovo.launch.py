@@ -62,13 +62,13 @@ def generate_launch_description():
              name='static_tf_2d_lidar'
          ),
         
-         #Node(
-         #    package='tf2_ros',
-         #    executable='static_transform_publisher',
-         #    arguments=['0', '0', '0', '1.5708', '0', '0', 'base_link', 'base_footprint'],
-         #    parameters=[{'use_sim_time':False}], #False
-         #    name='static_tf_base_footprint'
-         #),
+         Node(
+             package='tf2_ros',
+             executable='static_transform_publisher',
+             arguments=['0', '0', '0', '0.0', '0', '0', 'map', 'base_link'],
+             parameters=[{'use_sim_time':False}], #False
+             name='static_tf_base_footprint'
+         ),
        
          # =========================================================================
          # [ORIGINAL]: Standard pointcloud_to_laserscan node (commented out)
@@ -164,13 +164,13 @@ def generate_launch_description():
          #),
          
         
-        Node(
-             package='lirovo',
-             executable='odom_to_tf',
-             name='odom_to_tf',
-             output='screen',
-             parameters=[{'use_sim_time':False}] 
-        ),
+        #Node(
+        #     package='lirovo',
+        #     executable='odom_to_tf',
+        #     name='odom_to_tf',
+        #     output='screen',
+        #     parameters=[{'use_sim_time':False}] 
+        #),
         
         
         #IncludeLaunchDescription(

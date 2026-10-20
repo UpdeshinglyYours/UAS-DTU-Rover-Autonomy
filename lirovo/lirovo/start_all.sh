@@ -105,30 +105,30 @@ echo -e "==========================================================\033[0m\n"
 # -----------------------------------------------------------------------------
 # echo -e "\033[1;33m[1/5] Launching MAVROS (FCU: ${FCU_URL})...\033[0m"
 
-#echo -e "\033[1;33m[1/4] Launching MAVROS (FCU: ${FCU_URL})...\033[0m"
-#ros2 launch mavros apm.launch fcu_url:="${FCU_URL}" &
-#PIDS+=($!)
-#sleep 2
+echo -e "\033[1;33m[1/4] Launching MAVROS (FCU: ${FCU_URL})...\033[0m"
+ros2 launch mavros apm.launch fcu_url:="${FCU_URL}" &
+PIDS+=($!)
+sleep 2
 
 # -----------------------------------------------------------------------------
 # 2. Blickfeld LiDAR Driver
 # -----------------------------------------------------------------------------
 # echo -e "\033[1;33m[2/5] Launching Blickfeld LiDAR Driver...\033[0m"
 
-#echo -e "\033[1;33m[2/4] Launching Blickfeld LiDAR Driver...\033[0m"
-#ros2 launch blickfeld_driver live_scanner_node.launch.py &
-#PIDS+=($!)
-#sleep 2
+echo -e "\033[1;33m[2/4] Launching Blickfeld LiDAR Driver...\033[0m"
+ros2 launch blickfeld_driver live_scanner_node.launch.py &
+PIDS+=($!)
+sleep 2
 
 # -----------------------------------------------------------------------------
 # 3. LightWare SF45/B LiDAR Driver
 # -----------------------------------------------------------------------------
 # echo -e "\033[1;33m[3/5] Launching LightWare SF45/B LiDAR Driver (Port: ${SF45B_PORT})...\033[0m"
 
-#echo -e "\033[1;33m[3/4] Launching LightWare SF45/B LiDAR Driver (Port: ${SF45B_PORT})...\033[0m"
-#ros2 launch lightwarelidar sf45b.launch.py port:="${SF45B_PORT}" &
-#PIDS+=($!)
-#sleep 1
+echo -e "\033[1;33m[3/4] Launching LightWare SF45/B LiDAR Driver (Port: ${SF45B_PORT})...\033[0m"
+ros2 launch lightwarelidar sf45b.launch.py port:="${SF45B_PORT}" &
+PIDS+=($!)
+sleep 1
 
 # -----------------------------------------------------------------------------
 # 4. LIROVO Navigation Stack
