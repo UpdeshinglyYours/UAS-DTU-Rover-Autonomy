@@ -273,5 +273,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-humble-image-transport-plugins \
     && rm -rf /var/lib/apt/lists/*
 
+# -----------------------------------------------------------------------------
+# 11. Mission planner GUI (mission_planner/mission_planner_live.py)
+# -----------------------------------------------------------------------------
+# python3-pil reads the satellite map; pyqtgraph draws on PyQt5.
+# pyqtgraph comes from pip with --no-deps: a plain install pulls numpy 2.x into
+# /usr/local, which shadows the system numpy 1.21 and breaks cv2 / cv_bridge.
+# The import check fails the build if numpy no longer comes from apt.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3-pil \
+    python3-pyqt5 \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip3 install --no-cache-dir --no-deps pyqtgraph==0.13.3 \
+    && python3 -c "import numpy, PIL, pyqtgraph; assert numpy.__file__.startswith('/usr/lib/python3/dist-packages'), numpy.__file__"
+
 WORKDIR /workspace
 CMD ["/bin/bash"]
