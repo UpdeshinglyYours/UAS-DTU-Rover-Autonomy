@@ -1,0 +1,59 @@
+# DARPA Triage casualty mission parameters.
+# Geometry (metres, rover CENTRE unless it says "body"):
+#   2.2 keepout (rule 2.0 + 0.2)  <  2.3 costmap lethal disc  <  2.9 orbit circle
+#   < 3.05 closest the global planner allows (2.3 + robot_radius 0.75)  <  3.3 STANDBY
+#   4.0 widest outward detour around small obstacles on the orbit circle.
+casualty_manager:
+  ros__parameters:
+    keepout_radius: 2.2            # no part of the body may come closer
+    costmap_keepout_radius: 2.3    # filled lethal disc sent to the costmaps
+    approach_radius: 3.3           # STANDBY: rover centre; real front bumper ~2.9 m away
+    approach_candidates: 16        # parking spots tried around a fully free circle
+    planner_candidates: 4          # how many of them get a real path computed
+    orbit_radius: 2.9              # real body side ~2.55 m from the casualty
+    orbit_max_detour_radius: 4.0
+    orbit_detour_step: 0.1
+    orbit_sample_deg: 3.0
+    orbit_max_radius_slope: 0.05   # m per sample; steeper swings the inner corner too close
+    orbit_edge_margin_deg: 6.0
+    orbit_max_sweep_deg: 360.0
+    orbit_clockwise: true          # casualty on the rover's right (camera side)
+    planning_guard: 0.1            # plans keep the padded body >= keepout + this
+    footprint_length: 1.0          # padded footprint (same as nav2_params4)
+    footprint_width: 0.9
+    standby_timeout: 0.0           # 0 = wait for start_orbit forever (RC testing)
+    auto_start: true               # start driving as soon as a casualty is added
+    face_casualty: true
+    orbit_controller: custom       # 'custom' (plugin tracker, holds 2.9 m +-6 cm, 0.4 m/s) or 'mppi'
+                                   # (Nav2 FollowPath + OrbitController: rides ~0.45 m wider, ~0.8 m/s
+                                   # in sim). Live: ros2 param set /casualty_manager orbit_controller mppi
+    look_around_before_orbit: true # spin 360 deg after the trigger: orbit plan sees ~96% of the band instead of ~46%
+    look_around_settle: 1.0
+    approach_timeout_base: 60.0
+    approach_timeout_per_m: 4.0
+    duplicate_radius: 0.5          # a casualty added within this of another is the same one
+    global_frame: map
+    robot_frame: base_link
+    global_costmap_topic: /global_costmap/costmap_raw
+    # EKF origin for lat/lon casualties. Leave NaN to use /mavros/global_position/gp_origin,
+    # or the origin published by mission_planner_live2.py.
+    origin_lat: .nan
+    origin_lon: .nan
+    log_dir: ~/casualty_logs
+
+rc_orbit_trigger:
+  ros__parameters:
+    orbit_channel: 10              # 3-position switch on CH10 (982 / 1495 / 2006 us): low->high = orbit
+    skip_channel: 0                # optional switch that skips the current casualty
+    high_us: 1700
+    low_us: 1300
+    debounce_s: 0.3
+
+keepout_monitor:
+  ros__parameters:
+    keepout_radius: 2.2
+    warn_margin: 0.1
+    real_footprint_length: 0.8
+    real_footprint_width: 0.7
+    global_frame: map
+    robot_frame: base_link

@@ -1,0 +1,61 @@
+# MAVROS plugin denylist for the rover (copy of ~/mavros_ws/src/mavros/mavros/launch/apm_pluginlists.yaml,
+# 2026-04-29). Unlike the INSTALLED mavros_ws list (2026-04-11, never rebuilt), rc_io is NOT
+# denied: it provides /mavros/rc/in (RC orbit switch, channel 10) and /mavros/rc/override
+# (new_omega_fixed5.py). Used by start_hardware_stack2.sh via mavros node.launch.
+/**:
+  ros__parameters:
+    plugin_denylist:
+      # common
+      - actuator_control
+      - ftp
+      - hil
+      - altitude
+      - command
+      - dummy
+      - ftp
+      - mission_protocol_base
+      - nav_controller_output
+      - rallypoint
+      - wind_estimation
+      - waypoint
+      # extras
+      - altitude
+      - debug_value
+      - image_pub
+      - px4flow
+      - vibration
+      - vision_speed_estimate
+      - 3dr_radio
+      - adsb
+      - cam_imu_sync
+      - camera
+      - cellular_status
+      - companion_process_status
+      - debug_value
+      - distance_sensor
+      - esc_status
+      - fake_gps
+      - gimbal_control
+      - landing_target
+      - log_transfer
+      - mag_calibration_status
+      - mocap_pose_estimate
+      - mount_control
+      - obstcale_distance_3d
+      - obstacle_distance
+      - onboard_computer_status
+      - open_drone_id
+      - optical_flow
+      - play_tune
+      - px4flow
+      - rangefinder
+      - sim_state
+      - terrain
+      - trajectory
+      - tunnel 
+      - vfr_hud
+      - vibration
+
+
+    # plugin_allowlist:
+    #   - 'sys_*'

@@ -1,0 +1,63 @@
+# Parameters for the stock-Nav2 casualty mission (casualty_manager_simple.py).
+# Distances are from the casualty, rover CENTRE unless it says "body":
+#   2.2  keepout rule (2.0 + 0.2): no part of the body may come closer
+#   2.3  lethal disc put into both costmaps (casualty_layer)
+#   3.05 closest the global planner lets the centre come (2.3 + robot_radius 0.75)
+#   3.3  orbit waypoints (real body side ~2.95 m from the casualty)
+casualty_manager:
+  ros__parameters:
+    keepout_radius: 2.2
+    costmap_keepout_radius: 2.3    # filled lethal disc sent to the costmaps
+    orbit_radius: 3.3              # waypoint circle
+    orbit_waypoints: 12            # one every 30 deg; more = rounder path, fewer = MPPI has more freedom
+    orbit_chunk_waypoints: 6       # sent as 2 x 180 deg: a goal ending where the rover is "succeeds" at once
+    orbit_clockwise: true          # casualty on the rover's right (camera side)
+    waypoint_reached_radius: 0.7   # rover within this of a waypoint = reached (goal tolerance is 0.5)
+    wait_for_trigger: true         # STANDBY until start_orbit: casualty_models_bridge (audio done),
+                                   # or the RC flick / rover_console 'o' as manual override
+    standby_timeout: 0.0           # 0 = wait forever
+    face_casualty: true            # Spin to face the casualty after arriving
+    auto_start: true               # start driving as soon as a casualty is added
+    approach_timeout_base: 60.0
+    approach_timeout_per_m: 4.0
+    orbit_timeout: 300.0           # per NavigateThroughPoses goal
+    duplicate_radius: 0.5
+    global_frame: map
+    robot_frame: base_link
+    global_costmap_topic: /global_costmap/costmap_raw
+    origin_lat: .nan               # NaN: use /mavros/global_position/gp_origin or the GUI's origin
+    origin_lon: .nan
+    log_dir: ~/casualty_logs       # in Docker point this into the mounted workspace (--rm loses /root)
+
+casualty_models_bridge:
+  ros__parameters:
+    # The casualty models run on the Orin host; the container reaches them on localhost.
+    extractor_url: http://127.0.0.1:8090   # frame_extractor.py --trigger http
+    audio_url: http://127.0.0.1:8091       # vortex_mission/host/audio_service.py
+    enable_extractor: true
+    enable_audio: true
+    audio_timeout: 120.0          # s from POST /run to triage; then cancelled and the orbit starts
+    standby_min_sec: 3.0          # parked (front-view) extractor segment lasts at least this long
+    orbit_if_audio_failed: true   # audio down / failed / timed out -> orbit anyway (never stall)
+    orbit_segment_deg: 90.0       # new extractor segment (K crops) every quarter of the orbit
+    http_timeout: 2.0
+    global_frame: map
+    robot_frame: base_link
+    log_dir: ~/casualty_logs      # in Docker point this into the mounted workspace (--rm loses /root)
+
+rc_orbit_trigger:
+  ros__parameters:
+    orbit_channel: 10              # 3-position switch on CH10 (982 / 1495 / 2006 us): low->high = orbit
+    skip_channel: 0
+    high_us: 1700
+    low_us: 1300
+    debounce_s: 0.3
+
+keepout_monitor:
+  ros__parameters:
+    keepout_radius: 2.2
+    warn_margin: 0.1
+    real_footprint_length: 0.8
+    real_footprint_width: 0.7
+    global_frame: map
+    robot_frame: base_link

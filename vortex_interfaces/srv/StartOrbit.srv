@@ -1,0 +1,6 @@
+# Called by the model script (or rc_orbit_trigger for testing) while the rover is in STANDBY.
+# Rejected unless the rover is in STANDBY at exactly this casualty_id.
+uint32 casualty_id
+---
+bool accepted
+string message
