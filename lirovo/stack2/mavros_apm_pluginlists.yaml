@@ -1,0 +1,11 @@
+/**:
+  ros__parameters:
+    plugin_allowlist:
+      - sys_status
+      - sys_time
+      - command
+      - imu
+      - local_position
+      - global_position
+      - rc_io
+      - setpoint_velocity
