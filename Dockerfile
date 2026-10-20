@@ -1,7 +1,7 @@
 # =============================================================================
 # UAS-DTU Rover Autonomy Development Container
 #
-# Workspaces:       uas_nav + Mavros_ws
+# Workspaces:       uas_nav + Mavros_ws + fcb_camera (FCB RGB/IR camera)
 # Host:             Ubuntu 24.04 / JetPack 7 / Ubuntu 22.04 LTS
 # Container:        Ubuntu 22.04 / ROS 2 Humble / CUDA 12.6
 # =============================================================================
@@ -190,6 +190,43 @@ RUN ARCH=$(dpkg --print-architecture) \
     fi
 
 # -----------------------------------------------------------------------------
+# 7b. FCB camera driver (fcb_camera/) & combined RGB + LiDAR rosbags
+# -----------------------------------------------------------------------------
+# rosbag2_storage_mcap: `ros2 bag record -s mcap` (lirovo/lirovo/record_sensors.sh)
+# v4l-utils:            v4l2-ctl, which fcb_orin_driver finds the camera board with
+# python3-opencv + GStreamer: frame capture and the AVI recorder (CPU encoder;
+#                       Jetson's nvv4l2h264enc is not available in this image)
+# tmux:                 record_sensors.sh's one-window-per-sensor session
+# pymavlink:            fcb_camera/fcu_sysid.py reads the autopilot's system ID
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ros-humble-rosbag2-storage-mcap \
+    v4l-utils \
+    python3-opencv \
+    gstreamer1.0-tools \
+    gstreamer1.0-plugins-base \
+    gstreamer1.0-plugins-good \
+    python3-lxml \
+    tmux \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip3 install --no-cache-dir pymavlink
+
+# -----------------------------------------------------------------------------
+# 7c. tf2 >= 0.25.24 (fix for a tf2_ros::Buffer deadlock)
+# -----------------------------------------------------------------------------
+# tf2 0.25.23 can deadlock between Buffer::waitForTransform and
+# BufferCore::testTransformableRequests when a point cloud waits for a TF that arrives
+# at the same moment. STVL's message filter thread then hangs for good and both Nav2
+# costmaps stop getting clouds within minutes, with no error (seen on the Orin
+# 2026-10-18). Fixed upstream in ros2/geometry2 9997e96955, released in 0.25.24.
+# A cached apt layer above can still hold 0.25.23, so upgrade here and fail the
+# build if the fix is missing.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends --only-upgrade \
+       $(dpkg-query -W -f='${binary:Package}\n' 'ros-humble-tf2*') \
+    && dpkg --compare-versions "$(dpkg-query -W -f='${Version}' ros-humble-tf2-ros)" ge 0.25.24 \
+    && rm -rf /var/lib/apt/lists/*
+
+# -----------------------------------------------------------------------------
 # 8. rosdep Init & Auto-Sourcing Environment
 # -----------------------------------------------------------------------------
 RUN rosdep init 2>/dev/null || true \
@@ -224,6 +261,31 @@ RUN echo "" >> /root/.bashrc \
 # ln -s /workspace/uas_nav /home/vortex/uas_nav
 # ln -s /workspace/rover_docker /home/vortex/rover_docker
 RUN mkdir -p /home/vortex
+
+# -----------------------------------------------------------------------------
+# 10. Image viewing (rqt_image_view + compressed / theora image transports)
+# -----------------------------------------------------------------------------
+# Last on purpose: every layer above stays cached, only this one is rebuilt.
+# View the FCB camera from inside the container on a NoMachine/X display:
+#   ros2 run rqt_image_view rqt_image_view /fcb_driver/image_raw/compressed
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ros-humble-rqt-image-view \
+    ros-humble-image-transport-plugins \
+    && rm -rf /var/lib/apt/lists/*
+
+# -----------------------------------------------------------------------------
+# 11. Mission planner GUI (mission_planner/mission_planner_live.py)
+# -----------------------------------------------------------------------------
+# python3-pil reads the satellite map; pyqtgraph draws on PyQt5.
+# pyqtgraph comes from pip with --no-deps: a plain install pulls numpy 2.x into
+# /usr/local, which shadows the system numpy 1.21 and breaks cv2 / cv_bridge.
+# The import check fails the build if numpy no longer comes from apt.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3-pil \
+    python3-pyqt5 \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip3 install --no-cache-dir --no-deps pyqtgraph==0.13.3 \
+    && python3 -c "import numpy, PIL, pyqtgraph; assert numpy.__file__.startswith('/usr/lib/python3/dist-packages'), numpy.__file__"
 
 WORKDIR /workspace
 CMD ["/bin/bash"]

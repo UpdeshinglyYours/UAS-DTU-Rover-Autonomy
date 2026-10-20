@@ -1,0 +1,43 @@
+# Parameters for fcb_driver. Every one defaults to what fcb_record.py did;
+# only the commonly changed ones are listed here. See README.md for all.
+fcb_driver:
+  ros__parameters:
+    # -- camera ------------------------------------------------------------
+    video: ""                  # "" = find the FCB board by USB ID / card name
+    width: 1920
+    height: 1080
+    fps: 60.0                  # nominal rate, used when the board misreports
+    camera_timeout: 5.0        # s without frames before the capture is reopened
+    board_power_cycle_cmd: ""  # shell command cycling the board's 12 V, or ""
+
+    # -- camera control (VISCA) -------------------------------------------
+    port: ""                   # "" = find it by a VISCA exchange
+    baud: 0                    # 0 = try 9600, 38400, 115200
+    stabilizer: "on"           # on | off | keep
+    icr: ""                    # rgb | ir | rgb+ir | auto; "" = leave as found
+    curve: ratio               # ratio | log | raw  (zoom knob shaping)
+    zoom_step: 0.5             # detent size in x; 0 = continuous
+
+    # -- flight controller --------------------------------------------------
+    fc_source: pymavlink       # pymavlink | mavros | none
+    mavros_namespace: /mavros
+    rc_url: ""                 # "" = probe serial ports for a heartbeat
+    require_mavlink: false     # true: refuse to start with no flight controller
+    rc_channel: 7              # zoom knob
+    rec_channel: 8             # recording switch
+    snap_channel: 9            # snapshot button (0 disables)
+    icr_channel: 10            # RGB / RGB+IR / IR switch (0 disables)
+
+    # -- recording ----------------------------------------------------------
+    record_dir: ~/flight_recordings
+    autostart: false
+    container: avi             # avi survives a power cut; mp4 does not
+    encoder: nvenc             # nvenc falls back to cpu if it will not open
+    bitrate: 25.0
+
+    # -- ROS ------------------------------------------------------------------
+    frame_id: fcb_camera_optical_frame
+    publish_image: true
+    publish_rate_hz: 0.0       # 0 = every frame
+    publish_rotate: 0          # 0 | 180, published images only
+    camera_info_url: ""

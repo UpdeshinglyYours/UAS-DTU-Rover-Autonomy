@@ -4,8 +4,9 @@ import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import Imu
-from mavros_msgs.msg import OverrideRCIn
+from mavros_msgs.msg import OverrideRCIn, RCIn
 from nav_msgs.msg import Odometry
+from std_msgs.msg import Float64
 
 from collections import deque
 
@@ -43,6 +44,17 @@ class OmegaController(Node):
         self.band = 0.02
 
         self.have_cmd = False
+
+        # Semi-autonomous RC channel monitoring.
+        # 0-based index of the spare switch channel on your transmitter.
+        # Identify it via `ros2 topic echo /mavros/rc/in` while flicking the switch.
+        self.declare_parameter("autonomy_mode_channel", 4)
+        self.autonomy_mode_channel = int(
+            self.get_parameter("autonomy_mode_channel").value
+        )
+
+        self.autonomous_mode = True
+        self._last_autonomous_mode = True
 
         self.current_pwm = 1500
 
@@ -290,6 +302,12 @@ class OmegaController(Node):
             10,
         )
 
+        self.wait_trigger_pub = self.create_publisher(
+            Float64,
+            "/wait_trigger",
+            10,
+        )
+
         self.sub = self.create_subscription(
             Imu,
             "/mavros/imu/data",
@@ -314,7 +332,14 @@ class OmegaController(Node):
             "/cmd_vel",
             self.cmd_callback,
             10,
-            )       
+        )
+
+        self.rc_sub = self.create_subscription(
+            RCIn,
+            "/mavros/rc/in",
+            self.rc_callback,
+            qos_profile_sensor_data,
+        )
 
     #########################################################
     # IMU CALLBACK
@@ -763,6 +788,56 @@ class OmegaController(Node):
         self.have_cmd = True
 
     #########################################################
+    # RC CHANNEL CALLBACK — semi-autonomous mode switching
+    #########################################################
+
+    def rc_callback(self, msg):
+        # --- RC5 (index 4): autonomy switch, 982 = AUTO, 2006 = MANUAL ---
+        if self.autonomy_mode_channel < len(msg.channels):
+            pwm5 = msg.channels[self.autonomy_mode_channel]
+
+            if pwm5 != 0:
+                if pwm5 > 1700:
+                    now_autonomous = False   # 2006 → MANUAL
+                elif pwm5 < 1200:
+                    now_autonomous = True    # 982  → AUTO
+                else:
+                    now_autonomous = self._last_autonomous_mode  # mid-travel, hold state
+
+                if now_autonomous != self._last_autonomous_mode:
+                    self.autonomous_mode = now_autonomous
+                    self._last_autonomous_mode = now_autonomous
+
+                    trigger = Float64()
+
+                    if not self.autonomous_mode:
+                        trigger.data = 9999.0
+                        self.get_logger().warn(
+                            f"\n\n🛑 [MANUAL MODE] RC5 PWM={pwm5} "
+                            f"— RC override released, Nav2 frozen\n"
+                        )
+                    else:
+                        # Reset to neutral so no stale command fires on resume
+                        self.target_mag = 0.0
+                        self.target_linear_mag = 0.0
+                        self.target = 0.0
+                        self.target_linear = 0.0
+                        self.ff_initialized = False
+                        self.linear_ff_initialized = False
+                        self.current_pwm = 1500
+                        self.throttle_pwm = 1500
+                        self.have_cmd = False
+
+                        trigger.data = 0.0
+                        self.get_logger().warn(
+                            f"\n\n▶️  [AUTO MODE] RC5 PWM={pwm5} "
+                            f"— RC override active, Nav2 unfrozen\n"
+                        )
+
+                    self.wait_trigger_pub.publish(trigger)
+
+
+    #########################################################
     # Least-squares gradient estimate  (rad/s²)
     #########################################################
 
@@ -947,9 +1022,10 @@ class OmegaController(Node):
 
         msg.channels = [65535] * 18
 
-        msg.channels[0] = self.current_pwm      # steering / yaw
-
-        msg.channels[1] = self.throttle_pwm     # throttle
+        if self.autonomous_mode:
+            msg.channels[0] = self.current_pwm      # steering / yaw
+            msg.channels[1] = self.throttle_pwm     # throttle
+        # else: channels 0 and 1 stay 65535 → physical RC sticks take over
 
         self.pub.publish(msg)
 

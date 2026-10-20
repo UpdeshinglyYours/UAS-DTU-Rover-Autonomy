@@ -1,0 +1,13 @@
+--- a/nav2_custom_bt_nodes/plugins/casualty_bt_nodes.cpp	2026-10-16 03:24:52.042337819 +0530
++++ b/nav2_custom_bt_nodes/plugins/casualty_bt_nodes.cpp	2026-10-16 03:24:52.044337943 +0530
+@@ -199,7 +199,9 @@
+   double angle_step = (2.0 * M_PI) / num_waypoints;
+ 
+   for (int i = 0; i <= num_waypoints; ++i) {
+-    double angle = start_angle + (i * angle_step);
++    // Minus = clockwise orbit: casualty stays on the rover's right, inside the
++    // camera yaw servo's range (about -146 to +34 deg from the heading).
++    double angle = start_angle - (i * angle_step);
+     
+     geometry_msgs::msg::PoseStamped p;
+     p.header = center.header; 

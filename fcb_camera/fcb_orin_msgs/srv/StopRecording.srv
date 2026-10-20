@@ -1,0 +1,6 @@
+# End the recording session: close the last video segment and the CSV.
+---
+bool success
+string message
+string base                 # pass to ~/rename_recording to name the flight
+string[] files

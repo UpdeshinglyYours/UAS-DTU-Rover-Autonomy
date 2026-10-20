@@ -1,0 +1,22 @@
+# Drive around a casualty on a circle of `radius` (rover centre), detouring outward
+# (never inward) around small obstacles up to `max_detour_radius`, covering as much
+# of the circle as is reachable. The detailed outcome is published on /orbit_casualty/report.
+
+uint32 casualty_id
+geometry_msgs/PoseStamped center   # casualty position, map frame
+float32 radius                     # orbit radius of the rover centre, m (e.g. 2.9)
+float32 standby_radius             # radius where turning on the spot is safe, m (e.g. 3.2)
+float32 keepout_radius             # no part of the body may come closer, m (e.g. 2.2)
+float32 max_detour_radius          # widest outward detour, m (e.g. 4.0)
+bool clockwise                     # true: casualty stays on the rover's right
+float32 max_sweep_deg              # usually 360
+string controller                  # "custom" (plugin tracker) or "mppi" (Nav2 FollowPath with the
+                                   # OrbitController); "" = the plugin's `controller` parameter
+---
+builtin_interfaces/Duration total_elapsed_time
+---
+string phase                       # TURN / SPIRAL_IN / SWEEP / SPIRAL_OUT
+uint8 leg                          # 1 or 2
+float32 covered_deg
+float32 radial_error               # rover distance minus target radius, m
+float32 min_body_distance          # so far, m

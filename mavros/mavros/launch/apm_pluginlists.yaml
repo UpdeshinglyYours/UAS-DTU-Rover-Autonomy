@@ -1,17 +1,41 @@
 /**:
   ros__parameters:
-    plugin_denylist:
-      # common
-      - actuator_control
-      - ftp
-      - hil
-      # extras
-      - altitude
-      - debug_value
-      - image_pub
-      - px4flow
-      - vibration
-      - vision_speed_estimate
+
+    # ==========================================================
+    # Previously configured plugin denylist (currently disabled)
+    # Retained for reference; these plugins are not explicitly
+    # denied because the allowlist below controls active plugins.
+    # ==========================================================
+
+    # plugin_denylist:
+    #   # Common
+    #   - actuator_control
+    #   - ftp
+    #   - hil
+    #
+    #   # Extras
+    #   - altitude
+    #   - debug_value
+    #   - image_pub
+    #   - px4flow
+    #   - vibration
+    #   - vision_speed_estimate
+
+    # ==========================================================
+    # Previous wildcard allowlist (disabled)
+    # ==========================================================
 
     # plugin_allowlist:
     #   - 'sys_*'
+
+    # ==========================================================
+    # Active plugin allowlist
+    # ==========================================================
+
+    plugin_allowlist:
+      - sys_status
+      - sys_time
+      - local_position
+      - imu_pub
+      - setpoint_velocity
+      - command

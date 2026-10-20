@@ -1,0 +1,11 @@
+uint8 FRAME_LATLON=0   # x = latitude (deg), y = longitude (deg)
+uint8 FRAME_MAP=1      # x, y in metres in the map frame
+
+uint8 frame
+float64 x
+float64 y
+string source
+---
+bool ok
+uint32 id
+string message

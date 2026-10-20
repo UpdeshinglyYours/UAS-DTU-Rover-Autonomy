@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  CycloneDDS for every ROS process on the rover (Humble container, Jazzy
+  container, host): discovery and data over loopback only, by unicast.
+
+  Loopback is the one interface that is always up. With autodetect, Cyclone
+  binds to whichever NIC it picks at start (Wi-Fi, the lidar Ethernet,
+  tailscale, docker0); when that link drops or changes address mid-run, the
+  nodes on this machine stop seeing each other. Off-board viewing (rviz on a
+  laptop) needs ROS_NET=net in rover.sh, which drops this file.
+-->
+<CycloneDDS xmlns="https://cdds.io/config">
+  <Domain id="any">
+    <General>
+      <Interfaces>
+        <NetworkInterface name="lo" multicast="false"/>
+      </Interfaces>
+      <AllowMulticast>false</AllowMulticast>
+    </General>
+    <Discovery>
+      <ParticipantIndex>auto</ParticipantIndex>
+      <MaxAutoParticipantIndex>120</MaxAutoParticipantIndex>
+      <Peers>
+        <Peer address="localhost"/>
+      </Peers>
+    </Discovery>
+  </Domain>
+</CycloneDDS>

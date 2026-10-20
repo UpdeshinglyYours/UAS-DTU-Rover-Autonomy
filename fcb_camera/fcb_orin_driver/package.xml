@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>fcb_orin_driver</name>
+  <version>0.2.0</version>
+  <description>ROS 2 driver and flight recorder for the Sony FCB-EV9520L on its USB board (Twiga NeoHD / Oppila LVDS-USB3), ported from fcb_orin. ROS 2 Humble build for the uas_rover container.</description>
+  <maintainer email="uasavionics@gmail.com">uasavionics</maintainer>
+  <license>Proprietary</license>
+
+  <depend>rclpy</depend>
+  <depend>sensor_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>std_srvs</depend>
+  <depend>fcb_orin_msgs</depend>
+  <exec_depend>mavros_msgs</exec_depend>
+  <exec_depend>python3-opencv</exec_depend>
+  <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>python3-serial</exec_depend>
+  <exec_depend>python3-yaml</exec_depend>
+  <exec_depend>v4l-utils</exec_depend>
+  <!-- optional: python3-pymavlink, only for fc_source:=pymavlink -->
+
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

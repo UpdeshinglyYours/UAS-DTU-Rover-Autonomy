@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  cyclonedds_wifi2.xml = cyclonedds_wifi.xml with both USB Wi-Fi dongles listed.
+  2026-10-20: the rover's dongle became wlx00c0cab86656 (was wlx00c0cab86654). With only the
+  old name, Cyclone silently used the lidar Ethernet alone and the laptop on Wi-Fi saw no topics.
+  presence_required="false": a missing interface is skipped, so this works with either dongle.
+
+  CycloneDDS on the rover NX: talk on Wi-Fi (laptop / GCS side) AND the lidar Ethernet.
+  Without this, Cyclone picks ONE interface and prefers wired: every node lands on
+  enP8p1s0 (192.168.26.42, the Blickfeld's subnet) and the laptop on Wi-Fi never
+  discovers them (checked in /proc/net/igmp, 2026-10-16).
+  Use:  export CYCLONEDDS_URI=file:///workspace/rover_ws/src/UAS-DTU-navigation-simulation/lirovo/stack2/cyclonedds_wifi2.xml
+-->
+<CycloneDDS xmlns="https://cdds.io/config">
+  <Domain id="any">
+    <General>
+      <Interfaces>
+        <NetworkInterface name="wlx00c0cab86656" presence_required="false"/>
+        <NetworkInterface name="wlx00c0cab86654" presence_required="false"/>
+        <NetworkInterface name="enP8p1s0" presence_required="false"/>
+      </Interfaces>
+    </General>
+  </Domain>
+</CycloneDDS>

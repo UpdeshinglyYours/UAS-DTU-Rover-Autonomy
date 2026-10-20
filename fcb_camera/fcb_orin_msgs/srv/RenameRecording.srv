@@ -1,0 +1,9 @@
+# Rename every file of one finished session (CSV and all video segments),
+# or none of them. Never overwrites: a clash becomes name-2.
+string base                 # as returned by ~/stop_recording; "" = the last stopped one
+string name
+---
+bool success
+string message
+string base                 # the new base
+string[] files
