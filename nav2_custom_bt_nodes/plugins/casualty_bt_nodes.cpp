@@ -285,6 +285,9 @@ void DynamicWaitAction::halt()
 // REGISTRATION MACRO
 // ==============================================================================
 #include "behaviortree_cpp_v3/bt_factory.h"
+#include "nav2_custom_bt_nodes/manual_pause_nodes.hpp"
+#include "nav2_custom_bt_nodes/escape_nodes.hpp"
+#include "nav2_custom_bt_nodes/gate1_nodes.hpp"
 BT_REGISTER_NODES(factory)
 {
   factory.registerNodeType<nav2_custom_bt_nodes::PopNextGoal>("PopNextGoal");
@@ -293,5 +296,25 @@ BT_REGISTER_NODES(factory)
   factory.registerNodeType<nav2_custom_bt_nodes::IsGoalCloserThan>("IsGoalCloserThan");
   factory.registerNodeType<nav2_custom_bt_nodes::GenerateOrbitWaypoints>("GenerateOrbitWaypoints");
   factory.registerNodeType<nav2_custom_bt_nodes::DynamicWaitAction>("DynamicWaitAction");
+  // gate3_tree / gate1_tree: MANUAL/HOLD pause, resumable casualty pop, face the casualty
+  factory.registerNodeType<nav2_custom_bt_nodes::PauseWhileModeManual>("PauseWhileModeManual");
+  factory.registerNodeType<nav2_custom_bt_nodes::ResumeOrPopNextGoal>("ResumeOrPopNextGoal");
+  factory.registerNodeType<nav2_custom_bt_nodes::MarkGoalDone>("MarkGoalDone");
+  factory.registerBuilder<nav2_custom_bt_nodes::SpinToFaceGoal>(
+    "SpinToFaceGoal",
+    [](const std::string & name, const BT::NodeConfiguration & config) {
+      return std::make_unique<nav2_custom_bt_nodes::SpinToFaceGoal>(name, "spin", config);
+    });
+  // keepout guard + general escape
+  factory.registerNodeType<nav2_custom_bt_nodes::KeepoutClear>("KeepoutClear");
+  factory.registerNodeType<nav2_custom_bt_nodes::ComputeEscapeHeading>("ComputeEscapeHeading");
+  factory.registerNodeType<nav2_custom_bt_nodes::TurnToHeading>("TurnToHeading");
+  factory.registerNodeType<nav2_custom_bt_nodes::DriveForwardClear>("DriveForwardClear");
+  // gate1_tree (lawnmower search)
+  factory.registerNodeType<nav2_custom_bt_nodes::DropPassedWaypoints>("DropPassedWaypoints");
+  factory.registerNodeType<nav2_custom_bt_nodes::WaypointWindow>("WaypointWindow");
+  factory.registerNodeType<nav2_custom_bt_nodes::SkipWaypoint>("SkipWaypoint");
+  factory.registerNodeType<nav2_custom_bt_nodes::TrimToNearestWaypoint>("TrimToNearestWaypoint");
+  factory.registerNodeType<nav2_custom_bt_nodes::ClearFlag>("ClearFlag");
 }
 

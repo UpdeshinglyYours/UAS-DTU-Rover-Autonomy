@@ -1,0 +1,98 @@
+<?xml version="1.0"?>
+<!--
+  gate1_tree: LAWNMOWER SEARCH + MANUAL/HOLD PAUSE
+    * The goal array is a list of WAYPOINTS (e.g. a lawnmower pattern), not casualties. The rover drives
+      through them in order without stopping (only at the very last one), avoiding obstacles.
+    * It plans through the next TWO waypoints, replanned at 1 Hz; waypoints are dropped as they are
+      reached (within 1 m) or driven past (within 3 m and beyond them towards the next one).
+    * If that fails: the next waypoint only, after an escape if something is within 1.3 m (turn away from
+      what it is stuck against, drive out). If that fails too, the waypoint is SKIPPED, never revisited.
+    * PAUSE: while /mavros/state says MANUAL or HOLD the whole mission is frozen (every Nav2 action is
+      cancelled). GUIDED unfreezes it; any other mode leaves it as it is. After a pause the rover carries
+      on as before; if the operator moved it more than 3 m, it continues from the closest point on the
+      remaining pattern (earlier waypoints are dropped, no going back).
+    * Casualties are unknown here: there is no keepout guard. Avoiding them is up to the costmap and the
+      operator (pause).
+-->
+<root main_tree_to_execute="MainTree">
+
+  <!-- turn away from what the rover is stuck against (local costmap), wait 1 s for the lidar, drive straight
+       out; fails at once when there is nothing within 1.3 m to escape from (same nodes as gate3_tree) -->
+  <BehaviorTree ID="GeneralEscape">
+    <Sequence name="GeneralEscape">
+      <ComputeEscapeHeading heading="{escape_heading}"/>
+      <TurnToHeading heading="{escape_heading}"/>
+      <DriveForwardClear/>
+    </Sequence>
+  </BehaviorTree>
+
+  <!-- drive to the next waypoint only (re-planned at 1 Hz), stopping there -->
+  <BehaviorTree ID="OneWaypoint">
+    <PipelineSequence name="OneWaypoint">
+      <RateController hz="1.0">
+        <Sequence name="PlanToNextWaypoint">
+          <WaypointWindow input_goals="{goals}" size="1" window="{window}"/>
+          <ComputePathThroughPoses goals="{window}" path="{search_path}" planner_id="GridBased"/>
+        </Sequence>
+      </RateController>
+      <FollowPath path="{search_path}" controller_id="FollowPath" goal_checker_id="general_goal_checker"/>
+    </PipelineSequence>
+  </BehaviorTree>
+
+  <BehaviorTree ID="MainTree">
+    <ForceSuccess name="ForceMissionSuccess">
+     <Sequence name="MissionStart">
+      <!-- NEW MISSION: no pause has ended yet (runs once per mission; a pause does not re-run it) -->
+      <ClearFlag flag="{resumed_from_pause}" name="ClearResumedFlag"/>
+
+      <ReactiveFallback name="InterruptSystem">
+
+        <!-- BRANCH 0: Operator pause. RUNNING while the rover is in MANUAL or HOLD. -->
+        <PauseWhileModeManual name="ManualModePause" state_topic="/mavros/state" pause_modes="MANUAL,HOLD"
+                              resume_mode="GUIDED" resumed="{resumed_from_pause}" paused_at="{paused_at}"/>
+
+        <!-- BRANCH 1: The search. One iteration = one leg; ends when no waypoint is left. -->
+        <KeepRunningUntilFailure name="SearchLoop">
+          <Sequence name="NextLeg">
+
+            <!-- after a pause: if the operator moved the rover (> 3 m), continue from the closest point on the remaining pattern -->
+            <TrimToNearestWaypoint input_goals="{goals}" output_goals="{goals}" trigger="{resumed_from_pause}" paused_at="{paused_at}" move_threshold="3.0"/>
+            <!-- drop what has been reached / passed -->
+            <DropPassedWaypoints input_goals="{goals}" output_goals="{goals}" radius="1.0" pass_radius="3.0"/>
+            <!-- FAILURE when no waypoint is left: ends the loop (mission done) -->
+            <WaypointWindow input_goals="{goals}" size="1" window="{window}" name="AnyWaypointLeft"/>
+
+            <Fallback name="DriveOrSkip">
+
+              <!-- 1. Through the next TWO waypoints, re-planned at 1 Hz. Passed waypoints are dropped as it
+                      drives, so the window slides forward and the rover does not stop at them. -->
+              <PipelineSequence name="TwoWaypoints">
+                <RateController hz="1.0">
+                  <Sequence name="SlideAndPlan">
+                    <DropPassedWaypoints input_goals="{goals}" output_goals="{goals}" radius="1.0" pass_radius="3.0" keep_last="true"/>
+                    <WaypointWindow input_goals="{goals}" size="2" window="{window}"/>
+                    <ComputePathThroughPoses goals="{window}" path="{search_path}" planner_id="GridBased"/>
+                  </Sequence>
+                </RateController>
+                <FollowPath path="{search_path}" controller_id="FollowPath" goal_checker_id="general_goal_checker"/>
+              </PipelineSequence>
+
+              <!-- 2. The next waypoint only (e.g. the one after it is unreachable). If something is within
+                      1.3 m (stuck), escape first: turn away and drive out; the escape is a no-op otherwise. -->
+              <Sequence name="EscapeAndNextWaypoint">
+                <ForceSuccess><SubTree ID="GeneralEscape" __shared_blackboard="true"/></ForceSuccess>
+                <SubTree ID="OneWaypoint" __shared_blackboard="true"/>
+              </Sequence>
+
+              <!-- 3. Give up on it: skip, never revisited -->
+              <SkipWaypoint input_goals="{goals}" output_goals="{goals}"/>
+
+            </Fallback>
+          </Sequence>
+        </KeepRunningUntilFailure>
+
+      </ReactiveFallback>
+     </Sequence>
+    </ForceSuccess>
+  </BehaviorTree>
+</root>

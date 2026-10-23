@@ -1,0 +1,183 @@
+<?xml version="1.0"?>
+<!--
+  gate3_tree: STANDOFF + FACE + MANUAL/HOLD PAUSE
+  Same as vortex_custom_polygon_tree.xml, except:
+    * NO orbit: drive to the approach pose 3.5 m from the casualty, turn in place to face it,
+      wait 5 s, next casualty.
+    * PAUSE: while /mavros/state says MANUAL or HOLD the whole mission is frozen (every Nav2 action
+      is cancelled, so the controller stops sending cmd_vel). GUIDED unfreezes it. Any other mode
+      leaves it as it is (paused stays paused, running stays running).
+    * RESUME = REDO THE CURRENT CASUALTY FROM HERE: after a MANUAL/HOLD pause the
+      rover recomputes the approach pose from wherever it now is, drives there and does the 5 s
+      wait again. (PopNextGoal would have skipped to the next casualty instead.)
+-->
+<root main_tree_to_execute="MainTree">
+  <!-- keepout guard + general escape (darpa_sim_spark, 2026-10-23). GeneralEscape: turn away from what the rover is
+       stuck against (local costmap, keepout discs included), wait 1 s for the lidar, drive straight out. It turns via
+       cmd_vel: Nav2 Spin refuses next to a keepout disc or rock ("Collision Ahead", its 0.6 m disc footprint touches
+       it). Fails at once when there is nothing to escape from. -->
+  <BehaviorTree ID="GeneralEscape">
+    <Sequence name="GeneralEscape">
+      <ComputeEscapeHeading casualties="{all_casualties}" heading="{escape_heading}"/>
+      <TurnToHeading heading="{escape_heading}"/>
+      <DriveForwardClear casualties="{all_casualties}"/>
+    </Sequence>
+  </BehaviorTree>
+  <!-- The same escape, only when a casualty centre is within 3 m (keepout trouble) -->
+  <BehaviorTree ID="KeepoutEscapeGeneral">
+    <Sequence name="KeepoutEscapeGeneral">
+      <ComputeEscapeHeading casualties="{all_casualties}" require_casualty_within="3.0" heading="{escape_heading}"/>
+      <TurnToHeading heading="{escape_heading}"/>
+      <DriveForwardClear casualties="{all_casualties}"/>
+    </Sequence>
+  </BehaviorTree>
+
+  <BehaviorTree ID="MainTree">
+
+    <ForceSuccess name="ForceMissionSuccess">
+     <Sequence name="MissionStart">
+      <!--
+        NEW MISSION: nothing is in progress yet. bt_navigator halts the whole tree after every
+        goal (and on cancel), so this runs exactly once per mission; a pause only halts the
+        children of InterruptSystem below, so it does not run again then.
+      -->
+      <MarkGoalDone in_progress="{casualty_in_progress}" name="ClearCasualtyInProgress"/>
+      <!-- every casualty, for the keepout guard and the escape (ResumeOrPopNextGoal shrinks {goals}) -->
+      <SetBlackboard output_key="all_casualties" value="{goals}"/>
+      <!--
+        ReactiveFallback re-checks the interrupts on every tick. When one of them returns RUNNING,
+        the mission branch below it is HALTED (Nav2 goals cancelled). When the interrupt returns
+        FAILURE again, the mission branch is ticked from the top of the current casualty.
+      -->
+      <ReactiveFallback name="InterruptSystem">
+
+        <!-- BRANCH 0: Operator pause. RUNNING while the rover is in MANUAL or HOLD. -->
+        <PauseWhileModeManual name="ManualModePause" state_topic="/mavros/state" pause_modes="MANUAL,HOLD" resume_mode="GUIDED"/>
+
+        <!-- BRANCH 1: The Actual Mission -->
+        <KeepRunningUntilFailure name="LoopThroughCasualties">
+          <Sequence name="ProcessSingleCasualty">
+
+            <!--
+              1. POP TARGET (resumable):
+              Grabs the next casualty (X,Y) from the Blackboard array. If the previous casualty was
+              interrupted by a pause, hands back that same casualty instead of popping a new one.
+              If nothing is in progress and the array is empty, this returns FAILURE, which breaks the loop.
+            -->
+            <ResumeOrPopNextGoal input_goals="{goals}" output_goals="{goals}" output_goal="{casualty_center}" in_progress="{casualty_in_progress}"/>
+
+            <!--
+              2. THE CASUALTY SKIPPER (Safety Net):
+              If the rover gets stuck trying to reach this casualty, 'DrivingLogic' FAILS.
+              ForceSuccess catches that so the loop moves on to the next casualty.
+            -->
+            <ForceSuccess name="SkipBlockedCasualty">
+              <Sequence name="DrivingLogic">
+
+                <!-- MATH: Calculates a target exactly 3.5m away from the casualty center, on the line to the rover -->
+                <CalculateApproachPose center="{casualty_center}" radius="3.5" output_pose="{approach_pose}"/>
+
+                <!-- ==================================================================== -->
+                <!-- PHASE 1: THE APPROACH (Nav2 Default Robust Navigation)               -->
+                <!-- ==================================================================== -->
+                <!--
+                  If the approach point is unreachable: farther than 5 m from the casualty, ApproachRecoveryManager
+                  runs through all 6 retries and physical recoveries; within 5 m it gives up straight away.
+                  Either way ForceSuccess returns SUCCESS so the face + 5 s wait below still happens.
+                -->
+                <ForceSuccess name="IgnoreBlockedApproachPose">
+                  <RecoveryNode number_of_retries="6" name="ApproachRecoveryManager">
+
+                    <!-- keepout guard: stops before any part of the rover can reach 2 m of any casualty -->
+                    <ReactiveSequence name="GuardedApproach">
+                    <KeepoutClear casualties="{all_casualties}"/>
+                    <PipelineSequence name="ApproachPipeline">
+
+                      <!-- PLANNER: Draws the global path at 1 Hz to save CPU -->
+                      <RateController hz="1.0">
+                        <RecoveryNode number_of_retries="1" name="PlannerRecovery">
+                          <ComputePathToPose goal="{approach_pose}" path="{approach_path}" planner_id="GridBased"/>
+                          <!-- If planning fails (and we are > 5 m from the casualty), clear the global windshield and try once more -->
+                          <Sequence name="PlannerRecoveryIfFar">
+                            <!-- no recovery within 5 m of the casualty: fail straight through to the face + 5 s wait -->
+                            <Inverter><IsGoalCloserThan distance="5.0" goal="{casualty_center}"/></Inverter>
+                            <ClearEntireCostmap name="ClearGlobalCostmap-Planner" service_name="global_costmap/clear_entirely_global_costmap"/>
+                          </Sequence>
+                        </RecoveryNode>
+                      </RateController>
+
+                      <!-- CONTROLLER: MPPI follows the path -->
+                      <RecoveryNode number_of_retries="1" name="ControllerRecovery">
+                        <FollowPath path="{approach_path}" controller_id="FollowPath" goal_checker_id="general_goal_checker"/>
+                        <!-- If MPPI panics (and we are > 5 m from the casualty), clear the local windshield and try once more -->
+                        <Sequence name="ControllerRecoveryIfFar">
+                          <!-- no recovery within 5 m of the casualty: fail straight through to the face + 5 s wait -->
+                          <Inverter><IsGoalCloserThan distance="5.0" goal="{casualty_center}"/></Inverter>
+                          <ClearEntireCostmap name="ClearLocalCostmap-Controller" service_name="local_costmap/clear_entirely_local_costmap"/>
+                        </Sequence>
+                      </RecoveryNode>
+
+                    </PipelineSequence>
+                    </ReactiveSequence>
+
+                    <!-- ESCALATED RECOVERIES: only while > 5 m from the casualty. Within 5 m a failed approach
+                         (e.g. a rock sitting on the approach pose) gives up at once: IgnoreBlockedApproachPose
+                         turns that into SUCCESS and the rover faces the casualty and does the 5 s wait from here. -->
+                    <Sequence name="PhysicalRecoveryIfFar">
+                      <Inverter><IsGoalCloserThan distance="5.0" goal="{casualty_center}"/></Inverter>
+                      <ReactiveFallback name="PhysicalRecoveryFallback">
+                        <!-- If a new goal is sent, stop recovering and go to it -->
+                        <GoalUpdated/>
+
+                        <!-- Cycle through these moves one by one each time we get stuck -->
+                        <RoundRobin name="PhysicalRecoveryActions">
+                          <!-- Spin 180 degs counter-clockwise, then wait, then spin 180 degs counter-clockwise again -->
+                          <SubTree ID="GeneralEscape" __shared_blackboard="true"/>  <!-- was a 180 deg Spin (refused when stuck) -->
+                          <Wait wait_duration="5.0" name="WaitRecovery"/>
+                          <SubTree ID="GeneralEscape" __shared_blackboard="true"/>  <!-- was a 180 deg Spin (refused when stuck) -->
+                          <!-- BackUp recovery commented out as requested by Vortex (no reversing!) -->
+                          <!-- <BackUp backup_dist="0.30" backup_speed="0.05" name="BackupRecovery"/> -->
+                        </RoundRobin>
+                      </ReactiveFallback>
+                    </Sequence>
+
+                  </RecoveryNode>
+                </ForceSuccess>
+
+                <!-- ==================================================================== -->
+                <!-- PHASE 2: FACE THE CASUALTY                                           -->
+                <!-- ==================================================================== -->
+                <!--
+                  Turn in place (behavior_server Spin, max_rotational_vel = 0.5 rad/s) by the shortest angle
+                  until the nose points at the casualty. No turn if already within 10 deg; stops with < 3 deg left.
+                  If the Spin is refused (collision ahead) or times out, ForceSuccess lets the wait go ahead anyway.
+                -->
+                <!-- if a failed approach left the rover within 3 m of a casualty (keepout trouble), escape before facing / waiting -->
+                <ForceSuccess name="KeepoutEscapeBeforeFace">
+                  <SubTree ID="KeepoutEscapeGeneral" __shared_blackboard="true"/>
+                </ForceSuccess>
+                <ForceSuccess name="FaceCasualtyOrSkip">
+                  <SpinToFaceGoal goal="{casualty_center}" tolerance_deg="10.0" done_tolerance_deg="3.0" expected_rate="0.5" time_margin="5.0" server_timeout="1000" name="FaceCasualty"/>
+                </ForceSuccess>
+
+                <!-- ==================================================================== -->
+                <!-- PHASE 3: DATA TRANSMISSION (no orbit in this tree)                   -->
+                <!-- ==================================================================== -->
+                <!-- Parked at the standoff point: wait here 5 seconds to process camera feeds / transmit data -->
+                <Wait wait_duration="5.0" server_timeout="1000.0" name="FinalTransmissionWait"/>
+
+              </Sequence>
+            </ForceSuccess>
+
+            <!-- 3. CASUALTY FINISHED: the next ResumeOrPopNextGoal pops a new one -->
+            <MarkGoalDone in_progress="{casualty_in_progress}"/>
+
+          </Sequence>
+        </KeepRunningUntilFailure>
+
+      </ReactiveFallback>
+     </Sequence>
+    </ForceSuccess>
+
+  </BehaviorTree>
+</root>

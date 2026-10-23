@@ -15,6 +15,8 @@ find_package(geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
+find_package(mavros_msgs REQUIRED)
+find_package(nav2_msgs REQUIRED)
 
 include_directories(include)
 
@@ -26,11 +28,13 @@ geometry_msgs
 nav_msgs
 tf2
 tf2_geometry_msgs
+mavros_msgs
+nav2_msgs
 )
 
 #1. Build the shared library for our 3 custom nodes
 
-add_library(nav2_custom_bt_nodes SHARED plugins/casualty_bt_nodes.cpp)
+add_library(nav2_custom_bt_nodes SHARED plugins/casualty_bt_nodes.cpp plugins/manual_pause_nodes.cpp plugins/escape_nodes.cpp plugins/gate1_nodes.cpp)
 
 #2. Link dependencies
 
